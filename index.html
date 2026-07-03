@@ -1,0 +1,1916 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111216" />
+    <title>DSR score</title>
+    <style>
+:root {
+  color-scheme: dark;
+  --bg: #f4f4f2;
+  --phone: #111216;
+  --panel: #202126;
+  --panel-soft: #26272d;
+  --tile: #15161a;
+  --ink: #f7f7f8;
+  --muted: #96979d;
+  --line: #2f3036;
+  --orange: #ff7817;
+  --orange-dark: #d95f09;
+  --danger: #ff6b5d;
+  --good: #8ee0b6;
+  --radius: 28px;
+  --radius-sm: 18px;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 120, 23, 0.5);
+}
+
+.app-shell {
+  width: min(100%, 430px);
+  min-height: 100vh;
+  margin: 0 auto;
+  background: var(--phone);
+  box-shadow: var(--shadow);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: max(2rem, env(safe-area-inset-top)) 28px 18px;
+  background: linear-gradient(180deg, rgba(17, 18, 22, 0.98), rgba(17, 18, 22, 0.88));
+  backdrop-filter: blur(16px);
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.app-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+
+.app-logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.logo-ring {
+  fill: var(--orange);
+}
+
+.logo-core {
+  fill: var(--phone);
+}
+
+.logo-sight {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.app-logo text {
+  fill: var(--ink);
+  font: 900 10.5px Inter, ui-sans-serif, system-ui, sans-serif;
+  text-anchor: middle;
+  letter-spacing: 0.4px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(1.65rem, 7vw, 2rem);
+  line-height: 1.02;
+  font-weight: 850;
+}
+
+h2 {
+  font-size: 1.68rem;
+  line-height: 1.12;
+  font-weight: 850;
+}
+
+h3 {
+  font-size: 1.35rem;
+  line-height: 1.15;
+  font-weight: 850;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.topbar .eyebrow {
+  display: none;
+}
+
+.muted,
+.notice {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.content {
+  padding: 10px 28px calc(7.25rem + env(safe-area-inset-bottom));
+}
+
+.view,
+.more-panel {
+  display: none;
+}
+
+.view.is-active,
+.more-panel.is-active {
+  display: block;
+}
+
+.hero-panel,
+.stat-tile,
+.list-item,
+.rank-item,
+.profile-item,
+.insight-item,
+.penalty-row,
+.counter-card,
+.chart-panel,
+.calc-panel,
+.tab-strip,
+.notice,
+dialog {
+  background: var(--panel);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+.hero-panel {
+  display: grid;
+  gap: 24px;
+  padding: 28px;
+}
+
+.hero-panel h2 {
+  margin-top: 14px;
+}
+
+.hero-panel .muted {
+  display: none;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.metric-row div {
+  display: grid;
+  place-items: center;
+  min-height: 130px;
+  padding: 18px 10px;
+  border-radius: 22px;
+  background: var(--tile);
+}
+
+.metric-row span,
+.stat-tile span {
+  display: block;
+  color: var(--orange);
+  font-size: clamp(2.6rem, 12vw, 3.6rem);
+  line-height: 0.95;
+  font-weight: 900;
+}
+
+.metric-row small,
+.stat-tile small {
+  color: var(--muted);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+small {
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.quick-actions,
+.field-grid,
+.stats-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.quick-actions,
+.field-grid {
+  grid-template-columns: 1fr;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.primary-action,
+.secondary-action,
+.text-button,
+.icon-button {
+  border: 0;
+  transition: transform 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.primary-action,
+.secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 18px;
+  min-height: 96px;
+  padding: 22px 28px;
+  border-radius: 24px;
+  font-size: 1.42rem;
+  font-weight: 850;
+}
+
+.primary-action {
+  background: var(--orange);
+  color: #18120d;
+}
+
+.secondary-action {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.primary-action span,
+.secondary-action span {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  color: currentColor;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.text-button {
+  min-height: 34px;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--orange);
+  font-weight: 850;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 2rem;
+  font-weight: 850;
+}
+
+.primary-action:active,
+.secondary-action:active,
+.icon-button:active,
+.bottom-nav button:active,
+.stepper button:active {
+  transform: scale(0.96);
+}
+
+.full-width {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.section-block {
+  margin-top: 28px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-heading .eyebrow {
+  margin-bottom: 8px;
+}
+
+.list,
+.ranking-list,
+.profile-list,
+.insight-list,
+.penalty-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.list-item,
+.rank-item,
+.profile-item,
+.insight-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 76px;
+  padding: 18px 22px;
+}
+
+.list-item strong,
+.rank-item strong,
+.profile-item strong {
+  display: block;
+  font-size: 1.2rem;
+}
+
+.list-item small,
+.rank-item small,
+.profile-item small {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.rank-item {
+  min-height: 74px;
+}
+
+.rank-number {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--orange);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.rank-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-score {
+  color: var(--orange);
+  text-align: right;
+}
+
+.rank-score strong {
+  font-size: 1.45rem;
+}
+
+.rank-score small {
+  display: none;
+}
+
+.status-pill,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #18120d;
+  font-weight: 850;
+  font-size: 0.9rem;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.stat-tile {
+  display: grid;
+  place-items: center;
+  min-height: 104px;
+  padding: 14px 8px;
+}
+
+.stat-tile span {
+  font-size: 2rem;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+label span {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 64px;
+  border: 0;
+  border-radius: 18px;
+  padding: 0 18px;
+  background: var(--panel);
+  color: var(--ink);
+  outline: none;
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+input:focus,
+select:focus {
+  box-shadow: inset 0 0 0 2px var(--orange);
+}
+
+.score-form {
+  display: grid;
+  gap: 14px;
+}
+
+.counter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.counter-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 92px;
+  padding: 20px 24px;
+}
+
+.counter-top {
+  min-width: 0;
+}
+
+.counter-top strong {
+  color: var(--muted);
+  font-size: 1.55rem;
+  font-weight: 850;
+  line-height: 1.08;
+  white-space: normal;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: 52px 58px 52px;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepper button {
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 16px;
+  background: #2b2c32;
+  color: var(--ink);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.stepper button[data-step="1"] {
+  background: var(--orange);
+  color: #17100c;
+}
+
+.stepper output {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 52px;
+  color: var(--ink);
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.calc-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 22px;
+}
+
+.calc-panel div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  border-radius: 18px;
+  background: var(--tile);
+  padding: 0 18px;
+}
+
+.calc-panel div:last-child {
+  min-height: 152px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  padding: 0;
+  text-align: center;
+}
+
+.calc-panel small {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 850;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.calc-panel strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.35rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.calc-panel div:last-child strong {
+  color: var(--orange);
+  font-size: clamp(4rem, 18vw, 5.4rem);
+}
+
+.filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-bar select {
+  width: auto;
+  min-width: 116px;
+  min-height: 48px;
+  border-radius: 14px;
+  color: var(--muted);
+}
+
+.filter-bar select:focus,
+.filter-bar select:hover {
+  color: var(--ink);
+}
+
+.notice {
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  color: var(--muted);
+}
+
+.tab-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+
+.tab-strip button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.tab-strip button.is-active {
+  background: var(--orange);
+  color: #18120d;
+}
+
+.more-panel {
+  margin-top: 20px;
+}
+
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  background: var(--orange);
+  color: #18120d;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.profile-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.delete-button {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 16px;
+  background: #2b2c32;
+  color: var(--muted);
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.delete-button:active {
+  transform: scale(0.96);
+}
+
+.delete-button:hover,
+.delete-button:focus-visible {
+  color: var(--danger);
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.chart-panel {
+  padding: 22px;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 16px;
+  border-radius: 18px;
+  background: var(--tile);
+  overflow: hidden;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.penalty-row {
+  display: grid;
+  grid-template-columns: 1fr 86px 56px;
+  gap: 10px;
+  align-items: end;
+  padding: 16px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--tile);
+}
+
+.toggle input {
+  width: 1.2rem;
+  min-height: 1.2rem;
+  accent-color: var(--orange);
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  width: min(100%, 430px);
+  padding: 14px 28px calc(22px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  border-top: 1px solid var(--line);
+  background: rgba(17, 18, 22, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+.bottom-nav button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 46px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #67686f;
+  font-weight: 900;
+}
+
+.bottom-nav button span {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.bottom-nav button small {
+  display: none;
+}
+
+.bottom-nav button.is-active {
+  color: var(--orange);
+}
+
+dialog {
+  width: min(calc(100% - 40px), 390px);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.56);
+}
+
+dialog form {
+  display: grid;
+  gap: 16px;
+}
+
+dialog menu {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+}
+
+dialog .primary-action,
+dialog .secondary-action {
+  min-height: 62px;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  z-index: 30;
+  width: min(calc(100% - 56px), 374px);
+  padding: 16px 20px;
+  transform: translate(-50%, 1rem);
+  border-radius: 18px;
+  background: var(--orange);
+  color: #18120d;
+  font-weight: 850;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.empty {
+  padding: 22px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--muted);
+  text-align: center;
+  font-weight: 800;
+}
+
+@media (min-width: 760px) {
+  body {
+    padding: 24px 0;
+  }
+
+  .app-shell {
+    min-height: calc(100vh - 48px);
+    border-radius: 40px;
+    overflow: hidden;
+  }
+
+  .bottom-nav {
+    border-radius: 0 0 40px 40px;
+  }
+}
+
+@media (max-width: 390px) {
+  .topbar {
+    padding-inline: 22px;
+  }
+
+  .content {
+    padding-inline: 22px;
+  }
+
+  .metric-row {
+    gap: 12px;
+  }
+
+  .counter-card {
+    padding-inline: 18px;
+  }
+
+  .counter-top strong {
+    font-size: 1.25rem;
+  }
+
+  .stepper {
+    grid-template-columns: 44px 46px 44px;
+    gap: 6px;
+  }
+
+  .stepper button,
+  .stepper output {
+    width: 44px;
+    height: 44px;
+    font-size: 1.35rem;
+  }
+
+  .quick-actions .primary-action,
+  .quick-actions .secondary-action {
+    min-height: 84px;
+    font-size: 1.2rem;
+  }
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="app-logo" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img">
+              <circle class="logo-ring" cx="32" cy="32" r="29" />
+              <circle class="logo-core" cx="32" cy="32" r="20" />
+              <path class="logo-sight" d="M32 7v10M32 47v10M7 32h10M47 32h10" />
+              <text x="32" y="36">DSR</text>
+            </svg>
+          </span>
+          <div>
+            <p class="eyebrow">DSR training</p>
+            <h1>DSR score</h1>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="view is-active" id="view-home" aria-labelledby="home-title">
+          <div class="hero-panel">
+            <div>
+              <h2 id="home-title">Training DSR</h2>
+              <p class="muted">Training en onderlinge vergelijking binnen de vereniging.</p>
+            </div>
+            <div class="metric-row">
+              <div>
+                <span id="homeParticipants">0</span>
+                <small>deelnemers</small>
+              </div>
+              <div>
+                <span id="homeScores">0</span>
+                <small>scores</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-actions" aria-label="Snelle acties">
+            <button class="primary-action" type="button" data-go="scores">
+              <span aria-hidden="true">◎</span>
+              Score invoeren
+            </button>
+            <button class="secondary-action" type="button" data-go="ranking">
+              <span aria-hidden="true">1↵</span>
+              Klassement
+            </button>
+          </div>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <h3>Live stand</h3>
+              <button class="text-button" type="button" data-go="ranking">Bekijk alles</button>
+            </div>
+            <div class="list" id="homeRanking"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-competitions" aria-labelledby="competitions-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Schutters</p>
+              <h2 id="competitions-title">Deelnemers</h2>
+            </div>
+            <span class="status-pill">Live</span>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-tile">
+              <span id="competitionShooterCount">0</span>
+              <small>schutters</small>
+            </div>
+            <div class="stat-tile">
+              <span id="competitionScoreCount">0</span>
+              <small>ingevuld</small>
+            </div>
+          </div>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <h3>Deelnemers</h3>
+              <button class="icon-button" type="button" id="addShooterButton" aria-label="Schutter toevoegen" title="Schutter toevoegen">
+                <span aria-hidden="true">＋</span>
+              </button>
+            </div>
+            <div class="chip-list" id="participantChips"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-scores" aria-labelledby="scores-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Score-invoer</p>
+              <h2 id="scores-title">Score invoeren</h2>
+            </div>
+            <button class="icon-button" id="resetScoreButton" type="button" aria-label="Score wissen" title="Score wissen">
+              <span aria-hidden="true">↺</span>
+            </button>
+          </div>
+
+          <form id="scoreForm" class="score-form">
+            <div class="field-grid">
+              <label>
+                <span>Schutter</span>
+                <select id="scoreShooter"></select>
+              </label>
+            </div>
+
+            <div class="counter-grid" id="counterGrid"></div>
+
+            <div class="field-grid">
+              <label>
+                <span>Tijd</span>
+                <input id="scoreTime" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" />
+              </label>
+              <label>
+                <span>Opmerkingen</span>
+                <input id="scoreNotes" type="text" placeholder="Optioneel" />
+              </label>
+            </div>
+
+            <section class="calc-panel" aria-label="Live berekening">
+              <div>
+                <small>Trefferpunten</small>
+                <strong id="calcHits">0</strong>
+              </div>
+              <div>
+                <small>Strafpunten</small>
+                <strong id="calcPenalties">0</strong>
+              </div>
+              <div>
+                <small>Netto score</small>
+                <strong id="calcNet">0</strong>
+              </div>
+              <div>
+                <small>Hitfactor</small>
+                <strong id="calcHitfactor">0.000</strong>
+              </div>
+            </section>
+
+            <button class="primary-action full-width" type="submit">
+              <span aria-hidden="true">✓</span>
+              Score opslaan
+            </button>
+          </form>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <h3>Laatste scores</h3>
+            </div>
+            <div class="list" id="recentScores"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-ranking" aria-labelledby="ranking-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Informatief</p>
+              <h2 id="ranking-title">Klassement</h2>
+            </div>
+            <button class="icon-button" id="exportButton" type="button" aria-label="Exporteren" title="Exporteren">
+              <span aria-hidden="true">⇩</span>
+            </button>
+          </div>
+
+          <div class="filter-bar">
+            <select id="rankDiscipline" aria-label="Discipline filter">
+              <option value="all">Alle disciplines</option>
+              <option value="DSR">DSR</option>
+            </select>
+            <select id="rankLevel" aria-label="Niveau filter">
+              <option value="all">Alle niveaus</option>
+              <option value="Beginner">Beginner</option>
+              <option value="Gevorderd">Gevorderd</option>
+              <option value="Open">Open</option>
+            </select>
+            <select id="rankSort" aria-label="Sortering">
+              <option value="hitfactor">Hitfactor</option>
+              <option value="points">Punten</option>
+              <option value="time">Tijd</option>
+            </select>
+          </div>
+
+          <p class="notice">Alleen voor trainingen en interne vergelijking. Geen officiele ranglijst.</p>
+          <div class="ranking-list" id="rankingList"></div>
+        </section>
+
+        <section class="view" id="view-more" aria-labelledby="more-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Meer</p>
+              <h2 id="more-title">Schutters, dashboard en instellingen</h2>
+            </div>
+          </div>
+
+          <div class="tab-strip" role="tablist" aria-label="Meer opties">
+            <button class="is-active" type="button" data-more-tab="shooters">Schutters</button>
+            <button type="button" data-more-tab="dashboard">Dashboard</button>
+            <button type="button" data-more-tab="settings">Instellingen</button>
+          </div>
+
+          <section class="more-panel is-active" id="more-shooters">
+            <div class="section-heading">
+              <h3>Schutterprofielen</h3>
+              <button class="icon-button" type="button" id="profileAddButton" aria-label="Schutter toevoegen" title="Schutter toevoegen">
+                <span aria-hidden="true">＋</span>
+              </button>
+            </div>
+            <div class="profile-list" id="profileList"></div>
+          </section>
+
+          <section class="more-panel" id="more-dashboard">
+            <div class="dashboard-grid">
+              <article class="chart-panel">
+                <h3>Hitfactor door de tijd</h3>
+                <canvas id="hitfactorChart" width="360" height="180"></canvas>
+              </article>
+              <article class="chart-panel">
+                <h3>Alpha / Charlie / Delta</h3>
+                <canvas id="ratioChart" width="360" height="180"></canvas>
+              </article>
+            </div>
+
+            <section class="section-block">
+              <h3>Automatische inzichten</h3>
+              <div class="insight-list" id="insightList"></div>
+            </section>
+          </section>
+
+          <section class="more-panel" id="more-settings">
+            <form id="settingsForm" class="settings-form">
+              <section class="section-block">
+                <h3>Puntensysteem</h3>
+                <div class="settings-grid" id="pointsSettings"></div>
+              </section>
+
+              <section class="section-block">
+                <div class="section-heading">
+                  <h3>Strafregels</h3>
+                  <button class="text-button" id="addPenaltyButton" type="button">Regel toevoegen</button>
+                </div>
+                <div class="penalty-settings" id="penaltySettings"></div>
+              </section>
+
+              <button class="primary-action full-width" type="submit">
+                <span aria-hidden="true">✓</span>
+                Instellingen opslaan
+              </button>
+            </form>
+          </section>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Hoofdnavigatie">
+        <button class="is-active" type="button" data-nav="home" aria-label="Home">
+          <span aria-hidden="true">⌂</span>
+          <small>Home</small>
+        </button>
+        <button type="button" data-nav="competitions" aria-label="Schutters">
+          <span aria-hidden="true">♕</span>
+          <small>Schutters</small>
+        </button>
+        <button type="button" data-nav="scores" aria-label="Scores">
+          <span aria-hidden="true">◎</span>
+          <small>Scores</small>
+        </button>
+        <button type="button" data-nav="ranking" aria-label="Klassement">
+          <span aria-hidden="true">1↵</span>
+          <small>Stand</small>
+        </button>
+        <button type="button" data-nav="more" aria-label="Meer">
+          <span aria-hidden="true">⋯</span>
+          <small>Meer</small>
+        </button>
+      </nav>
+    </div>
+
+    <dialog id="entryDialog">
+      <form method="dialog" id="entryForm">
+        <h3 id="entryTitle">Toevoegen</h3>
+        <label>
+          <span>Naam</span>
+          <input id="entryName" type="text" autocomplete="off" required />
+        </label>
+        <label id="entryMetaLabel">
+          <span>Niveau</span>
+          <select id="entryMeta">
+            <option value="Beginner">Beginner</option>
+            <option value="Gevorderd">Gevorderd</option>
+            <option value="Open" selected>Open</option>
+          </select>
+        </label>
+        <menu>
+          <button class="secondary-action" id="entryCancelButton" type="button">Annuleer</button>
+          <button class="primary-action" value="default" type="submit">Opslaan</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module">
+const STORAGE_KEY = "dsr-score-app-v5";
+
+const defaultData = {
+  theme: "dark",
+  competition: {
+    id: "comp-1",
+    name: "Training DSR",
+    date: new Date().toISOString().slice(0, 10),
+    status: "Live",
+  },
+  shooters: [],
+  points: {
+    alpha: 5,
+    charlie: 3,
+    delta: 1,
+    miss: -10,
+    noshoot: -10,
+  },
+  penalties: [
+    { id: "pen-procedure", name: "Procedure fout", value: -10, active: true },
+    { id: "pen-late", name: "Late start", value: -5, active: true },
+    { id: "pen-dq", name: "Onveilig wapengebruik", value: 0, active: false },
+  ],
+  scores: [],
+};
+
+const counters = [
+  { key: "alpha", label: "Alpha", kind: "hit" },
+  { key: "charlie", label: "Charlie", kind: "hit" },
+  { key: "delta", label: "Delta", kind: "hit" },
+  { key: "miss", label: "Miss", kind: "penalty" },
+  { key: "noshoot", label: "No Shoot", kind: "penalty" },
+  { key: "procedure", label: "Procedure fout", kind: "penalty" },
+];
+
+let state = loadState();
+let scoreDraft = createEmptyDraft();
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return saved ? mergeData(defaultData, saved) : structuredClone(defaultData);
+  } catch {
+    return structuredClone(defaultData);
+  }
+}
+
+function mergeData(base, saved) {
+  return {
+    ...structuredClone(base),
+    ...saved,
+    competition: { ...base.competition, ...saved.competition },
+    points: { ...base.points, ...saved.points },
+    penalties: saved.penalties?.length ? saved.penalties : base.penalties,
+    shooters: Array.isArray(saved.shooters) ? saved.shooters : base.shooters,
+    scores: saved.scores || [],
+  };
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function createEmptyDraft() {
+  return counters.reduce((draft, counter) => ({ ...draft, [counter.key]: 0 }), {
+    shooterId: "",
+    time: "",
+    notes: "",
+  });
+}
+
+function formatNumber(value, digits = 2) {
+  const normalized = Object.is(value, -0) ? 0 : value;
+  return new Intl.NumberFormat("nl-NL", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(Number.isFinite(normalized) ? normalized : 0);
+}
+
+function getActiveProcedurePenalty() {
+  return state.penalties.find((penalty) => penalty.id === "pen-procedure") || state.penalties[0] || { value: -10 };
+}
+
+function calculateScore(input) {
+  const hitPoints =
+    input.alpha * state.points.alpha +
+    input.charlie * state.points.charlie +
+    input.delta * state.points.delta;
+  const penaltyPoints =
+    input.miss * state.points.miss +
+    input.noshoot * state.points.noshoot +
+    input.procedure * (getActiveProcedurePenalty().active ? getActiveProcedurePenalty().value : 0);
+  const net = Math.max(0, hitPoints + penaltyPoints);
+  const time = Number(input.time);
+  const hitfactor = time > 0 ? net / time : 0;
+
+  return { hitPoints, penaltyPoints, net, time: time || 0, hitfactor };
+}
+
+function getShooter(id) {
+  return state.shooters.find((shooter) => shooter.id === id);
+}
+
+function getRanking() {
+  const grouped = new Map();
+
+  state.scores.forEach((score) => {
+    const shooter = getShooter(score.shooterId);
+    if (!shooter) return;
+
+    const current = grouped.get(score.shooterId) || {
+      shooter,
+      points: 0,
+      time: 0,
+      hitfactor: 0,
+      entries: 0,
+      penalties: 0,
+      alpha: 0,
+      charlie: 0,
+      delta: 0,
+    };
+
+    current.points += score.net;
+    current.time += score.time;
+    current.entries += 1;
+    current.penalties += Math.abs(score.penaltyPoints);
+    current.alpha += score.alpha;
+    current.charlie += score.charlie;
+    current.delta += score.delta;
+    current.hitfactor = current.time > 0 ? current.points / current.time : 0;
+    grouped.set(score.shooterId, current);
+  });
+
+  return Array.from(grouped.values());
+}
+
+function render() {
+  document.body.classList.add("dark");
+  renderCounters();
+  renderSelects();
+  renderHome();
+  renderCompetition();
+  renderScores();
+  renderRanking();
+  renderProfiles();
+  renderSettings();
+  renderDashboard();
+  saveState();
+}
+
+function renderCounters() {
+  const grid = $("#counterGrid");
+  grid.innerHTML = counters
+    .map(
+      (counter) => `
+        <article class="counter-card">
+          <div class="counter-top">
+            <strong>${counter.label}</strong>
+          </div>
+          <div class="stepper" data-counter="${counter.key}">
+            <button type="button" data-step="-1" aria-label="${counter.label} verlagen">−</button>
+            <output>${scoreDraft[counter.key]}</output>
+            <button type="button" data-step="1" aria-label="${counter.label} verhogen">+</button>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderSelects() {
+  const activeShooters = state.shooters.filter((shooter) => shooter.active);
+  const shooterOptions = activeShooters.length
+    ? activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`).join("")
+    : `<option value="">Geen schutters</option>`;
+
+  $("#scoreShooter").innerHTML = shooterOptions;
+
+  if (!activeShooters.some((shooter) => shooter.id === scoreDraft.shooterId)) {
+    scoreDraft.shooterId = activeShooters[0]?.id || "";
+  }
+
+  $("#scoreShooter").value = scoreDraft.shooterId;
+  $("#scoreTime").value = scoreDraft.time;
+  $("#scoreNotes").value = scoreDraft.notes;
+}
+
+function renderHome() {
+  $("#homeParticipants").textContent = state.shooters.filter((shooter) => shooter.active).length;
+  $("#homeScores").textContent = state.scores.length;
+  $("#homeRanking").innerHTML = renderRankingItems(getRanking().sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3), true);
+}
+
+function renderCompetition() {
+  $("#competitionShooterCount").textContent = state.shooters.filter((shooter) => shooter.active).length;
+  $("#competitionScoreCount").textContent = state.scores.length;
+
+  const activeShooters = state.shooters.filter((shooter) => shooter.active);
+  $("#participantChips").innerHTML = activeShooters.length
+    ? activeShooters.map((shooter) => `<span class="chip">${shooter.name}</span>`).join("")
+    : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
+}
+
+function renderScores() {
+  const calc = calculateScore(scoreDraft);
+  $("#calcHits").textContent = formatNumber(calc.hitPoints, 0);
+  $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
+  $("#calcNet").textContent = formatNumber(calc.net, 0);
+  $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+
+  $("#recentScores").innerHTML = state.scores.length
+    ? state.scores
+        .slice(-5)
+        .reverse()
+        .map((score) => {
+          const shooter = getShooter(score.shooterId);
+          return `
+            <article class="list-item">
+              <div>
+                <strong>${shooter?.name || "Onbekend"}</strong>
+                <small>${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
+              </div>
+              <strong>${formatNumber(score.hitfactor, 3)}</strong>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div class="empty">Nog geen scores ingevoerd.</div>`;
+}
+
+function renderRanking() {
+  let items = getRanking();
+  const discipline = $("#rankDiscipline").value || "all";
+  const level = $("#rankLevel").value || "all";
+  const sort = $("#rankSort").value || "hitfactor";
+
+  if (discipline !== "all") items = items.filter((item) => item.shooter.discipline === discipline);
+  if (level !== "all") items = items.filter((item) => item.shooter.level === level);
+
+  items.sort((a, b) => {
+    if (sort === "points") return b.points - a.points;
+    if (sort === "time") return a.time - b.time;
+    return b.hitfactor - a.hitfactor;
+  });
+
+  $("#rankingList").innerHTML = renderRankingItems(items, false);
+}
+
+function renderRankingItems(items, compact) {
+  if (!items.length) return `<div class="empty">Nog geen klassement beschikbaar.</div>`;
+
+  return items
+    .map(
+      (item, index) => `
+        <article class="${compact ? "list-item" : "rank-item"}">
+          ${compact ? "" : `<span class="rank-number">${index + 1}</span>`}
+          <div class="rank-main">
+            <strong>${item.shooter.name}</strong>
+            <small>${item.entries} scores · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
+          </div>
+          <div class="rank-score">
+            <strong>${formatNumber(item.hitfactor, 3)}</strong>
+            <small>HF</small>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderProfiles() {
+  $("#profileList").innerHTML = state.shooters.length
+    ? state.shooters
+    .map((shooter) => {
+      const scores = state.scores.filter((score) => score.shooterId === shooter.id);
+      const points = scores.reduce((sum, score) => sum + score.net, 0);
+      const time = scores.reduce((sum, score) => sum + score.time, 0);
+      const bestScore = Math.max(0, ...scores.map((score) => score.net));
+      const bestTime = scores.length ? Math.min(...scores.map((score) => score.time).filter(Boolean)) : 0;
+      const avgAlpha = scores.length
+        ? scores.reduce((sum, score) => sum + score.alpha, 0) / scores.length
+        : 0;
+      const penalties = scores.reduce((sum, score) => sum + Math.abs(score.penaltyPoints), 0);
+      const avgHitfactor = time > 0 ? points / time : 0;
+
+      return `
+        <article class="profile-item">
+          <span class="profile-avatar">${shooter.name.slice(0, 1).toUpperCase()}</span>
+          <div class="profile-meta">
+            <strong>${shooter.name}</strong>
+            <small>${shooter.level} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
+          </div>
+          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen">×</button>
+        </article>
+      `;
+    })
+    .join("")
+    : `<div class="empty">Nog geen schutters. Tik op + om iemand toe te voegen.</div>`;
+}
+
+function renderSettings() {
+  $("#pointsSettings").innerHTML = Object.entries(state.points)
+    .map(
+      ([key, value]) => `
+        <label>
+          <span>${labelForPoint(key)}</span>
+          <input type="number" step="1" value="${value}" data-point="${key}" />
+        </label>
+      `,
+    )
+    .join("");
+
+  $("#penaltySettings").innerHTML = state.penalties
+    .map(
+      (penalty) => `
+        <div class="penalty-row" data-penalty="${penalty.id}">
+          <label>
+            <span>Naam</span>
+            <input type="text" value="${penalty.name}" data-penalty-name />
+          </label>
+          <label>
+            <span>Waarde</span>
+            <input type="number" step="1" value="${penalty.value}" data-penalty-value />
+          </label>
+          <label class="toggle" title="Actief">
+            <input type="checkbox" ${penalty.active ? "checked" : ""} data-penalty-active aria-label="${penalty.name} actief" />
+          </label>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function labelForPoint(key) {
+  return {
+    alpha: "Alpha",
+    charlie: "Charlie",
+    delta: "Delta",
+    miss: "Miss",
+    noshoot: "No Shoot",
+  }[key];
+}
+
+function renderDashboard() {
+  drawHitfactorChart();
+  drawRatioChart();
+
+  const ranking = getRanking().sort((a, b) => b.hitfactor - a.hitfactor);
+  const top = ranking[0];
+  const mostImproved = getMostImproved();
+  const weakPart = getWeakestPart();
+
+  $("#insightList").innerHTML = [
+    top ? `Huidige leider: ${top.shooter.name} met HF ${formatNumber(top.hitfactor, 3)}.` : "Nog geen leider beschikbaar.",
+    mostImproved ? `Grootste verbetering: ${mostImproved.name} steeg ${formatNumber(mostImproved.delta, 3)} HF.` : "Meer scores nodig voor verbeteringstrend.",
+    weakPart ? `Zwakste onderdeel: ${weakPart}.` : "Nog te weinig data voor zwakste onderdeel.",
+  ]
+    .map((text) => `<article class="insight-item">${text}</article>`)
+    .join("");
+}
+
+function getMostImproved() {
+  return state.shooters
+    .map((shooter) => {
+      const scores = state.scores.filter((score) => score.shooterId === shooter.id);
+      if (scores.length < 2) return null;
+      return {
+        name: shooter.name,
+        delta: scores.at(-1).hitfactor - scores[0].hitfactor,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.delta - a.delta)[0];
+}
+
+function getWeakestPart() {
+  const totals = state.scores.reduce(
+    (sum, score) => ({
+      miss: sum.miss + score.miss,
+      noshoot: sum.noshoot + score.noshoot,
+      procedure: sum.procedure + score.procedure,
+    }),
+    { miss: 0, noshoot: 0, procedure: 0 },
+  );
+  const [key, value] = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+  if (!value) return "";
+  return { miss: "Misses", noshoot: "No Shoots", procedure: "Procedure fouten" }[key];
+}
+
+function drawHitfactorChart() {
+  const canvas = $("#hitfactorChart");
+  const ctx = canvas.getContext("2d");
+  const scores = state.scores.slice(-8);
+  drawCanvasBase(ctx, canvas);
+
+  if (!scores.length) {
+    drawEmptyChart(ctx, canvas, "Nog geen scores");
+    return;
+  }
+
+  const max = Math.max(...scores.map((score) => score.hitfactor), 1);
+  const points = scores.map((score, index) => ({
+    x: 28 + index * ((canvas.width - 56) / Math.max(scores.length - 1, 1)),
+    y: canvas.height - 26 - (score.hitfactor / max) * (canvas.height - 58),
+  }));
+
+  ctx.strokeStyle = cssVar("--orange", "#ff7817");
+  ctx.lineWidth = 4;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  points.forEach((point, index) => (index ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)));
+  ctx.stroke();
+  points.forEach((point) => {
+    ctx.fillStyle = cssVar("--good", "#8ee0b6");
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawRatioChart() {
+  const canvas = $("#ratioChart");
+  const ctx = canvas.getContext("2d");
+  const totals = state.scores.reduce(
+    (sum, score) => ({
+      alpha: sum.alpha + score.alpha,
+      charlie: sum.charlie + score.charlie,
+      delta: sum.delta + score.delta,
+    }),
+    { alpha: 0, charlie: 0, delta: 0 },
+  );
+  drawCanvasBase(ctx, canvas);
+
+  const values = [
+    ["Alpha", totals.alpha, cssVar("--good", "#8ee0b6")],
+    ["Charlie", totals.charlie, cssVar("--orange", "#ff7817")],
+    ["Delta", totals.delta, cssVar("--danger", "#ff6b5d")],
+  ];
+  const max = Math.max(...values.map(([, value]) => value), 1);
+
+  if (!state.scores.length) {
+    drawEmptyChart(ctx, canvas, "Nog geen treffers");
+    return;
+  }
+
+  values.forEach(([label, value, color], index) => {
+    const y = 32 + index * 44;
+    const width = Math.max(4, (value / max) * (canvas.width - 128));
+    ctx.fillStyle = cssVar("--panel", "#202126");
+    roundRect(ctx, 96, y, canvas.width - 124, 22, 11);
+    ctx.fill();
+    ctx.fillStyle = color;
+    roundRect(ctx, 96, y, width, 22, 11);
+    ctx.fill();
+    ctx.fillStyle = cssVar("--ink", "#f7f7f8");
+    ctx.font = "700 13px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText(label, 18, y + 16);
+    ctx.textAlign = "right";
+    ctx.fillText(String(value), canvas.width - 18, y + 16);
+    ctx.textAlign = "left";
+  });
+}
+
+function drawCanvasBase(ctx, canvas) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = cssVar("--tile", "#15161a");
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = cssVar("--line", "#2f3036");
+  ctx.lineWidth = 1;
+  for (let y = 42; y < canvas.height - 20; y += 42) {
+    ctx.beginPath();
+    ctx.moveTo(22, y);
+    ctx.lineTo(canvas.width - 22, y);
+    ctx.stroke();
+  }
+}
+
+function drawEmptyChart(ctx, canvas, text) {
+  ctx.fillStyle = cssVar("--muted", "#96979d");
+  ctx.font = "700 15px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  ctx.textAlign = "left";
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, safeRadius);
+  ctx.arcTo(x + width, y + height, x, y + height, safeRadius);
+  ctx.arcTo(x, y + height, x, y, safeRadius);
+  ctx.arcTo(x, y, x + width, y, safeRadius);
+  ctx.closePath();
+}
+
+function cssVar(name, fallback = "") {
+  return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
+}
+
+function setView(view) {
+  $$(".view").forEach((element) => element.classList.toggle("is-active", element.id === `view-${view}`));
+  $$("[data-nav]").forEach((button) => button.classList.toggle("is-active", button.dataset.nav === view));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  renderDashboard();
+}
+
+function showToast(message) {
+  const toast = $("#toast");
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+  window.setTimeout(() => toast.classList.remove("is-visible"), 2200);
+}
+
+function openEntryDialog() {
+  $("#entryTitle").textContent = "Schutter toevoegen";
+  $("#entryName").value = "";
+  $("#entryMeta").value = "Open";
+  $("#entryMetaLabel span").textContent = "Niveau";
+  $("#entryDialog").showModal();
+}
+
+function addDemoScores() {
+  const templates = [
+    ["shooter-1", 14, 5, 2, 1, 0, 0, 28.42],
+    ["shooter-2", 12, 7, 1, 0, 1, 0, 31.18],
+    ["shooter-3", 10, 6, 3, 2, 0, 1, 36.9],
+    ["shooter-1", 11, 4, 2, 0, 0, 0, 24.72],
+    ["shooter-2", 13, 3, 1, 1, 0, 0, 27.04],
+  ];
+
+  state.scores = templates.map(([shooterId, alpha, charlie, delta, miss, noshoot, procedure, time], index) => {
+    const input = { alpha, charlie, delta, miss, noshoot, procedure, time };
+    return {
+      id: `demo-${Date.now()}-${index}`,
+      shooterId,
+      notes: "Demo score",
+      createdAt: new Date(Date.now() - (templates.length - index) * 3600000).toISOString(),
+      ...input,
+      ...calculateScore(input),
+    };
+  });
+  render();
+  showToast("Demo scores toegevoegd");
+}
+
+function exportCsv() {
+  const rows = [
+    ["Schutter", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
+    ...state.scores.map((score) => [
+      getShooter(score.shooterId)?.name || "",
+      score.alpha,
+      score.charlie,
+      score.delta,
+      score.miss,
+      score.noshoot,
+      score.procedure,
+      score.time,
+      score.net,
+      score.hitfactor.toFixed(3),
+    ]),
+  ];
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "dsr-scores.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener("click", (event) => {
+  const navButton = event.target.closest("[data-nav]");
+  if (navButton) setView(navButton.dataset.nav);
+
+  const goButton = event.target.closest("[data-go]");
+  if (goButton) setView(goButton.dataset.go);
+
+  const stepButton = event.target.closest("[data-step]");
+  if (stepButton) {
+    const key = stepButton.closest("[data-counter]").dataset.counter;
+    scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
+    render();
+  }
+
+});
+
+$("#scoreForm").addEventListener("input", (event) => {
+  if (event.target.id === "scoreShooter") scoreDraft.shooterId = event.target.value;
+  if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
+  if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
+  renderScores();
+});
+
+$("#scoreForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const calc = calculateScore(scoreDraft);
+  if (!scoreDraft.shooterId || calc.time <= 0) {
+    showToast("Kies een schutter en een geldige tijd");
+    return;
+  }
+
+  state.scores.push({
+    id: crypto.randomUUID(),
+    ...scoreDraft,
+    ...calc,
+    createdAt: new Date().toISOString(),
+  });
+  scoreDraft = createEmptyDraft();
+  render();
+  showToast("Score opgeslagen");
+});
+
+$("#resetScoreButton").addEventListener("click", () => {
+  scoreDraft = createEmptyDraft();
+  render();
+});
+
+$("#exportButton").addEventListener("click", exportCsv);
+$("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
+$("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
+$("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close());
+
+document.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-delete-shooter]");
+  if (!deleteButton) return;
+
+  const shooter = getShooter(deleteButton.dataset.deleteShooter);
+  if (!shooter) return;
+
+  const confirmed = window.confirm(`${shooter.name} verwijderen? Scores van deze schutter worden ook verwijderd.`);
+  if (!confirmed) return;
+
+  state.shooters = state.shooters.filter((item) => item.id !== shooter.id);
+  state.scores = state.scores.filter((score) => score.shooterId !== shooter.id);
+  if (scoreDraft.shooterId === shooter.id) scoreDraft = createEmptyDraft();
+  render();
+  showToast("Schutter verwijderd");
+});
+
+$("#entryForm").addEventListener("submit", (event) => {
+  if (event.submitter?.value === "cancel") return;
+  event.preventDefault();
+  const name = $("#entryName").value.trim();
+  const meta = $("#entryMeta").value.trim();
+  if (!name) return;
+
+  state.shooters.push({
+    id: crypto.randomUUID(),
+    name,
+    level: meta || "Open",
+    discipline: "DSR",
+    active: true,
+  });
+
+  $("#entryDialog").close();
+  render();
+});
+
+$("#settingsForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  $$("[data-point]").forEach((input) => {
+    state.points[input.dataset.point] = Number(input.value);
+  });
+  $$("[data-penalty]").forEach((row) => {
+    const penalty = state.penalties.find((item) => item.id === row.dataset.penalty);
+    penalty.name = row.querySelector("[data-penalty-name]").value.trim() || penalty.name;
+    penalty.value = Number(row.querySelector("[data-penalty-value]").value);
+    penalty.active = row.querySelector("[data-penalty-active]").checked;
+  });
+  render();
+  showToast("Instellingen opgeslagen");
+});
+
+$("#addPenaltyButton").addEventListener("click", () => {
+  state.penalties.push({ id: crypto.randomUUID(), name: "Nieuwe strafregel", value: -10, active: true });
+  render();
+});
+
+$$("[data-more-tab]").forEach((button) => {
+  button.addEventListener("click", () => {
+    $$("[data-more-tab]").forEach((item) => item.classList.toggle("is-active", item === button));
+    $$(".more-panel").forEach((panel) => panel.classList.toggle("is-active", panel.id === `more-${button.dataset.moreTab}`));
+    renderDashboard();
+  });
+});
+
+["rankDiscipline", "rankLevel", "rankSort"].forEach((id) => {
+  $(`#${id}`).addEventListener("change", renderRanking);
+});
+
+render();
+
+    </script>
+  </body>
+</html>
