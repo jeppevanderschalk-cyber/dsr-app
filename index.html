@@ -5,26 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#111216" />
     <title>DSR score</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
     <style>
 :root {
   color-scheme: dark;
-  --bg: #f4f4f2;
-  --phone: #111216;
-  --panel: #202126;
-  --panel-soft: #26272d;
-  --tile: #15161a;
-  --ink: #f7f7f8;
-  --muted: #96979d;
-  --line: #2f3036;
-  --orange: #ffd21a;
-  --orange-dark: #c99b00;
-  --accent-ink: #090909;
+  --bg: #0c0c0d;
+  --desk: #f4f4f2;
+  --panel: #1a1a1d;
+  --panel-deep: #121214;
+  --tile: #101012;
+  --ink: #ffffff;
+  --muted: rgba(255, 255, 255, 0.45);
+  --line: rgba(255, 255, 255, 0.08);
+  --yellow: #f5c518;
+  --yellow-hi: #ffd62e;
+  --yellow-lo: #f0b90b;
+  --orange: var(--yellow);
+  --orange-dark: var(--yellow-lo);
+  --accent-ink: #111111;
   --danger: #ff6b5d;
   --good: #8ee0b6;
-  --radius: 28px;
+  --radius: 22px;
   --radius-sm: 18px;
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --shadow-card: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --shadow-yellow: 0 12px 28px rgba(245, 197, 24, 0.28);
+  --shadow: var(--shadow-card);
+  font-family: "Archivo", system-ui, sans-serif;
 }
 
 * {
@@ -32,13 +40,13 @@
 }
 
 html {
-  background: var(--bg);
+  background: var(--desk);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background: var(--bg);
+  background: var(--desk);
   color: var(--ink);
 }
 
@@ -57,16 +65,62 @@ button:focus {
   outline: none;
 }
 
-button:focus-visible {
-  box-shadow: 0 0 0 2px rgba(255, 210, 26, 0.56);
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 2px rgba(245, 197, 24, 0.42);
+}
+
+.grad-yellow,
+.primary-action,
+.tab-strip button.is-active,
+.toast {
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+}
+
+.grad-panel,
+.hero-panel,
+.stat-tile,
+.list-item,
+.rank-item,
+.profile-item,
+.insight-item,
+.penalty-row,
+.counter-card,
+.chart-panel,
+.calc-panel,
+.tab-strip,
+dialog {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .app-shell {
   width: min(100%, 430px);
   min-height: 100vh;
   margin: 0 auto;
-  background: var(--phone);
-  box-shadow: var(--shadow);
+  background: var(--bg);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
 }
 
 .topbar {
@@ -77,20 +131,29 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: max(2rem, env(safe-area-inset-top)) 28px 18px;
-  background: linear-gradient(180deg, rgba(17, 18, 22, 0.98), rgba(17, 18, 22, 0.88));
-  backdrop-filter: blur(16px);
+  padding: max(1.6rem, env(safe-area-inset-top)) 22px 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(19, 19, 21, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+body.home-active .topbar,
+body:has(#view-home.is-active) .topbar {
+  border-bottom: 0;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
 }
 
 .app-logo {
   display: inline-grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 46px;
+  height: 46px;
   flex: 0 0 auto;
-  border: 2px solid rgba(255, 210, 26, 0.72);
+  border: 0;
   border-radius: 999px;
   background: #000;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
 
@@ -115,32 +178,40 @@ h3 {
 }
 
 h1 {
-  font-size: clamp(1.65rem, 7vw, 2rem);
-  line-height: 1.02;
-  font-weight: 850;
+  color: inherit;
+  font-size: 1.875rem;
+  line-height: 1;
+  font-weight: 900;
 }
 
 h2 {
-  font-size: 1.68rem;
-  line-height: 1.12;
-  font-weight: 850;
+  font-size: 1.7rem;
+  line-height: 1.08;
+  font-weight: 900;
 }
 
 h3 {
   font-size: 1.35rem;
   line-height: 1.15;
-  font-weight: 850;
+  font-weight: 900;
 }
 
-.eyebrow {
-  color: var(--muted);
-  font-size: 0.92rem;
-  font-weight: 800;
-  letter-spacing: 0;
+small {
+  color: inherit;
+  font-size: 0.8rem;
 }
 
-.topbar .eyebrow {
-  display: none;
+.eyebrow,
+.hero-eyebrow {
+  color: var(--yellow);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+.hero-eyebrow {
+  color: rgba(0, 0, 0, 0.55);
 }
 
 .muted,
@@ -151,7 +222,7 @@ h3 {
 }
 
 .content {
-  padding: 10px 28px calc(7.25rem + env(safe-area-inset-bottom));
+  padding: 0 28px calc(7.4rem + env(safe-area-inset-bottom));
 }
 
 .view,
@@ -164,32 +235,101 @@ h3 {
   display: block;
 }
 
-.hero-panel,
-.stat-tile,
-.list-item,
-.rank-item,
-.profile-item,
-.insight-item,
-.penalty-row,
-.counter-card,
-.chart-panel,
-.calc-panel,
-.tab-strip,
-.notice,
-dialog {
-  background: var(--panel);
-  border: 0;
-  border-radius: var(--radius);
+.view.is-active {
+  animation: fadeUp 240ms ease;
+}
+
+.view:not(#view-home) {
+  position: relative;
+  padding-top: 24px;
+}
+
+.view:not(#view-home)::before {
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  width: 420px;
+  height: 320px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(245, 197, 24, 0.1), transparent 70%);
+  content: "";
+  pointer-events: none;
+}
+
+.view:not(#view-home) > * {
+  position: relative;
+  z-index: 1;
+}
+
+.target-rings {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.target-rings i {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.target-rings i:nth-child(1) {
+  top: -90px;
+  right: -90px;
+  width: 300px;
+  height: 300px;
+  border: 26px solid rgba(0, 0, 0, 0.08);
+}
+
+.target-rings i:nth-child(2) {
+  top: -40px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  border: 20px solid rgba(0, 0, 0, 0.07);
+}
+
+.target-rings i:nth-child(3) {
+  top: 5px;
+  right: 5px;
+  width: 110px;
+  height: 110px;
+  border: 14px solid rgba(0, 0, 0, 0.07);
+}
+
+.dark-rings i:nth-child(1) {
+  border-color: rgba(245, 197, 24, 0.06);
+}
+
+.dark-rings i:nth-child(2),
+.dark-rings i:nth-child(3) {
+  border-color: rgba(245, 197, 24, 0.05);
 }
 
 .hero-panel {
-  display: grid;
-  gap: 24px;
-  padding: 28px;
+  position: relative;
+  margin: -1px -28px 0;
+  padding: 26px 22px 76px;
+  border: 0;
+  border-radius: 0 0 34px 34px;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  box-shadow: none;
+  color: var(--accent-ink);
+  overflow: visible;
+}
+
+.hero-panel > :not(.target-rings) {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-panel h2 {
-  margin-top: 14px;
+  max-width: 11ch;
+  margin-top: 8px;
+  color: var(--accent-ink);
+  font-size: 2.125rem;
+  line-height: 0.98;
+  font-weight: 900;
 }
 
 .hero-panel .muted {
@@ -199,50 +339,70 @@ dialog {
 .metric-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 0;
+  margin: 30px 0 -126px;
+  padding: 18px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
 }
 
 .metric-row div {
+  position: relative;
   display: grid;
   place-items: center;
-  min-height: 130px;
-  padding: 18px 10px;
-  border-radius: 22px;
-  background: var(--tile);
+  min-height: 92px;
+  padding: 12px 6px;
+}
+
+.metric-row div + div::before {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 68%;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  content: "";
 }
 
 .metric-row span,
 .stat-tile span {
   display: block;
-  color: var(--orange);
-  font-size: clamp(2.6rem, 12vw, 3.6rem);
+  color: var(--yellow);
+  font-size: 2.4rem;
   line-height: 0.95;
   font-weight: 900;
+}
+
+.metric-row span {
+  color: var(--ink);
 }
 
 .metric-row small,
 .stat-tile small {
   color: var(--muted);
-  font-size: 1.05rem;
-  font-weight: 800;
-}
-
-small {
-  color: inherit;
-  font-size: 0.8rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .quick-actions,
 .field-grid,
 .stats-grid {
   display: grid;
-  gap: 16px;
-  margin-top: 24px;
+  gap: 14px;
 }
 
-.quick-actions,
-.field-grid {
+.quick-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 90px;
+}
+
+.field-grid,
+.stats-grid {
   grid-template-columns: 1fr;
+  margin-top: 24px;
 }
 
 .stats-grid {
@@ -252,70 +412,147 @@ small {
 .primary-action,
 .secondary-action,
 .text-button,
-.icon-button {
+.icon-button,
+.delete-button,
+.tab-strip button {
   border: 0;
-  transition: transform 140ms ease, background 140ms ease, color 140ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, color 140ms ease, background 140ms ease;
 }
 
 .primary-action,
 .secondary-action {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 18px;
-  min-height: 96px;
-  padding: 22px 28px;
-  border-radius: 24px;
-  font-size: 1.42rem;
-  font-weight: 850;
+  justify-content: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  font-size: 1.08rem;
+  font-weight: 900;
 }
 
-.primary-action {
-  background: var(--orange);
+.quick-actions .primary-action,
+.quick-actions .secondary-action {
+  position: relative;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 148px;
+  padding: 20px 18px 18px;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: left;
+}
+
+.quick-actions .primary-action {
   color: var(--accent-ink);
+  box-shadow: var(--shadow-yellow);
+}
+
+.quick-actions .primary-action::after {
+  position: absolute;
+  right: -34px;
+  bottom: -36px;
+  width: 110px;
+  height: 110px;
+  border: 12px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  content: "";
 }
 
 .secondary-action {
-  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(170deg, #1e1e22, #141416);
   color: var(--ink);
+}
+
+.quick-actions .secondary-action {
+  box-shadow: var(--shadow-card);
+}
+
+.quick-actions .secondary-action::after {
+  position: absolute;
+  right: -5px;
+  bottom: -28px;
+  color: rgba(245, 197, 24, 0.08);
+  content: "#1";
+  font-size: 5.6rem;
+  line-height: 1;
+  font-weight: 900;
 }
 
 .primary-action span,
 .secondary-action span {
+  position: relative;
+  z-index: 1;
   display: inline-grid;
   place-items: center;
-  width: 42px;
+  width: 34px;
+  height: 34px;
   color: currentColor;
-  font-size: 2rem;
-  font-weight: 900;
+}
+
+.primary-action svg,
+.secondary-action svg,
+.icon-button svg,
+.delete-button svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quick-actions .primary-action span,
+.quick-actions .secondary-action span {
+  width: 34px;
+  height: 34px;
 }
 
 .text-button {
   min-height: 34px;
   padding: 0 2px;
   background: transparent;
-  color: var(--orange);
-  font-weight: 850;
+  color: var(--yellow);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .icon-button {
   display: inline-grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
-  border-radius: 16px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 2rem;
-  font-weight: 850;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #1a1a1d;
+  color: var(--yellow);
+}
+
+.icon-button span {
+  display: grid;
+  width: 22px;
+  height: 22px;
+}
+
+.primary-action:hover,
+.secondary-action:hover,
+.icon-button:hover,
+.delete-button:hover,
+.tab-strip button:hover {
+  transform: translateY(-2px);
 }
 
 .primary-action:active,
 .secondary-action:active,
 .icon-button:active,
 .bottom-nav button:active,
-.stepper button:active {
+.stepper button:active,
+.delete-button:active,
+.tab-strip button:active {
   transform: scale(0.96);
 }
 
@@ -323,6 +560,8 @@ small {
   width: 100%;
   justify-content: center;
   margin-top: 4px;
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-yellow);
 }
 
 .section-block {
@@ -339,6 +578,22 @@ small {
 
 .section-heading .eyebrow {
   margin-bottom: 8px;
+}
+
+#view-home .section-heading h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+#view-home .section-heading h3::before,
+.status-pill::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--yellow);
+  content: "";
+  animation: pulseDot 1.6s ease-in-out infinite;
 }
 
 .list,
@@ -359,36 +614,46 @@ small {
   justify-content: space-between;
   gap: 14px;
   min-height: 76px;
-  padding: 18px 22px;
+  padding: 16px 18px;
+  border-radius: 20px;
 }
 
 .list-item strong,
 .rank-item strong,
 .profile-item strong {
   display: block;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  line-height: 1.12;
+  font-weight: 900;
 }
 
 .list-item small,
 .rank-item small,
 .profile-item small {
+  display: block;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 700;
-}
-
-.rank-item {
-  min-height: 74px;
+  line-height: 1.3;
 }
 
 .rank-number {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  color: var(--orange);
-  font-size: 1.45rem;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  font-size: 0.85rem;
   font-weight: 900;
+}
+
+.is-leader .rank-number {
+  background: var(--yellow);
+  color: var(--accent-ink);
 }
 
 .rank-main {
@@ -397,29 +662,71 @@ small {
 }
 
 .rank-score {
-  color: var(--orange);
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.85);
   text-align: right;
 }
 
 .rank-score strong {
-  font-size: 1.45rem;
+  font-size: 1.32rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.is-leader .rank-score strong,
+.list-item > strong {
+  color: var(--yellow);
 }
 
 .rank-score small {
   display: none;
 }
 
+.rank-progress {
+  display: block;
+  width: 60px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.rank-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.4);
+  transition: width 400ms ease;
+}
+
+.is-leader .rank-progress i {
+  background: var(--yellow);
+}
+
 .status-pill,
 .chip {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
+  min-height: 36px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: var(--orange);
-  color: var(--accent-ink);
-  font-weight: 850;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.status-pill {
+  gap: 8px;
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  background: rgba(245, 197, 24, 0.1);
+  color: var(--yellow);
+}
+
+.chip {
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  background: rgba(245, 197, 24, 0.1);
+  color: var(--yellow);
 }
 
 .chip-list {
@@ -429,14 +736,29 @@ small {
 }
 
 .stat-tile {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 104px;
   padding: 14px 8px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.stat-tile::after {
+  position: absolute;
+  top: -34px;
+  right: -32px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(245, 197, 24, 0.22), transparent);
+  content: "";
 }
 
 .stat-tile span {
   font-size: 2rem;
+  text-shadow: 0 0 24px rgba(245, 197, 24, 0.45);
 }
 
 label {
@@ -447,27 +769,28 @@ label {
 
 label span {
   color: var(--muted);
-  font-size: 0.95rem;
-  font-weight: 850;
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 input,
 select {
   width: 100%;
-  min-height: 64px;
-  border: 0;
-  border-radius: 18px;
-  padding: 0 18px;
-  background: var(--panel);
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0 16px;
+  background: var(--tile);
   color: var(--ink);
   outline: none;
-  font-size: 1.08rem;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 input:focus,
 select:focus {
-  box-shadow: inset 0 0 0 2px var(--orange);
+  border-color: rgba(245, 197, 24, 0.7);
+  box-shadow: inset 0 0 0 2px var(--yellow);
 }
 
 .score-form {
@@ -485,9 +808,10 @@ select:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-height: 92px;
-  padding: 20px 24px;
+  padding: 18px;
+  border-radius: 20px;
 }
 
 .counter-top {
@@ -495,33 +819,48 @@ select:focus {
 }
 
 .counter-top strong {
-  color: var(--muted);
-  font-size: 1.55rem;
-  font-weight: 850;
-  line-height: 1.08;
-  white-space: normal;
+  display: inline-grid;
+  gap: 9px;
+  color: var(--ink);
+  font-size: clamp(1.1rem, 5vw, 1.38rem);
+  font-weight: 900;
+  line-height: 1.06;
+  overflow-wrap: anywhere;
+}
+
+.counter-top strong::after {
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--yellow);
+  content: "";
+}
+
+.counter-card[data-kind="penalty"] .counter-top strong::after {
+  background: var(--danger);
 }
 
 .stepper {
   display: grid;
-  grid-template-columns: 52px 58px 52px;
+  grid-template-columns: 48px 48px 48px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stepper button {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #2b2c32;
   color: var(--ink);
-  font-size: 1.55rem;
+  font-size: 1.5rem;
   font-weight: 900;
 }
 
 .stepper button[data-step="1"] {
-  background: var(--orange);
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   color: var(--accent-ink);
 }
 
@@ -529,43 +868,49 @@ select:focus {
   display: grid;
   place-items: center;
   min-width: 0;
-  height: 52px;
+  height: 48px;
   color: var(--ink);
-  font-size: 2rem;
+  font-size: 1.82rem;
   font-weight: 900;
 }
 
 .calc-panel {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  padding: 22px;
+  padding: 18px;
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
-.calc-panel div {
+.calc-panel > div:not(.target-rings) {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
-  border-radius: 18px;
+  min-height: 62px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   background: var(--tile);
-  padding: 0 18px;
+  padding: 0 16px;
 }
 
-.calc-panel div:last-child {
-  min-height: 152px;
+.calc-panel > div:not(.target-rings):last-child {
+  min-height: 136px;
   display: grid;
   place-items: center;
-  background: transparent;
-  padding: 0;
+  background: rgba(16, 16, 18, 0.78);
+  padding: 14px;
   text-align: center;
 }
 
 .calc-panel small {
   color: var(--muted);
-  font-size: 0.95rem;
-  font-weight: 850;
+  font-size: 0.88rem;
+  font-weight: 800;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -573,20 +918,21 @@ select:focus {
 .calc-panel strong {
   display: block;
   color: var(--ink);
-  font-size: 1.35rem;
+  font-size: 1.28rem;
   line-height: 1;
   font-weight: 900;
 }
 
-.calc-panel div:last-child strong {
-  color: var(--orange);
-  font-size: clamp(4rem, 18vw, 5.4rem);
+.calc-panel > div:not(.target-rings):last-child strong {
+  color: var(--yellow);
+  font-size: clamp(3.5rem, 17vw, 5rem);
+  text-shadow: 0 0 30px rgba(245, 197, 24, 0.4);
 }
 
 .filter-bar {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 18px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -599,7 +945,7 @@ select:focus {
   width: auto;
   min-width: 116px;
   min-height: 48px;
-  border-radius: 14px;
+  border-radius: 12px;
   color: var(--muted);
 }
 
@@ -610,8 +956,12 @@ select:focus {
 
 .notice {
   margin: 0 0 18px;
-  padding: 16px 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(245, 197, 24, 0.18);
+  border-radius: 14px;
+  background: rgba(245, 197, 24, 0.07);
   color: var(--muted);
+  box-shadow: none;
 }
 
 .tab-strip {
@@ -619,20 +969,21 @@ select:focus {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   padding: 8px;
+  border-radius: var(--radius);
 }
 
 .tab-strip button {
   min-height: 48px;
-  border: 0;
   border-radius: 16px;
   background: transparent;
   color: var(--muted);
-  font-weight: 850;
+  font-size: 0.82rem;
+  font-weight: 900;
 }
 
 .tab-strip button.is-active {
-  background: var(--orange);
   color: var(--accent-ink);
+  box-shadow: var(--shadow-yellow);
 }
 
 .more-panel {
@@ -644,8 +995,9 @@ select:focus {
   place-items: center;
   width: 50px;
   height: 50px;
-  border-radius: 18px;
-  background: var(--orange);
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--yellow);
   color: var(--accent-ink);
   font-size: 1.35rem;
   font-weight: 900;
@@ -662,21 +1014,20 @@ select:focus {
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
-  border: 0;
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: #2b2c32;
+  background: transparent;
   color: var(--muted);
-  font-size: 1.55rem;
-  line-height: 1;
-  font-weight: 900;
 }
 
-.delete-button:active {
-  transform: scale(0.96);
+.delete-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .delete-button:hover,
 .delete-button:focus-visible {
+  border-color: rgba(255, 107, 93, 0.38);
   color: var(--danger);
 }
 
@@ -686,7 +1037,8 @@ select:focus {
 }
 
 .chart-panel {
-  padding: 22px;
+  padding: 20px;
+  border-radius: var(--radius);
 }
 
 canvas {
@@ -694,9 +1046,28 @@ canvas {
   width: 100%;
   height: auto;
   margin-top: 16px;
+  border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--tile);
   overflow: hidden;
+}
+
+.insight-item {
+  position: relative;
+  justify-content: flex-start;
+  padding-left: 34px;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+}
+
+.insight-item::before {
+  position: absolute;
+  left: 18px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  content: "";
 }
 
 .settings-grid {
@@ -708,26 +1079,28 @@ canvas {
 
 .penalty-row {
   display: grid;
-  grid-template-columns: 1fr 86px 56px;
+  grid-template-columns: minmax(0, 1fr) 78px 52px;
   gap: 10px;
   align-items: end;
-  padding: 16px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
 }
 
 .toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 64px;
-  border-radius: 18px;
+  width: 52px;
+  height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   background: var(--tile);
 }
 
 .toggle input {
   width: 1.2rem;
   min-height: 1.2rem;
-  accent-color: var(--orange);
+  accent-color: var(--yellow);
 }
 
 .bottom-nav {
@@ -738,24 +1111,44 @@ canvas {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   width: min(100%, 430px);
-  padding: 14px 28px calc(22px + env(safe-area-inset-bottom));
+  padding: 14px 22px calc(20px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   border-top: 1px solid var(--line);
-  background: rgba(17, 18, 22, 0.92);
+  background: rgba(19, 19, 21, 0.92);
   backdrop-filter: blur(18px);
 }
 
 .bottom-nav button {
+  position: relative;
   display: grid;
   place-items: center;
   gap: 4px;
   min-width: 0;
   min-height: 54px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 0;
   background: transparent;
-  color: #67686f;
-  font-weight: 850;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 800;
+}
+
+.bottom-nav button::before {
+  position: absolute;
+  top: -14px;
+  width: 34px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+  background: var(--yellow);
+  content: "";
+  opacity: 0;
+}
+
+.bottom-nav button.is-active {
+  color: var(--yellow);
+}
+
+.bottom-nav button.is-active::before {
+  opacity: 1;
 }
 
 .nav-icon {
@@ -780,25 +1173,22 @@ canvas {
   max-width: 100%;
   overflow: hidden;
   color: currentColor;
-  font-size: 0.62rem;
+  font-size: 0.625rem;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.bottom-nav button.is-active {
-  background: rgba(255, 210, 26, 0.14);
-  color: var(--orange);
-}
-
 dialog {
   width: min(calc(100% - 40px), 390px);
+  padding: 22px;
+  border-radius: var(--radius);
   color: var(--ink);
-  box-shadow: var(--shadow);
 }
 
 dialog::backdrop {
-  background: rgba(0, 0, 0, 0.56);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
 }
 
 dialog form {
@@ -818,7 +1208,13 @@ dialog .primary-action,
 dialog .secondary-action {
   min-height: 62px;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+dialog .secondary-action::after,
+dialog .primary-action::after {
+  display: none;
 }
 
 .toast {
@@ -829,10 +1225,10 @@ dialog .secondary-action {
   width: min(calc(100% - 56px), 374px);
   padding: 16px 20px;
   transform: translate(-50%, 1rem);
-  border-radius: 18px;
-  background: var(--orange);
+  border-radius: 16px;
   color: var(--accent-ink);
-  font-weight: 850;
+  font-weight: 900;
+  box-shadow: var(--shadow-yellow);
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease, transform 180ms ease;
@@ -845,8 +1241,9 @@ dialog .secondary-action {
 
 .empty {
   padding: 22px;
+  border: 1px dashed var(--line);
   border-radius: var(--radius);
-  background: var(--panel);
+  background: var(--tile);
   color: var(--muted);
   text-align: center;
   font-weight: 800;
@@ -860,7 +1257,6 @@ dialog .secondary-action {
   .app-shell {
     min-height: calc(100vh - 48px);
     border-radius: 40px;
-    overflow: hidden;
   }
 
   .bottom-nav {
@@ -870,41 +1266,56 @@ dialog .secondary-action {
 
 @media (max-width: 390px) {
   .topbar {
-    padding-inline: 22px;
-  }
-
-  .content {
-    padding-inline: 22px;
-  }
-
-  .metric-row {
-    gap: 12px;
-  }
-
-  .counter-card {
     padding-inline: 18px;
   }
 
-  .counter-top strong {
-    font-size: 1.25rem;
+  .content {
+    padding-inline: 20px;
+  }
+
+  .hero-panel {
+    margin-inline: -20px;
+  }
+
+  .quick-actions .primary-action,
+  .quick-actions .secondary-action {
+    min-height: 136px;
+    padding: 18px 14px;
+    font-size: 0.98rem;
+  }
+
+  .counter-card {
+    padding-inline: 14px;
   }
 
   .stepper {
-    grid-template-columns: 44px 46px 44px;
+    grid-template-columns: 42px 40px 42px;
     gap: 6px;
   }
 
   .stepper button,
   .stepper output {
-    width: 44px;
-    height: 44px;
-    font-size: 1.35rem;
+    width: 42px;
+    height: 42px;
+    font-size: 1.25rem;
   }
 
-  .quick-actions .primary-action,
-  .quick-actions .secondary-action {
-    min-height: 84px;
-    font-size: 1.2rem;
+  .penalty-row {
+    grid-template-columns: 1fr;
+  }
+
+  .penalty-row .toggle {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
   }
 }
 
@@ -922,7 +1333,9 @@ dialog .secondary-action {
       <main class="content">
         <section class="view is-active" id="view-home" aria-labelledby="home-title">
           <div class="hero-panel">
+            <div class="target-rings" aria-hidden="true"><i></i><i></i><i></i></div>
             <div>
+              <p class="hero-eyebrow">Training</p>
               <h2 id="home-title">Training DSR</h2>
               <p class="muted">Training en onderlinge vergelijking binnen de vereniging.</p>
             </div>
@@ -940,11 +1353,25 @@ dialog .secondary-action {
 
           <div class="quick-actions" aria-label="Snelle acties">
             <button class="primary-action" type="button" data-go="scores">
-              <span aria-hidden="true">◎</span>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="8.5" />
+                  <circle cx="12" cy="12" r="3.5" />
+                  <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" />
+                </svg>
+              </span>
               Score invoeren
             </button>
             <button class="secondary-action" type="button" data-go="ranking">
-              <span aria-hidden="true">1↵</span>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M8 21h8" />
+                  <path d="M12 17v4" />
+                  <path d="M7 4h10v4a5 5 0 0 1-10 0V4Z" />
+                  <path d="M7 6H4a2 2 0 0 0 2 4h1" />
+                  <path d="M17 6h3a2 2 0 0 1-2 4h-1" />
+                </svg>
+              </span>
               Klassement
             </button>
           </div>
@@ -952,7 +1379,7 @@ dialog .secondary-action {
           <section class="section-block">
             <div class="section-heading">
               <h3>Live stand</h3>
-              <button class="text-button" type="button" data-go="ranking">Bekijk alles</button>
+              <button class="text-button" type="button" data-go="ranking">Bekijk alles &rarr;</button>
             </div>
             <div class="list" id="homeRanking"></div>
           </section>
@@ -982,7 +1409,9 @@ dialog .secondary-action {
             <div class="section-heading">
               <h3>Deelnemers</h3>
               <button class="icon-button" type="button" id="addShooterButton" aria-label="Schutter toevoegen" title="Schutter toevoegen">
-                <span aria-hidden="true">＋</span>
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                </span>
               </button>
             </div>
             <div class="chip-list" id="participantChips"></div>
@@ -996,7 +1425,9 @@ dialog .secondary-action {
               <h2 id="scores-title">Score invoeren</h2>
             </div>
             <button class="icon-button" id="resetScoreButton" type="button" aria-label="Score wissen" title="Score wissen">
-              <span aria-hidden="true">↺</span>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /></svg>
+              </span>
             </button>
           </div>
 
@@ -1022,6 +1453,7 @@ dialog .secondary-action {
             </div>
 
             <section class="calc-panel" aria-label="Live berekening">
+              <div class="target-rings dark-rings" aria-hidden="true"><i></i><i></i><i></i></div>
               <div>
                 <small>Trefferpunten</small>
                 <strong id="calcHits">0</strong>
@@ -1041,7 +1473,9 @@ dialog .secondary-action {
             </section>
 
             <button class="primary-action full-width" type="submit">
-              <span aria-hidden="true">✓</span>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></svg>
+              </span>
               Score opslaan
             </button>
           </form>
@@ -1061,7 +1495,9 @@ dialog .secondary-action {
               <h2 id="ranking-title">Klassement</h2>
             </div>
             <button class="icon-button" id="exportButton" type="button" aria-label="Exporteren" title="Exporteren">
-              <span aria-hidden="true">⇩</span>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
+              </span>
             </button>
           </div>
 
@@ -1105,7 +1541,9 @@ dialog .secondary-action {
             <div class="section-heading">
               <h3>Schutterprofielen</h3>
               <button class="icon-button" type="button" id="profileAddButton" aria-label="Schutter toevoegen" title="Schutter toevoegen">
-                <span aria-hidden="true">＋</span>
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                </span>
               </button>
             </div>
             <div class="profile-list" id="profileList"></div>
@@ -1145,7 +1583,9 @@ dialog .secondary-action {
               </section>
 
               <button class="primary-action full-width" type="submit">
-                <span aria-hidden="true">✓</span>
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></svg>
+                </span>
                 Instellingen opslaan
               </button>
             </form>
@@ -1270,6 +1710,13 @@ const counters = [
   { key: "procedure", label: "Procedure fout", kind: "penalty" },
 ];
 
+const iconX = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+`;
+
 let state = loadState();
 let scoreDraft = createEmptyDraft();
 
@@ -1376,6 +1823,7 @@ function getRanking() {
 
 function render() {
   document.body.classList.add("dark");
+  document.body.classList.toggle("home-active", $("#view-home")?.classList.contains("is-active"));
   renderCounters();
   renderSelects();
   renderHome();
@@ -1393,7 +1841,7 @@ function renderCounters() {
   grid.innerHTML = counters
     .map(
       (counter) => `
-        <article class="counter-card">
+        <article class="counter-card" data-kind="${counter.kind}">
           <div class="counter-top">
             <strong>${counter.label}</strong>
           </div>
@@ -1489,21 +1937,29 @@ function renderRanking() {
 function renderRankingItems(items, compact) {
   if (!items.length) return `<div class="empty">Nog geen klassement beschikbaar.</div>`;
 
+  const maxHitfactor = Math.max(...items.map((item) => item.hitfactor), 1);
+
   return items
     .map(
-      (item, index) => `
-        <article class="${compact ? "list-item" : "rank-item"}">
-          ${compact ? "" : `<span class="rank-number">${index + 1}</span>`}
+      (item, index) => {
+        const progress = Math.min(100, Math.max(0, (item.hitfactor / maxHitfactor) * 100));
+        const leaderClass = index === 0 ? " is-leader" : "";
+
+        return `
+        <article class="${compact ? "list-item" : "rank-item"}${leaderClass}">
+          <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
             <small>${item.entries} scores · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
           </div>
           <div class="rank-score">
             <strong>${formatNumber(item.hitfactor, 3)}</strong>
+            <span class="rank-progress" aria-hidden="true"><i style="width: ${progress}%"></i></span>
             <small>HF</small>
           </div>
         </article>
-      `,
+      `;
+      },
     )
     .join("");
 }
@@ -1530,7 +1986,7 @@ function renderProfiles() {
             <strong>${shooter.name}</strong>
             <small>${shooter.level} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
-          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen">×</button>
+          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen">${iconX}</button>
         </article>
       `;
     })
@@ -1743,6 +2199,7 @@ function cssVar(name, fallback = "") {
 function setView(view) {
   $$(".view").forEach((element) => element.classList.toggle("is-active", element.id === `view-${view}`));
   $$("[data-nav]").forEach((button) => button.classList.toggle("is-active", button.dataset.nav === view));
+  document.body.classList.toggle("home-active", view === "home");
   window.scrollTo({ top: 0, behavior: "smooth" });
   renderDashboard();
 }
