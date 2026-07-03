@@ -154,8 +154,8 @@ body:has(#view-home.is-active) .topbar {
 .app-logo {
   display: inline-grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 64px;
+  height: 64px;
   flex: 0 0 auto;
   border: 0;
   border-radius: 999px;
@@ -1659,7 +1659,7 @@ dialog .primary-action::after {
     </div>
 
     <dialog id="entryDialog">
-      <form method="dialog" id="entryForm">
+      <form id="entryForm">
         <h3 id="entryTitle">Toevoegen</h3>
         <label>
           <span>Naam</span>
@@ -1675,7 +1675,7 @@ dialog .primary-action::after {
         </label>
         <menu>
           <button class="secondary-action" id="entryCancelButton" type="button">Annuleer</button>
-          <button class="primary-action" value="default" type="submit">Opslaan</button>
+          <button class="primary-action" type="submit">Opslaan</button>
         </menu>
       </form>
     </dialog>
@@ -2345,7 +2345,6 @@ document.addEventListener("click", (event) => {
 });
 
 $("#entryForm").addEventListener("submit", (event) => {
-  if (event.submitter?.value === "cancel") return;
   event.preventDefault();
   const name = $("#entryName").value.trim();
   const meta = $("#entryMeta").value.trim();
@@ -2361,6 +2360,7 @@ $("#entryForm").addEventListener("submit", (event) => {
 
   $("#entryDialog").close();
   render();
+  showToast("Schutter toegevoegd");
 });
 
 $("#settingsForm").addEventListener("submit", (event) => {
