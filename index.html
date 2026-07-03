@@ -1756,6 +1756,11 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function createId(prefix) {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function createEmptyDraft() {
   return counters.reduce((draft, counter) => ({ ...draft, [counter.key]: 0 }), {
     shooterId: "",
@@ -2238,7 +2243,7 @@ function saveEntryDialog() {
   }
 
   state.shooters.push({
-    id: crypto.randomUUID(),
+    id: createId("shooter"),
     name,
     level: meta || "Open",
     discipline: "DSR",
@@ -2300,6 +2305,13 @@ function exportCsv() {
 }
 
 document.addEventListener("click", (event) => {
+  const saveEntryButton = event.target.closest("#entrySaveButton");
+  if (saveEntryButton) {
+    event.preventDefault();
+    saveEntryDialog();
+    return;
+  }
+
   const navButton = event.target.closest("[data-nav]");
   if (navButton) setView(navButton.dataset.nav);
 
@@ -2331,7 +2343,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
   }
 
   state.scores.push({
-    id: crypto.randomUUID(),
+    id: createId("score"),
     ...scoreDraft,
     ...calc,
     createdAt: new Date().toISOString(),
@@ -2350,7 +2362,6 @@ $("#exportButton").addEventListener("click", exportCsv);
 $("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close());
-$("#entrySaveButton").addEventListener("click", saveEntryDialog);
 
 document.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-shooter]");
@@ -2390,7 +2401,7 @@ $("#settingsForm").addEventListener("submit", (event) => {
 });
 
 $("#addPenaltyButton").addEventListener("click", () => {
-  state.penalties.push({ id: crypto.randomUUID(), name: "Nieuwe strafregel", value: -10, active: true });
+  state.penalties.push({ id: createId("penalty"), name: "Nieuwe strafregel", value: -10, active: true });
   render();
 });
 
