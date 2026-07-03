@@ -1512,7 +1512,9 @@ dialog .primary-action::after {
           <div class="filter-bar">
             <select id="rankDiscipline" aria-label="Discipline filter">
               <option value="all">Alle disciplines</option>
-              <option value="DSR">DSR</option>
+              <option value="Standaard">Standaard</option>
+              <option value="Duo">Duo</option>
+              <option value="Duo-Duo">Duo-Duo</option>
             </select>
             <select id="rankLevel" aria-label="Niveau filter">
               <option value="all">Alle niveaus</option>
@@ -1674,6 +1676,14 @@ dialog .primary-action::after {
             <option value="Open" selected>Open</option>
           </select>
         </label>
+        <label>
+          <span>Discipline</span>
+          <select id="entryDiscipline">
+            <option value="Standaard" selected>Standaard</option>
+            <option value="Duo">Duo</option>
+            <option value="Duo-Duo">Duo-Duo</option>
+          </select>
+        </label>
         <div class="dialog-actions">
           <button class="secondary-action" id="entryCancelButton" type="button">Annuleer</button>
           <button class="primary-action" id="entrySaveButton" type="button">Opslaan</button>
@@ -1718,6 +1728,9 @@ const counters = [
   { key: "procedure", label: "Procedure fout", kind: "penalty" },
 ];
 
+const defaultDiscipline = "Standaard";
+const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
+
 const iconX = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M18 6 6 18" />
@@ -1741,19 +1754,31 @@ function loadState() {
 }
 
 function mergeData(base, saved) {
+  const shooters = Array.isArray(saved.shooters)
+    ? saved.shooters.map((shooter) => ({
+        ...shooter,
+        discipline: normalizeDiscipline(shooter.discipline),
+      }))
+    : base.shooters;
+
   return {
     ...structuredClone(base),
     ...saved,
     competition: { ...base.competition, ...saved.competition },
     points: { ...base.points, ...saved.points },
     penalties: saved.penalties?.length ? saved.penalties : base.penalties,
-    shooters: Array.isArray(saved.shooters) ? saved.shooters : base.shooters,
+    shooters,
     scores: saved.scores || [],
   };
 }
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function normalizeDiscipline(discipline) {
+  if (discipline === "DSR" || !discipline) return defaultDiscipline;
+  return disciplineOptions.includes(discipline) ? discipline : defaultDiscipline;
 }
 
 function createId(prefix) {
@@ -1997,7 +2022,7 @@ function renderProfiles() {
           <span class="profile-avatar">${shooter.name.slice(0, 1).toUpperCase()}</span>
           <div class="profile-meta">
             <strong>${shooter.name}</strong>
-            <small>${shooter.level} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
+            <small>${shooter.level} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
           <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen">${iconX}</button>
         </article>
@@ -2228,6 +2253,7 @@ function openEntryDialog() {
   $("#entryTitle").textContent = "Schutter toevoegen";
   $("#entryName").value = "";
   $("#entryMeta").value = "Open";
+  $("#entryDiscipline").value = defaultDiscipline;
   $("#entryMetaLabel span").textContent = "Niveau";
   $("#entryDialog").showModal();
   $("#entryName").focus();
@@ -2236,6 +2262,7 @@ function openEntryDialog() {
 function saveEntryDialog() {
   const name = $("#entryName").value.trim();
   const meta = $("#entryMeta").value.trim();
+  const discipline = normalizeDiscipline($("#entryDiscipline").value);
   if (!name) {
     $("#entryName").focus();
     showToast("Vul eerst een naam in");
@@ -2246,7 +2273,7 @@ function saveEntryDialog() {
     id: createId("shooter"),
     name,
     level: meta || "Open",
-    discipline: "DSR",
+    discipline,
     active: true,
   });
 
