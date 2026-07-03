@@ -1203,7 +1203,8 @@ dialog form {
   gap: 16px;
 }
 
-dialog menu {
+dialog menu,
+.dialog-actions {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
@@ -1673,10 +1674,10 @@ dialog .primary-action::after {
             <option value="Open" selected>Open</option>
           </select>
         </label>
-        <menu>
+        <div class="dialog-actions">
           <button class="secondary-action" id="entryCancelButton" type="button">Annuleer</button>
-          <button class="primary-action" type="submit">Opslaan</button>
-        </menu>
+          <button class="primary-action" id="entrySaveButton" type="button">Opslaan</button>
+        </div>
       </form>
     </dialog>
 
@@ -2224,6 +2225,29 @@ function openEntryDialog() {
   $("#entryMeta").value = "Open";
   $("#entryMetaLabel span").textContent = "Niveau";
   $("#entryDialog").showModal();
+  $("#entryName").focus();
+}
+
+function saveEntryDialog() {
+  const name = $("#entryName").value.trim();
+  const meta = $("#entryMeta").value.trim();
+  if (!name) {
+    $("#entryName").focus();
+    showToast("Vul eerst een naam in");
+    return;
+  }
+
+  state.shooters.push({
+    id: crypto.randomUUID(),
+    name,
+    level: meta || "Open",
+    discipline: "DSR",
+    active: true,
+  });
+
+  $("#entryDialog").close();
+  render();
+  showToast("Schutter toegevoegd");
 }
 
 function addDemoScores() {
@@ -2326,6 +2350,7 @@ $("#exportButton").addEventListener("click", exportCsv);
 $("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close());
+$("#entrySaveButton").addEventListener("click", saveEntryDialog);
 
 document.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-shooter]");
@@ -2346,21 +2371,7 @@ document.addEventListener("click", (event) => {
 
 $("#entryForm").addEventListener("submit", (event) => {
   event.preventDefault();
-  const name = $("#entryName").value.trim();
-  const meta = $("#entryMeta").value.trim();
-  if (!name) return;
-
-  state.shooters.push({
-    id: crypto.randomUUID(),
-    name,
-    level: meta || "Open",
-    discipline: "DSR",
-    active: true,
-  });
-
-  $("#entryDialog").close();
-  render();
-  showToast("Schutter toegevoegd");
+  saveEntryDialog();
 });
 
 $("#settingsForm").addEventListener("submit", (event) => {
