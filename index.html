@@ -1445,6 +1445,14 @@ dialog .primary-action::after {
                 <span>Schutter</span>
                 <select id="scoreShooter"></select>
               </label>
+              <label>
+                <span>Discipline</span>
+                <select id="scoreDiscipline">
+                  <option value="Standaard">Standaard</option>
+                  <option value="Duo">Duo</option>
+                  <option value="Duo-Duo">Duo-Duo</option>
+                </select>
+              </label>
             </div>
 
             <div class="counter-grid" id="counterGrid"></div>
@@ -1760,6 +1768,12 @@ function mergeData(base, saved) {
         discipline: normalizeDiscipline(shooter.discipline),
       }))
     : base.shooters;
+  const scores = Array.isArray(saved.scores)
+    ? saved.scores.map((score) => ({
+        ...score,
+        discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+      }))
+    : [];
 
   return {
     ...structuredClone(base),
@@ -1768,7 +1782,7 @@ function mergeData(base, saved) {
     points: { ...base.points, ...saved.points },
     penalties: saved.penalties?.length ? saved.penalties : base.penalties,
     shooters,
-    scores: saved.scores || [],
+    scores,
   };
 }
 
@@ -1789,6 +1803,7 @@ function createId(prefix) {
 function createEmptyDraft() {
   return counters.reduce((draft, counter) => ({ ...draft, [counter.key]: 0 }), {
     shooterId: "",
+    discipline: defaultDiscipline,
     time: "",
     notes: "",
   });
@@ -1826,15 +1841,25 @@ function getShooter(id) {
   return state.shooters.find((shooter) => shooter.id === id);
 }
 
-function getRanking() {
+function getScoreDiscipline(score, shooter = getShooter(score.shooterId)) {
+  return normalizeDiscipline(score.discipline || shooter?.discipline);
+}
+
+function getRanking(filters = {}) {
+  const discipline = filters.discipline || "all";
+  const level = filters.level || "all";
   const grouped = new Map();
 
   state.scores.forEach((score) => {
     const shooter = getShooter(score.shooterId);
     if (!shooter) return;
+    const scoreDiscipline = getScoreDiscipline(score, shooter);
+    if (discipline !== "all" && scoreDiscipline !== discipline) return;
+    if (level !== "all" && shooter.level !== level) return;
 
     const current = grouped.get(score.shooterId) || {
       shooter,
+      discipline: discipline === "all" ? "Alle disciplines" : scoreDiscipline,
       points: 0,
       time: 0,
       hitfactor: 0,
@@ -1899,14 +1924,22 @@ function renderSelects() {
   const shooterOptions = activeShooters.length
     ? activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`).join("")
     : `<option value="">Geen schutters</option>`;
+  const disciplineOptionsHtml = disciplineOptions
+    .map((discipline) => `<option value="${discipline}">${discipline}</option>`)
+    .join("");
 
   $("#scoreShooter").innerHTML = shooterOptions;
+  $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
 
   if (!activeShooters.some((shooter) => shooter.id === scoreDraft.shooterId)) {
     scoreDraft.shooterId = activeShooters[0]?.id || "";
   }
+  if (!disciplineOptions.includes(scoreDraft.discipline)) {
+    scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
+  }
 
   $("#scoreShooter").value = scoreDraft.shooterId;
+  $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreTime").value = scoreDraft.time;
   $("#scoreNotes").value = scoreDraft.notes;
 }
@@ -1914,7 +1947,7 @@ function renderSelects() {
 function renderHome() {
   $("#homeParticipants").textContent = state.shooters.filter((shooter) => shooter.active).length;
   $("#homeScores").textContent = state.scores.length;
-  $("#homeRanking").innerHTML = renderRankingItems(getRanking().sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3), true);
+  $("#homeRanking").innerHTML = renderRankingItems(getRanking({ discipline: "all", level: "all" }).sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3), true);
 }
 
 function renderCompetition() {
@@ -1944,7 +1977,7 @@ function renderScores() {
             <article class="list-item">
               <div>
                 <strong>${shooter?.name || "Onbekend"}</strong>
-                <small>${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
+                <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
               </div>
               <strong>${formatNumber(score.hitfactor, 3)}</strong>
             </article>
@@ -1955,13 +1988,10 @@ function renderScores() {
 }
 
 function renderRanking() {
-  let items = getRanking();
   const discipline = $("#rankDiscipline").value || "all";
   const level = $("#rankLevel").value || "all";
   const sort = $("#rankSort").value || "hitfactor";
-
-  if (discipline !== "all") items = items.filter((item) => item.shooter.discipline === discipline);
-  if (level !== "all") items = items.filter((item) => item.shooter.level === level);
+  let items = getRanking({ discipline, level });
 
   items.sort((a, b) => {
     if (sort === "points") return b.points - a.points;
@@ -1988,7 +2018,7 @@ function renderRankingItems(items, compact) {
           <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
-            <small>${item.entries} scores · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
+            <small>${item.discipline} · ${item.shooter.level} · ${item.entries} scores · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
           </div>
           <div class="rank-score">
             <strong>${formatNumber(item.hitfactor, 3)}</strong>
@@ -2079,7 +2109,7 @@ function renderDashboard() {
   drawHitfactorChart();
   drawRatioChart();
 
-  const ranking = getRanking().sort((a, b) => b.hitfactor - a.hitfactor);
+  const ranking = getRanking({ discipline: "all", level: "all" }).sort((a, b) => b.hitfactor - a.hitfactor);
   const top = ranking[0];
   const mostImproved = getMostImproved();
   const weakPart = getWeakestPart();
@@ -2308,9 +2338,11 @@ function addDemoScores() {
 
 function exportCsv() {
   const rows = [
-    ["Schutter", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
+    ["Schutter", "Discipline", "Niveau", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
     ...state.scores.map((score) => [
       getShooter(score.shooterId)?.name || "",
+      getScoreDiscipline(score),
+      getShooter(score.shooterId)?.level || "",
       score.alpha,
       score.charlie,
       score.delta,
@@ -2355,7 +2387,12 @@ document.addEventListener("click", (event) => {
 });
 
 $("#scoreForm").addEventListener("input", (event) => {
-  if (event.target.id === "scoreShooter") scoreDraft.shooterId = event.target.value;
+  if (event.target.id === "scoreShooter") {
+    scoreDraft.shooterId = event.target.value;
+    scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
+    $("#scoreDiscipline").value = scoreDraft.discipline;
+  }
+  if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
