@@ -2,7 +2,7 @@
 <html lang="nl">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0c0c0d" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
@@ -48,6 +48,7 @@
 
 html {
   background: var(--desk);
+  touch-action: manipulation;
 }
 
 body {
@@ -55,6 +56,7 @@ body {
   margin: 0;
   background: var(--desk);
   color: var(--ink);
+  touch-action: manipulation;
 }
 
 button,
@@ -66,6 +68,7 @@ select {
 button {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button:focus {
@@ -128,6 +131,7 @@ dialog {
   background: var(--bg);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
   overflow: hidden;
+  touch-action: manipulation;
 }
 
 .topbar {
@@ -1760,9 +1764,21 @@ const iconX = `
 
 let state = loadState();
 let scoreDraft = createEmptyDraft();
+let lastButtonTouchAt = 0;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+document.addEventListener(
+  "touchend",
+  (event) => {
+    if (!event.target.closest("button")) return;
+    const now = Date.now();
+    if (now - lastButtonTouchAt < 320) event.preventDefault();
+    lastButtonTouchAt = now;
+  },
+  { passive: false },
+);
 
 function loadState() {
   try {
