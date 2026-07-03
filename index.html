@@ -937,23 +937,26 @@ select:focus {
 }
 
 .filter-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 18px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
-.filter-bar::-webkit-scrollbar {
-  display: none;
+#rankDiscipline {
+  grid-column: 1 / -1;
 }
 
 .filter-bar select {
-  width: auto;
-  min-width: 116px;
-  min-height: 48px;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
   border-radius: 12px;
   color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.1;
+  padding: 0 40px 0 14px;
+  text-overflow: ellipsis;
 }
 
 .filter-bar select:focus,
@@ -1306,6 +1309,15 @@ dialog .primary-action::after {
     width: 42px;
     height: 42px;
     font-size: 1.25rem;
+  }
+
+  .filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filter-bar select {
+    min-height: 52px;
+    font-size: 1rem;
   }
 
   .penalty-row {
