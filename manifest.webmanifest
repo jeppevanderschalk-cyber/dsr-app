@@ -4,8 +4,8 @@
   "description": "Mobiele score-app voor interne DSR trainingen.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0c0c0d",
-  "theme_color": "#0c0c0d",
+  "background_color": "#f5c518",
+  "theme_color": "#f5c518",
   "icons": [
     {
       "src": "icon-192.png",
