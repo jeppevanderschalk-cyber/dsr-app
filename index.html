@@ -731,6 +731,77 @@ small {
   background: var(--yellow);
 }
 
+.score-progress-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
+}
+
+.score-progress-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.score-progress-card header strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.3rem;
+  line-height: 1.05;
+  font-weight: 900;
+}
+
+.score-progress-card header small,
+.score-round-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.28;
+}
+
+.score-round-list {
+  display: grid;
+  gap: 8px;
+}
+
+.score-round-row {
+  display: grid;
+  grid-template-columns: minmax(82px, 0.75fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--tile);
+}
+
+.score-round-row span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.score-round-row strong {
+  color: var(--yellow);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.score-round-row small {
+  min-width: 0;
+  margin-top: 0;
+  text-align: right;
+}
+
 .status-pill,
 .chip {
   display: inline-flex;
@@ -1430,6 +1501,15 @@ dialog .primary-action::after {
     font-size: 1.65rem;
   }
 
+  .score-round-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .score-round-row small {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
   .filter-bar {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1584,6 +1664,10 @@ dialog .primary-action::after {
                   <option value="Duo-Duo">Duo-Duo</option>
                 </select>
               </label>
+              <label>
+                <span>Ronde</span>
+                <select id="scoreRound"></select>
+              </label>
             </div>
 
             <div class="counter-grid" id="counterGrid"></div>
@@ -1629,7 +1713,7 @@ dialog .primary-action::after {
 
           <section class="section-block">
             <div class="section-heading">
-              <h3>Laatste scores</h3>
+              <h3>Progressie per schutter</h3>
             </div>
             <div class="list" id="recentScores"></div>
           </section>
@@ -1938,7 +2022,7 @@ const counters = [
 
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
-const progressRounds = [1, 2, 3, 4, 5, 6, 7, 8];
+const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 
 const iconX = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1988,6 +2072,7 @@ function mergeData(base, saved) {
   const scores = Array.isArray(saved.scores)
     ? saved.scores.map((score) => ({
         ...score,
+        round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
         discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
       }))
     : [];
@@ -2150,6 +2235,7 @@ function createEmptyDraft() {
   return counters.reduce((draft, counter) => ({ ...draft, [counter.key]: 0 }), {
     shooterId: "",
     discipline: defaultDiscipline,
+    round: 1,
     time: "",
     notes: "",
   });
@@ -2295,6 +2381,9 @@ function renderSelects() {
 
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
+  $("#scoreRound").innerHTML = progressRounds
+    .map((round) => `<option value="${round}">${formatRound(round)} ronde</option>`)
+    .join("");
   $("#progressShooter").innerHTML = shooterOptions;
   $("#progressRound").innerHTML = progressRounds
     .map((round) => `<option value="${round}">${formatRound(round)} ronde</option>`)
@@ -2314,6 +2403,7 @@ function renderSelects() {
 
   $("#scoreShooter").value = scoreDraft.shooterId;
   $("#scoreDiscipline").value = scoreDraft.discipline;
+  $("#scoreRound").value = progressRounds.includes(Number(scoreDraft.round)) ? String(scoreDraft.round) : "1";
   $("#scoreTime").value = scoreDraft.time;
   $("#scoreNotes").value = scoreDraft.notes;
   $("#progressShooter").value = activeShooters.some((shooter) => shooter.id === selectedProgressShooter)
@@ -2348,24 +2438,55 @@ function renderScores() {
   $("#calcNet").textContent = formatNumber(calc.net, 0);
   $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
 
-  $("#recentScores").innerHTML = state.scores.length
-    ? state.scores
-        .slice(-5)
-        .reverse()
-        .map((score) => {
-          const shooter = getShooter(score.shooterId);
-          return `
-            <article class="list-item">
-              <div>
-                <strong>${shooter?.name || "Onbekend"}</strong>
-                <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
-              </div>
-              <strong>${formatNumber(score.hitfactor, 3)}</strong>
-            </article>
-          `;
-        })
-        .join("")
-    : `<div class="empty">Nog geen scores ingevoerd.</div>`;
+  $("#recentScores").innerHTML = renderScoreProgress();
+}
+
+function renderScoreProgress() {
+  if (!state.scores.length) return `<div class="empty">Nog geen scores ingevoerd.</div>`;
+
+  const groups = state.shooters
+    .map((shooter) => {
+      const scores = state.scores
+        .filter((score) => score.shooterId === shooter.id)
+        .map((score, index) => ({
+          ...score,
+          displayRound: Number(score.round) || Math.min(index + 1, 15),
+        }))
+        .sort((a, b) => a.displayRound - b.displayRound || String(a.createdAt).localeCompare(String(b.createdAt)));
+
+      return { shooter, scores };
+    })
+    .filter((group) => group.scores.length);
+
+  if (!groups.length) return `<div class="empty">Nog geen scores ingevoerd.</div>`;
+
+  return groups
+    .map(
+      ({ shooter, scores }) => `
+        <article class="score-progress-card">
+          <header>
+            <div>
+              <strong>${shooter.name}</strong>
+              <small>${shooter.level} · ${scores.length} scores</small>
+            </div>
+          </header>
+          <div class="score-round-list">
+            ${scores
+              .map(
+                (score) => `
+                  <div class="score-round-row">
+                    <span>${formatRound(score.displayRound)} ronde</span>
+                    <strong>${formatNumber(score.hitfactor, 3)}</strong>
+                    <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        </article>
+      `,
+    )
+    .join("");
 }
 
 function renderRanking() {
@@ -2789,11 +2910,12 @@ function addDemoScores() {
 
 function exportCsv() {
   const rows = [
-    ["Schutter", "Discipline", "Niveau", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
+    ["Schutter", "Discipline", "Niveau", "Ronde", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
     ...state.scores.map((score) => [
       getShooter(score.shooterId)?.name || "",
       getScoreDiscipline(score),
       getShooter(score.shooterId)?.level || "",
+      Number(score.round) || "",
       score.alpha,
       score.charlie,
       score.delta,
@@ -2845,6 +2967,7 @@ $("#scoreForm").addEventListener("input", (event) => {
     $("#scoreDiscipline").value = scoreDraft.discipline;
   }
   if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
+  if (event.target.id === "scoreRound") scoreDraft.round = Math.min(15, Math.max(1, Number(event.target.value) || 1));
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
@@ -2858,14 +2981,21 @@ $("#scoreForm").addEventListener("submit", (event) => {
     return;
   }
 
+  const currentRound = Math.min(15, Math.max(1, Number(scoreDraft.round) || 1));
   state.scores.push({
     id: createId("score"),
     ...scoreDraft,
+    round: currentRound,
     ...calc,
     createdAt: new Date().toISOString(),
   });
   markDirty();
+  const nextShooterId = scoreDraft.shooterId;
+  const nextDiscipline = scoreDraft.discipline;
   scoreDraft = createEmptyDraft();
+  scoreDraft.shooterId = nextShooterId;
+  scoreDraft.discipline = nextDiscipline;
+  scoreDraft.round = Math.min(15, currentRound + 1);
   render();
   showToast("Score opgeslagen");
 });
