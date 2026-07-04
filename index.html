@@ -2169,6 +2169,11 @@ function formatRound(round) {
   return `${Math.max(1, Number(round) || 1)}e`;
 }
 
+function triggerHapticFeedback() {
+  if (!("vibrate" in navigator)) return;
+  navigator.vibrate(12);
+}
+
 function getActiveProcedurePenalty() {
   return state.penalties.find((penalty) => penalty.id === "pen-procedure") || state.penalties[0] || { value: -10 };
 }
@@ -2823,6 +2828,7 @@ document.addEventListener("click", (event) => {
 
   const stepButton = event.target.closest("[data-step]");
   if (stepButton) {
+    triggerHapticFeedback();
     const key = stepButton.closest("[data-counter]").dataset.counter;
     scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
     render();
