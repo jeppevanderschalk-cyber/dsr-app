@@ -868,19 +868,19 @@ select:focus {
 
 .stepper {
   display: grid;
-  grid-template-columns: 48px 48px 48px;
+  grid-template-columns: 60px 54px 60px;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .stepper button {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 18px;
   background: #2b2c32;
   color: var(--ink);
-  font-size: 1.5rem;
+  font-size: 1.85rem;
   font-weight: 900;
 }
 
@@ -894,7 +894,7 @@ select:focus {
   display: grid;
   place-items: center;
   min-width: 0;
-  height: 48px;
+  height: 60px;
   color: var(--ink);
   font-size: 1.82rem;
   font-weight: 900;
@@ -1413,19 +1413,21 @@ dialog .primary-action::after {
   }
 
   .counter-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
     padding-inline: 14px;
   }
 
   .stepper {
-    grid-template-columns: 42px 40px 42px;
-    gap: 6px;
+    grid-template-columns: minmax(58px, 1fr) 54px minmax(58px, 1fr);
+    gap: 8px;
   }
 
   .stepper button,
   .stepper output {
-    width: 42px;
-    height: 42px;
-    font-size: 1.25rem;
+    width: 100%;
+    height: 58px;
+    font-size: 1.65rem;
   }
 
   .filter-bar {
