@@ -1541,10 +1541,75 @@ dialog .primary-action::after {
   }
 }
 
+.login-gate[hidden] {
+  display: none;
+}
+
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+}
+
+.login-card {
+  width: min(100%, 380px);
+  display: grid;
+  gap: 16px;
+  padding: 28px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.login-card h2 {
+  margin: 0;
+}
+
+.login-card label {
+  text-align: left;
+}
+
+.login-error {
+  min-height: 20px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
     </style>
   </head>
   <body>
-    <div class="app-shell">
+    <div class="login-gate" id="loginGate">
+      <form class="login-card" id="loginForm">
+        <img src="dsr-logo.jpeg" alt="" class="login-logo" />
+        <h2>SVBB DSR</h2>
+        <p class="muted">Log in om de app te gebruiken.</p>
+        <label>
+          <span>Wachtwoord</span>
+          <input type="password" id="loginPassword" autocomplete="current-password" required />
+        </label>
+        <p class="login-error" id="loginError" role="alert"></p>
+        <button class="primary-action full-width" type="submit">Inloggen</button>
+      </form>
+    </div>
+
+    <div class="app-shell" id="appShell" hidden>
       <header class="topbar">
         <span class="app-logo" aria-hidden="true">
           <img src="dsr-logo.jpeg" alt="" />
@@ -1867,6 +1932,11 @@ dialog .primary-action::after {
               </section>
 
               <section class="section-block">
+                <h3>Sessie</h3>
+                <button class="secondary-action" id="logoutButton" type="button" style="width: 100%; color: var(--danger)">Uitloggen</button>
+              </section>
+
+              <section class="section-block">
                 <h3>Puntensysteem</h3>
                 <div class="settings-grid" id="pointsSettings"></div>
               </section>
@@ -1981,6 +2051,10 @@ dialog .primary-action::after {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module">
 const STORAGE_KEY = "dsr-score-app-v5";
+const AUTH_STORAGE_KEY = "dsr-app-auth-v1";
+const AUTH_CONFIG = {
+  passwordHash: "daeb81b8d50edaaa11bfbf22fa040e093ab5cdf82b592f764daa82d93bc155e9",
+};
 const SYNC_CONFIG = {
   supabaseUrl: "https://ktpngngrqwuqbdpxiihf.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0cG5nbmdycXd1cWJkcHhpaWhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMDA0MjksImV4cCI6MjA5ODY3NjQyOX0.rnFGMaKGst8s3_f327It32vHOs4Dc66x_-7GbWxrC9c",
@@ -3111,8 +3185,51 @@ $$("[data-more-tab]").forEach((button) => {
 
 $("#progressDisciplineFilter").addEventListener("change", renderProgress);
 
-render();
-pullRemoteState();
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function startApp() {
+  $("#loginGate").setAttribute("hidden", "");
+  $("#appShell").removeAttribute("hidden");
+  render();
+  pullRemoteState();
+}
+
+function showLoginGate() {
+  $("#appShell").setAttribute("hidden", "");
+  $("#loginGate").removeAttribute("hidden");
+  $("#loginPassword").value = "";
+  $("#loginError").textContent = "";
+  $("#loginPassword").focus();
+}
+
+$("#loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const entered = $("#loginPassword").value;
+  const hash = await sha256Hex(entered);
+  if (hash === AUTH_CONFIG.passwordHash) {
+    localStorage.setItem(AUTH_STORAGE_KEY, "1");
+    startApp();
+  } else {
+    $("#loginError").textContent = "Onjuist wachtwoord. Probeer het opnieuw.";
+  }
+});
+
+$("#logoutButton").addEventListener("click", () => {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  showLoginGate();
+});
+
+if (localStorage.getItem(AUTH_STORAGE_KEY) === "1") {
+  startApp();
+} else {
+  showLoginGate();
+}
 
     </script>
   </body>
