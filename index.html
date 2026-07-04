@@ -1071,18 +1071,21 @@ select:focus {
 .tab-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 8px;
+  gap: 6px;
+  padding: 6px;
   border-radius: var(--radius);
 }
 
 .tab-strip button {
-  min-height: 48px;
-  border-radius: 16px;
+  min-width: 0;
+  min-height: 46px;
+  border-radius: 15px;
   background: transparent;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .tab-strip button.is-active {
@@ -1760,15 +1763,15 @@ dialog .primary-action::after {
           <div class="section-heading">
             <div>
               <p class="eyebrow">Meer</p>
-              <h2 id="more-title">Schutters, progressie en instellingen</h2>
+              <h2 id="more-title">Meer</h2>
             </div>
           </div>
 
           <div class="tab-strip" role="tablist" aria-label="Meer opties">
-            <button class="is-active" type="button" data-more-tab="shooters">Schutters</button>
-            <button type="button" data-more-tab="progress">Progressie</button>
-            <button type="button" data-more-tab="dashboard">Dashboard</button>
-            <button type="button" data-more-tab="settings">Instellingen</button>
+            <button class="is-active" type="button" data-more-tab="shooters">Leden</button>
+            <button type="button" data-more-tab="progress">Rondes</button>
+            <button type="button" data-more-tab="dashboard">Stats</button>
+            <button type="button" data-more-tab="settings">Set-up</button>
           </div>
 
           <section class="more-panel is-active" id="more-shooters">
