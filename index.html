@@ -640,6 +640,10 @@ small {
   border-radius: 20px;
 }
 
+.list-item > div {
+  min-width: 0;
+}
+
 .list-item strong,
 .rank-item strong,
 .profile-item strong {
@@ -962,6 +966,10 @@ select:focus {
   grid-column: 1 / -1;
 }
 
+.single-filter {
+  grid-template-columns: 1fr;
+}
+
 .filter-bar select {
   width: 100%;
   min-width: 0;
@@ -991,7 +999,7 @@ select:focus {
 
 .tab-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 8px;
   border-radius: var(--radius);
@@ -1013,6 +1021,76 @@ select:focus {
 
 .more-panel {
   margin-top: 20px;
+}
+
+.progress-form {
+  display: grid;
+  gap: 14px;
+}
+
+.progress-entry-grid {
+  margin-top: 0;
+}
+
+.progress-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--tile);
+  -webkit-overflow-scrolling: touch;
+}
+
+.progress-table {
+  width: max(100%, 620px);
+  border-collapse: collapse;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-table th,
+.progress-table td {
+  min-width: 72px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.progress-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #1a1a1d;
+  color: var(--yellow);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.progress-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 132px;
+  background: #17171a;
+  text-align: left;
+}
+
+.progress-table thead th:first-child {
+  z-index: 3;
+  background: #1a1a1d;
+}
+
+.progress-table tbody td {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.progress-table tbody tr:last-child th,
+.progress-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .profile-avatar {
@@ -1596,12 +1674,13 @@ dialog .primary-action::after {
           <div class="section-heading">
             <div>
               <p class="eyebrow">Meer</p>
-              <h2 id="more-title">Schutters, dashboard en instellingen</h2>
+              <h2 id="more-title">Schutters, progressie en instellingen</h2>
             </div>
           </div>
 
           <div class="tab-strip" role="tablist" aria-label="Meer opties">
             <button class="is-active" type="button" data-more-tab="shooters">Schutters</button>
+            <button type="button" data-more-tab="progress">Progressie</button>
             <button type="button" data-more-tab="dashboard">Dashboard</button>
             <button type="button" data-more-tab="settings">Instellingen</button>
           </div>
@@ -1616,6 +1695,61 @@ dialog .primary-action::after {
               </button>
             </div>
             <div class="profile-list" id="profileList"></div>
+          </section>
+
+          <section class="more-panel" id="more-progress">
+            <div class="section-heading">
+              <div>
+                <h3>Oefenrondes</h3>
+                <p class="muted">Hitfactor per ronde bijhouden.</p>
+              </div>
+            </div>
+
+            <form id="progressForm" class="progress-form">
+              <div class="field-grid progress-entry-grid">
+                <label>
+                  <span>Schutter</span>
+                  <select id="progressShooter"></select>
+                </label>
+                <label>
+                  <span>Ronde</span>
+                  <select id="progressRound"></select>
+                </label>
+                <label>
+                  <span>Discipline</span>
+                  <select id="progressDiscipline"></select>
+                </label>
+                <label>
+                  <span>Hitfactor</span>
+                  <input id="progressHitfactor" type="number" min="0" step="0.001" inputmode="decimal" placeholder="0,000" />
+                </label>
+              </div>
+              <button class="primary-action full-width" type="submit">
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></svg>
+                </span>
+                Ronde opslaan
+              </button>
+            </form>
+
+            <section class="section-block">
+              <div class="section-heading">
+                <h3>Progressietabel</h3>
+              </div>
+              <div class="filter-bar single-filter">
+                <select id="progressDisciplineFilter" aria-label="Discipline filter"></select>
+              </div>
+              <div class="progress-table-wrap">
+                <table class="progress-table" id="progressTable"></table>
+              </div>
+            </section>
+
+            <section class="section-block">
+              <div class="section-heading">
+                <h3>Laatste rondes</h3>
+              </div>
+              <div class="list" id="recentProgress"></div>
+            </section>
           </section>
 
           <section class="more-panel" id="more-dashboard">
@@ -1787,6 +1921,7 @@ const defaultData = {
     { id: "pen-dq", name: "Onveilig wapengebruik", value: 0, active: false },
   ],
   scores: [],
+  progressEntries: [],
   updatedAt: "",
 };
 
@@ -1801,6 +1936,7 @@ const counters = [
 
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
+const progressRounds = [1, 2, 3, 4, 5, 6, 7, 8];
 
 const iconX = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1853,7 +1989,17 @@ function mergeData(base, saved) {
         discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
       }))
     : [];
-  const hasLocalContent = shooters.length > 0 || scores.length > 0;
+  const progressEntries = Array.isArray(saved.progressEntries)
+    ? saved.progressEntries
+        .map((entry) => ({
+          ...entry,
+          round: Math.max(1, Number(entry.round) || 1),
+          hitfactor: Number(entry.hitfactor) || 0,
+          discipline: normalizeDiscipline(entry.discipline || shooters.find((shooter) => shooter.id === entry.shooterId)?.discipline),
+        }))
+        .filter((entry) => entry.shooterId)
+    : [];
+  const hasLocalContent = shooters.length > 0 || scores.length > 0 || progressEntries.length > 0;
 
   return {
     ...structuredClone(base),
@@ -1863,6 +2009,7 @@ function mergeData(base, saved) {
     penalties: saved.penalties?.length ? saved.penalties : base.penalties,
     shooters,
     scores,
+    progressEntries,
     updatedAt: saved.updatedAt || (hasLocalContent ? new Date().toISOString() : ""),
   };
 }
@@ -2014,6 +2161,14 @@ function formatNumber(value, digits = 2) {
   }).format(Number.isFinite(normalized) ? normalized : 0);
 }
 
+function parseDecimal(value) {
+  return Number(String(value).trim().replace(",", "."));
+}
+
+function formatRound(round) {
+  return `${Math.max(1, Number(round) || 1)}e`;
+}
+
 function getActiveProcedurePenalty() {
   return state.penalties.find((penalty) => penalty.id === "pen-procedure") || state.penalties[0] || { value: -10 };
 }
@@ -2091,6 +2246,7 @@ function render() {
   renderScores();
   renderRanking();
   renderProfiles();
+  renderProgress();
   renderSettings();
   renderSyncStatus();
   renderDashboard();
@@ -2119,6 +2275,10 @@ function renderCounters() {
 
 function renderSelects() {
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
+  const selectedProgressShooter = $("#progressShooter").value;
+  const selectedProgressRound = $("#progressRound").value;
+  const selectedProgressDiscipline = $("#progressDiscipline").value;
+  const selectedProgressFilter = $("#progressDisciplineFilter").value;
   const shooterOptions = activeShooters.length
     ? activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`).join("")
     : `<option value="">Geen schutters</option>`;
@@ -2128,6 +2288,15 @@ function renderSelects() {
 
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
+  $("#progressShooter").innerHTML = shooterOptions;
+  $("#progressRound").innerHTML = progressRounds
+    .map((round) => `<option value="${round}">${formatRound(round)} ronde</option>`)
+    .join("");
+  $("#progressDiscipline").innerHTML = disciplineOptionsHtml;
+  $("#progressDisciplineFilter").innerHTML = [
+    `<option value="all">Alle disciplines</option>`,
+    ...disciplineOptions.map((discipline) => `<option value="${discipline}">${discipline}</option>`),
+  ].join("");
 
   if (!activeShooters.some((shooter) => shooter.id === scoreDraft.shooterId)) {
     scoreDraft.shooterId = activeShooters[0]?.id || "";
@@ -2140,6 +2309,13 @@ function renderSelects() {
   $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreTime").value = scoreDraft.time;
   $("#scoreNotes").value = scoreDraft.notes;
+  $("#progressShooter").value = activeShooters.some((shooter) => shooter.id === selectedProgressShooter)
+    ? selectedProgressShooter
+    : activeShooters[0]?.id || "";
+  $("#progressRound").value = progressRounds.includes(Number(selectedProgressRound)) ? selectedProgressRound : "1";
+  $("#progressDiscipline").value = disciplineOptions.includes(selectedProgressDiscipline) ? selectedProgressDiscipline : defaultDiscipline;
+  $("#progressDisciplineFilter").value =
+    selectedProgressFilter === "all" || disciplineOptions.includes(selectedProgressFilter) ? selectedProgressFilter || "all" : "all";
 }
 
 function renderHome() {
@@ -2258,6 +2434,74 @@ function renderProfiles() {
     })
     .join("")
     : `<div class="empty">Nog geen schutters. Tik op + om iemand toe te voegen.</div>`;
+}
+
+function renderProgress() {
+  const table = $("#progressTable");
+  const recent = $("#recentProgress");
+  if (!table || !recent) return;
+
+  const discipline = $("#progressDisciplineFilter").value || "all";
+  const entries = state.progressEntries.filter((entry) => discipline === "all" || entry.discipline === discipline);
+  const shooters = state.shooters.filter(
+    (shooter) => shooter.active || entries.some((entry) => entry.shooterId === shooter.id),
+  );
+  const maxRound = Math.max(4, ...progressRounds, ...entries.map((entry) => Number(entry.round) || 1));
+  const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
+
+  if (!shooters.length) {
+    table.innerHTML = "";
+    recent.innerHTML = `<div class="empty">Voeg eerst schutters toe.</div>`;
+    return;
+  }
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Schutter</th>
+        ${rounds.map((round) => `<th>${formatRound(round)}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>
+      ${shooters
+        .map((shooter) => {
+          const cells = rounds.map((round) => {
+            const entry = entries
+              .filter((item) => item.shooterId === shooter.id && Number(item.round) === round)
+              .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+            return `<td>${entry ? formatNumber(entry.hitfactor, 3) : ""}</td>`;
+          });
+          return `
+            <tr>
+              <th>${shooter.name}</th>
+              ${cells.join("")}
+            </tr>
+          `;
+        })
+        .join("")}
+    </tbody>
+  `;
+
+  recent.innerHTML = entries.length
+    ? entries
+        .slice()
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+        .slice(0, 6)
+        .map((entry) => {
+          const shooter = getShooter(entry.shooterId);
+          return `
+            <article class="list-item">
+              <div>
+                <strong>${shooter?.name || "Onbekend"}</strong>
+                <small>${entry.discipline} · ${formatRound(entry.round)} ronde</small>
+              </div>
+              <strong>${formatNumber(entry.hitfactor, 3)}</strong>
+              <button class="delete-button" type="button" data-delete-progress="${entry.id}" aria-label="Ronde verwijderen" title="Verwijderen">${iconX}</button>
+            </article>
+          `;
+        })
+        .join("")
+    : `<div class="empty">Nog geen oefenrondes ingevoerd.</div>`;
 }
 
 function renderSettings() {
@@ -2618,6 +2862,34 @@ $("#scoreForm").addEventListener("submit", (event) => {
   showToast("Score opgeslagen");
 });
 
+$("#progressForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const shooterId = $("#progressShooter").value;
+  const round = Math.max(1, Number($("#progressRound").value) || 1);
+  const discipline = normalizeDiscipline($("#progressDiscipline").value);
+  const hitfactor = parseDecimal($("#progressHitfactor").value);
+
+  if (!shooterId || !Number.isFinite(hitfactor) || hitfactor < 0) {
+    showToast("Kies een schutter en vul een hitfactor in");
+    return;
+  }
+
+  state.progressEntries.push({
+    id: createId("progress"),
+    shooterId,
+    round,
+    discipline,
+    hitfactor,
+    createdAt: new Date().toISOString(),
+  });
+  markDirty();
+  $("#progressHitfactor").value = "";
+  const nextRound = Math.min(progressRounds.at(-1), round + 1);
+  $("#progressRound").value = String(nextRound);
+  render();
+  showToast("Oefenronde opgeslagen");
+});
+
 $("#resetScoreButton").addEventListener("click", () => {
   scoreDraft = createEmptyDraft();
   render();
@@ -2640,10 +2912,21 @@ document.addEventListener("click", (event) => {
 
   state.shooters = state.shooters.filter((item) => item.id !== shooter.id);
   state.scores = state.scores.filter((score) => score.shooterId !== shooter.id);
+  state.progressEntries = state.progressEntries.filter((entry) => entry.shooterId !== shooter.id);
   if (scoreDraft.shooterId === shooter.id) scoreDraft = createEmptyDraft();
   markDirty();
   render();
   showToast("Schutter verwijderd");
+});
+
+document.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-delete-progress]");
+  if (!deleteButton) return;
+
+  state.progressEntries = state.progressEntries.filter((entry) => entry.id !== deleteButton.dataset.deleteProgress);
+  markDirty();
+  render();
+  showToast("Oefenronde verwijderd");
 });
 
 $("#entryForm").addEventListener("submit", (event) => {
@@ -2684,6 +2967,8 @@ $$("[data-more-tab]").forEach((button) => {
 ["rankDiscipline", "rankLevel", "rankSort"].forEach((id) => {
   $(`#${id}`).addEventListener("change", renderRanking);
 });
+
+$("#progressDisciplineFilter").addEventListener("change", renderProgress);
 
 render();
 pullRemoteState();
