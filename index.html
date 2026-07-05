@@ -1732,10 +1732,6 @@ dialog .primary-action::after {
                   <option value="Duo-Duo">Duo-Duo</option>
                 </select>
               </label>
-              <label>
-                <span>Ronde</span>
-                <select id="scoreRound"></select>
-              </label>
             </div>
 
             <div class="counter-grid" id="counterGrid"></div>
@@ -2312,7 +2308,6 @@ function createEmptyDraft() {
   return counters.reduce((draft, counter) => ({ ...draft, [counter.key]: 0 }), {
     shooterId: "",
     discipline: defaultDiscipline,
-    round: 1,
     time: "",
     notes: "",
   });
@@ -2332,6 +2327,10 @@ function parseDecimal(value) {
 
 function formatRound(round) {
   return `${Math.max(1, Number(round) || 1)}e`;
+}
+
+function getNextScoreRound(shooterId) {
+  return state.scores.filter((score) => score.shooterId === shooterId).length + 1;
 }
 
 function triggerHapticFeedback() {
@@ -2458,9 +2457,6 @@ function renderSelects() {
 
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
-  $("#scoreRound").innerHTML = progressRounds
-    .map((round) => `<option value="${round}">${formatRound(round)} ronde</option>`)
-    .join("");
   $("#progressShooter").innerHTML = shooterOptions;
   $("#progressRound").innerHTML = progressRounds
     .map((round) => `<option value="${round}">${formatRound(round)} ronde</option>`)
@@ -2480,7 +2476,6 @@ function renderSelects() {
 
   $("#scoreShooter").value = scoreDraft.shooterId;
   $("#scoreDiscipline").value = scoreDraft.discipline;
-  $("#scoreRound").value = progressRounds.includes(Number(scoreDraft.round)) ? String(scoreDraft.round) : "1";
   $("#scoreTime").value = scoreDraft.time;
   $("#scoreNotes").value = scoreDraft.notes;
   $("#progressShooter").value = activeShooters.some((shooter) => shooter.id === selectedProgressShooter)
@@ -2525,11 +2520,8 @@ function renderScoreProgress() {
     .map((shooter) => {
       const scores = state.scores
         .filter((score) => score.shooterId === shooter.id)
-        .map((score, index) => ({
-          ...score,
-          displayRound: Number(score.round) || Math.min(index + 1, 15),
-        }))
-        .sort((a, b) => a.displayRound - b.displayRound || String(a.createdAt).localeCompare(String(b.createdAt)));
+        .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+        .map((score, index) => ({ ...score, displayRound: Math.min(index + 1, 15) }));
 
       return { shooter, scores };
     })
@@ -3044,7 +3036,6 @@ $("#scoreForm").addEventListener("input", (event) => {
     $("#scoreDiscipline").value = scoreDraft.discipline;
   }
   if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
-  if (event.target.id === "scoreRound") scoreDraft.round = Math.min(15, Math.max(1, Number(event.target.value) || 1));
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
@@ -3058,7 +3049,12 @@ $("#scoreForm").addEventListener("submit", (event) => {
     return;
   }
 
-  const currentRound = Math.min(15, Math.max(1, Number(scoreDraft.round) || 1));
+  const currentRound = getNextScoreRound(scoreDraft.shooterId);
+  if (currentRound > progressRounds.at(-1)) {
+    showToast("Maximaal 15 rondes per schutter");
+    return;
+  }
+
   state.scores.push({
     id: createId("score"),
     ...scoreDraft,
@@ -3072,7 +3068,6 @@ $("#scoreForm").addEventListener("submit", (event) => {
   scoreDraft = createEmptyDraft();
   scoreDraft.shooterId = nextShooterId;
   scoreDraft.discipline = nextDiscipline;
-  scoreDraft.round = Math.min(15, currentRound + 1);
   render();
   showToast("Score opgeslagen");
 });
