@@ -731,6 +731,11 @@ small {
   background: var(--yellow);
 }
 
+.danger-action {
+  border: 1px solid rgba(255, 107, 93, 0.36);
+  color: var(--danger);
+}
+
 .score-progress-card {
   display: grid;
   gap: 14px;
@@ -1933,6 +1938,12 @@ dialog .primary-action::after {
               </section>
 
               <section class="section-block">
+                <h3>Training</h3>
+                <p class="notice">Bewaart de beste score per schutter in het klassement en wist de losse trainingsrondes.</p>
+                <button class="secondary-action danger-action full-width" id="resetTrainingButton" type="button">Nieuwe training starten</button>
+              </section>
+
+              <section class="section-block">
                 <h3>Puntensysteem</h3>
                 <div class="settings-grid" id="pointsSettings"></div>
               </section>
@@ -2080,6 +2091,7 @@ const defaultData = {
     { id: "pen-dq", name: "Onveilig wapengebruik", value: 0, active: false },
   ],
   scores: [],
+  bestScores: [],
   progressEntries: [],
   updatedAt: "",
 };
@@ -2149,6 +2161,14 @@ function mergeData(base, saved) {
         discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
       }))
     : [];
+  const bestScores = Array.isArray(saved.bestScores)
+    ? saved.bestScores
+        .map((score) => ({
+          ...score,
+          discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+        }))
+        .filter((score) => score.shooterId)
+    : [];
   const progressEntries = Array.isArray(saved.progressEntries)
     ? saved.progressEntries
         .map((entry) => ({
@@ -2159,7 +2179,7 @@ function mergeData(base, saved) {
         }))
         .filter((entry) => entry.shooterId)
     : [];
-  const hasLocalContent = shooters.length > 0 || scores.length > 0 || progressEntries.length > 0;
+  const hasLocalContent = shooters.length > 0 || scores.length > 0 || bestScores.length > 0 || progressEntries.length > 0;
 
   return {
     ...structuredClone(base),
@@ -2169,6 +2189,7 @@ function mergeData(base, saved) {
     penalties: saved.penalties?.length ? saved.penalties : base.penalties,
     shooters,
     scores,
+    bestScores,
     progressEntries,
     updatedAt: saved.updatedAt || (hasLocalContent ? new Date().toISOString() : ""),
   };
@@ -2366,40 +2387,39 @@ function getScoreDiscipline(score, shooter = getShooter(score.shooterId)) {
   return normalizeDiscipline(score.discipline || shooter?.discipline);
 }
 
+function scoreToRankingItem(score, shooter, disciplineLabel) {
+  return {
+    shooter,
+    discipline: disciplineLabel,
+    points: score.net || 0,
+    time: score.time || 0,
+    hitfactor: score.hitfactor || 0,
+    entries: 1,
+    penalties: Math.abs(score.penaltyPoints || 0),
+    alpha: score.alpha || 0,
+    charlie: score.charlie || 0,
+    delta: score.delta || 0,
+  };
+}
+
+function getBestScoreCandidates() {
+  return [...(state.bestScores || []), ...state.scores];
+}
+
 function getRanking(filters = {}) {
   const discipline = filters.discipline || "all";
   const level = filters.level || "all";
   const grouped = new Map();
 
-  state.scores.forEach((score) => {
+  getBestScoreCandidates().forEach((score) => {
     const shooter = getShooter(score.shooterId);
     if (!shooter) return;
     const scoreDiscipline = getScoreDiscipline(score, shooter);
     if (discipline !== "all" && scoreDiscipline !== discipline) return;
     if (level !== "all" && shooter.level !== level) return;
-
-    const current = grouped.get(score.shooterId) || {
-      shooter,
-      discipline: discipline === "all" ? "Alle disciplines" : scoreDiscipline,
-      points: 0,
-      time: 0,
-      hitfactor: 0,
-      entries: 0,
-      penalties: 0,
-      alpha: 0,
-      charlie: 0,
-      delta: 0,
-    };
-
-    current.points += score.net;
-    current.time += score.time;
-    current.entries += 1;
-    current.penalties += Math.abs(score.penaltyPoints);
-    current.alpha += score.alpha;
-    current.charlie += score.charlie;
-    current.delta += score.delta;
-    current.hitfactor = current.time > 0 ? current.points / current.time : 0;
-    grouped.set(score.shooterId, current);
+    const candidate = scoreToRankingItem(score, shooter, scoreDiscipline);
+    const current = grouped.get(score.shooterId);
+    if (!current || candidate.hitfactor > current.hitfactor) grouped.set(score.shooterId, candidate);
   });
 
   return Array.from(grouped.values());
@@ -2589,7 +2609,7 @@ function renderRankingItems(items, compact) {
           <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
-            <small>${item.discipline} · ${item.shooter.level} · ${item.entries} scores · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
+            <small>${item.discipline} · ${item.shooter.level} · beste score · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
           </div>
           <div class="rank-score">
             <strong>${formatNumber(item.hitfactor, 3)}</strong>
@@ -3005,6 +3025,40 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+function updateStoredBestScores() {
+  const bestByShooter = new Map();
+  getBestScoreCandidates().forEach((score) => {
+    if (!score.shooterId) return;
+    const current = bestByShooter.get(score.shooterId);
+    if (!current || (score.hitfactor || 0) > (current.hitfactor || 0)) {
+      bestByShooter.set(score.shooterId, {
+        ...score,
+        id: score.id || createId("best"),
+        bestSavedAt: new Date().toISOString(),
+      });
+    }
+  });
+  state.bestScores = Array.from(bestByShooter.values());
+}
+
+function resetTrainingScores() {
+  if (!state.scores.length && !state.progressEntries.length) {
+    showToast("Geen trainingsscores om te wissen");
+    return;
+  }
+
+  const confirmed = window.confirm("Nieuwe training starten? De beste score per schutter blijft in het klassement staan. Alle losse trainingsscores worden gewist.");
+  if (!confirmed) return;
+
+  updateStoredBestScores();
+  state.scores = [];
+  state.progressEntries = [];
+  scoreDraft = createEmptyDraft();
+  markDirty();
+  render();
+  showToast("Nieuwe training gestart");
+}
+
 document.addEventListener("click", (event) => {
   const saveEntryButton = event.target.closest("#entrySaveButton");
   if (saveEntryButton) {
@@ -3106,6 +3160,7 @@ $("#resetScoreButton").addEventListener("click", () => {
 });
 
 $("#exportButton").addEventListener("click", exportCsv);
+$("#resetTrainingButton").addEventListener("click", resetTrainingScores);
 $("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close());
@@ -3122,6 +3177,7 @@ document.addEventListener("click", (event) => {
 
   state.shooters = state.shooters.filter((item) => item.id !== shooter.id);
   state.scores = state.scores.filter((score) => score.shooterId !== shooter.id);
+  state.bestScores = state.bestScores.filter((score) => score.shooterId !== shooter.id);
   state.progressEntries = state.progressEntries.filter((entry) => entry.shooterId !== shooter.id);
   if (scoreDraft.shooterId === shooter.id) scoreDraft = createEmptyDraft();
   markDirty();
