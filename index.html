@@ -1604,7 +1604,7 @@ dialog .primary-action::after {
       <form class="login-card" id="loginForm">
         <img src="dsr-logo.jpeg" alt="" class="login-logo" />
         <h2>SVBB DSR</h2>
-        <p class="muted">Log in om de app te gebruiken.</p>
+        <p class="muted">Log in als trainer of schutter.</p>
         <label>
           <span>Wachtwoord</span>
           <input type="password" id="loginPassword" autocomplete="current-password" required />
@@ -1700,7 +1700,7 @@ dialog .primary-action::after {
           <section class="section-block">
             <div class="section-heading">
               <h3>Deelnemers</h3>
-              <button class="icon-button" type="button" id="addShooterButton" aria-label="Schutter toevoegen" title="Schutter toevoegen">
+              <button class="icon-button" type="button" id="addShooterButton" aria-label="Schutter toevoegen" title="Schutter toevoegen" data-trainer-only>
                 <span aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
                 </span>
@@ -1716,14 +1716,14 @@ dialog .primary-action::after {
               <p class="eyebrow">Score-invoer</p>
               <h2 id="scores-title">Score invoeren</h2>
             </div>
-            <button class="icon-button" id="resetScoreButton" type="button" aria-label="Score wissen" title="Score wissen">
+            <button class="icon-button" id="resetScoreButton" type="button" aria-label="Score wissen" title="Score wissen" data-trainer-only>
               <span aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /></svg>
               </span>
             </button>
           </div>
 
-          <form id="scoreForm" class="score-form">
+          <form id="scoreForm" class="score-form" data-trainer-only>
             <div class="field-grid">
               <label>
                 <span>Schutter</span>
@@ -1843,7 +1843,7 @@ dialog .primary-action::after {
           <section class="more-panel is-active" id="more-shooters">
             <div class="section-heading">
               <h3>Schutterprofielen</h3>
-              <button class="icon-button" type="button" id="profileAddButton" aria-label="Schutter toevoegen" title="Schutter toevoegen">
+              <button class="icon-button" type="button" id="profileAddButton" aria-label="Schutter toevoegen" title="Schutter toevoegen" data-trainer-only>
                 <span aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
                 </span>
@@ -1860,7 +1860,7 @@ dialog .primary-action::after {
               </div>
             </div>
 
-            <form id="progressForm" class="progress-form">
+            <form id="progressForm" class="progress-form" data-trainer-only>
               <div class="field-grid progress-entry-grid">
                 <label>
                   <span>Schutter</span>
@@ -1935,21 +1935,22 @@ dialog .primary-action::after {
 
               <section class="section-block">
                 <h3>Sessie</h3>
+                <article class="sync-card" id="roleStatus">Ingelogd</article>
                 <button class="secondary-action" id="logoutButton" type="button" style="width: 100%; color: var(--danger)">Uitloggen</button>
               </section>
 
-              <section class="section-block">
+              <section class="section-block" data-trainer-only>
                 <h3>Training</h3>
                 <p class="notice">Bewaart de beste score per schutter in het klassement en wist de losse trainingsrondes.</p>
                 <button class="secondary-action danger-action full-width" id="resetTrainingButton" type="button">Nieuwe training starten</button>
               </section>
 
-              <section class="section-block">
+              <section class="section-block" data-trainer-only>
                 <h3>Puntensysteem</h3>
                 <div class="settings-grid" id="pointsSettings"></div>
               </section>
 
-              <section class="section-block">
+              <section class="section-block" data-trainer-only>
                 <div class="section-heading">
                   <h3>Strafregels</h3>
                   <button class="text-button" id="addPenaltyButton" type="button">Regel toevoegen</button>
@@ -1957,7 +1958,7 @@ dialog .primary-action::after {
                 <div class="penalty-settings" id="penaltySettings"></div>
               </section>
 
-              <button class="primary-action full-width" type="submit">
+              <button class="primary-action full-width" type="submit" data-trainer-only>
                 <span aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></svg>
                 </span>
@@ -2061,7 +2062,11 @@ dialog .primary-action::after {
 const STORAGE_KEY = "dsr-score-app-v5";
 const AUTH_STORAGE_KEY = "dsr-app-auth-v1";
 const AUTH_CONFIG = {
-  passwordHash: "daeb81b8d50edaaa11bfbf22fa040e093ab5cdf82b592f764daa82d93bc155e9",
+  trainerHashes: [
+    "daeb81b8d50edaaa11bfbf22fa040e093ab5cdf82b592f764daa82d93bc155e9",
+    "982107c9a7c7154da4eeb55c0b7a21659d7a34bfda48f6471992b0ccb8c52808",
+  ],
+  shooterHash: "47837f4ba7b72b8e0583c5769ff32c04c34e0a82605b7318ec0c8867399da94e",
 };
 const SYNC_CONFIG = {
   supabaseUrl: "https://ktpngngrqwuqbdpxiihf.supabase.co",
@@ -2124,6 +2129,7 @@ let syncTimer = 0;
 let isApplyingRemoteState = false;
 let lastSyncedAt = "";
 let syncStatus = "Lokale opslag actief. Cloud-sync is nog niet gekoppeld.";
+let currentRole = "";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -2447,6 +2453,7 @@ function render() {
   renderSettings();
   renderSyncStatus();
   renderDashboard();
+  applyRolePermissions();
   saveState();
 }
 
@@ -2653,7 +2660,7 @@ function renderProfiles() {
             <strong>${shooter.name}</strong>
             <small>${shooter.level} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
-          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen">${iconX}</button>
+          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
         </article>
       `;
     })
@@ -2721,7 +2728,7 @@ function renderProgress() {
                 <small>${entry.discipline} · ${formatRound(entry.round)} ronde</small>
               </div>
               <strong>${formatNumber(entry.hitfactor, 3)}</strong>
-              <button class="delete-button" type="button" data-delete-progress="${entry.id}" aria-label="Ronde verwijderen" title="Verwijderen">${iconX}</button>
+              <button class="delete-button" type="button" data-delete-progress="${entry.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
             </article>
           `;
         })
@@ -2946,7 +2953,32 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("is-visible"), 2200);
 }
 
+function isTrainer() {
+  return currentRole === "trainer";
+}
+
+function requireTrainer() {
+  if (isTrainer()) return true;
+  showToast("Alleen trainers kunnen wijzigen");
+  return false;
+}
+
+function applyRolePermissions() {
+  const readOnly = currentRole === "shooter";
+  document.body.dataset.role = currentRole || "";
+  const roleStatus = $("#roleStatus");
+  if (roleStatus) roleStatus.textContent = readOnly ? "Ingelogd als schutter - alleen kijken" : "Ingelogd als trainer - wijzigen toegestaan";
+
+  $$("[data-trainer-only]").forEach((element) => {
+    element.hidden = readOnly;
+    element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
+      control.disabled = readOnly;
+    });
+  });
+}
+
 function openEntryDialog() {
+  if (!requireTrainer()) return;
   $("#entryTitle").textContent = "Schutter toevoegen";
   $("#entryName").value = "";
   $("#entryMeta").value = "Open";
@@ -2957,6 +2989,7 @@ function openEntryDialog() {
 }
 
 function saveEntryDialog() {
+  if (!requireTrainer()) return;
   const name = $("#entryName").value.trim();
   const meta = $("#entryMeta").value.trim();
   const discipline = normalizeDiscipline($("#entryDiscipline").value);
@@ -3210,6 +3243,7 @@ function updateStoredBestScores() {
 }
 
 function resetTrainingScores() {
+  if (!requireTrainer()) return;
   if (!state.scores.length && !state.progressEntries.length) {
     showToast("Geen trainingsscores om te wissen");
     return;
@@ -3243,6 +3277,7 @@ document.addEventListener("click", (event) => {
 
   const stepButton = event.target.closest("[data-step]");
   if (stepButton) {
+    if (!requireTrainer()) return;
     triggerHapticFeedback();
     const key = stepButton.closest("[data-counter]").dataset.counter;
     scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
@@ -3265,6 +3300,7 @@ $("#scoreForm").addEventListener("input", (event) => {
 
 $("#scoreForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!requireTrainer()) return;
   const calc = calculateScore(scoreDraft);
   if (!scoreDraft.shooterId || calc.time <= 0) {
     showToast("Kies een schutter en een geldige tijd");
@@ -3296,6 +3332,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
 
 $("#progressForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!requireTrainer()) return;
   const shooterId = $("#progressShooter").value;
   const round = Math.max(1, Number($("#progressRound").value) || 1);
   const discipline = normalizeDiscipline($("#progressDiscipline").value);
@@ -3337,6 +3374,7 @@ $("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close(
 document.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-shooter]");
   if (!deleteButton) return;
+  if (!requireTrainer()) return;
 
   const shooter = getShooter(deleteButton.dataset.deleteShooter);
   if (!shooter) return;
@@ -3357,6 +3395,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-progress]");
   if (!deleteButton) return;
+  if (!requireTrainer()) return;
 
   state.progressEntries = state.progressEntries.filter((entry) => entry.id !== deleteButton.dataset.deleteProgress);
   markDirty();
@@ -3371,6 +3410,7 @@ $("#entryForm").addEventListener("submit", (event) => {
 
 $("#settingsForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!requireTrainer()) return;
   $$("[data-point]").forEach((input) => {
     state.points[input.dataset.point] = Number(input.value);
   });
@@ -3386,6 +3426,7 @@ $("#settingsForm").addEventListener("submit", (event) => {
 });
 
 $("#addPenaltyButton").addEventListener("click", () => {
+  if (!requireTrainer()) return;
   state.penalties.push({ id: createId("penalty"), name: "Nieuwe strafregel", value: -10, active: true });
   markDirty();
   render();
@@ -3413,7 +3454,8 @@ async function sha256Hex(text) {
     .join("");
 }
 
-function startApp() {
+function startApp(role) {
+  currentRole = role;
   $("#loginGate").setAttribute("hidden", "");
   $("#appShell").removeAttribute("hidden");
   render();
@@ -3421,6 +3463,7 @@ function startApp() {
 }
 
 function showLoginGate() {
+  currentRole = "";
   $("#appShell").setAttribute("hidden", "");
   $("#loginGate").removeAttribute("hidden");
   $("#loginPassword").value = "";
@@ -3430,14 +3473,18 @@ function showLoginGate() {
 
 $("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const entered = $("#loginPassword").value;
-  const hash = await sha256Hex(entered);
-  if (hash === AUTH_CONFIG.passwordHash) {
-    localStorage.setItem(AUTH_STORAGE_KEY, "1");
-    startApp();
-  } else {
-    $("#loginError").textContent = "Onjuist wachtwoord. Probeer het opnieuw.";
+  const hash = await sha256Hex($("#loginPassword").value);
+  if (AUTH_CONFIG.trainerHashes.includes(hash)) {
+    localStorage.setItem(AUTH_STORAGE_KEY, "trainer");
+    startApp("trainer");
+    return;
   }
+  if (hash === AUTH_CONFIG.shooterHash) {
+    localStorage.setItem(AUTH_STORAGE_KEY, "shooter");
+    startApp("shooter");
+    return;
+  }
+  $("#loginError").textContent = "Onjuist wachtwoord. Probeer het opnieuw.";
 });
 
 $("#logoutButton").addEventListener("click", () => {
@@ -3445,8 +3492,11 @@ $("#logoutButton").addEventListener("click", () => {
   showLoginGate();
 });
 
-if (localStorage.getItem(AUTH_STORAGE_KEY) === "1") {
-  startApp();
+const storedRole = localStorage.getItem(AUTH_STORAGE_KEY);
+if (storedRole === "1" || storedRole === "trainer") {
+  startApp("trainer");
+} else if (storedRole === "shooter") {
+  startApp("shooter");
 } else {
   showLoginGate();
 }
