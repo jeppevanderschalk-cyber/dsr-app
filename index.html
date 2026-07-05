@@ -1890,6 +1890,7 @@ dialog .primary-action::after {
             <section class="section-block">
               <div class="section-heading">
                 <h3>Progressietabel</h3>
+                <button class="text-button" id="progressPdfButton" type="button">PDF downloaden</button>
               </div>
               <div class="filter-bar single-filter">
                 <select id="progressDisciplineFilter" aria-label="Discipline filter"></select>
@@ -3032,6 +3033,166 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
+function getProgressPdfData() {
+  const discipline = $("#progressDisciplineFilter").value || "all";
+  const entries = state.progressEntries.filter((entry) => discipline === "all" || entry.discipline === discipline);
+  const shooters = state.shooters
+    .filter((shooter) => shooter.active || entries.some((entry) => entry.shooterId === shooter.id))
+    .map((shooter) => {
+      const values = progressRounds.map((round) => {
+        const entry = entries
+          .filter((item) => item.shooterId === shooter.id && Number(item.round) === round)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+        return entry ? formatNumber(entry.hitfactor, 3) : "";
+      });
+      return { name: shooter.name, level: shooter.level, values };
+    })
+    .filter((row) => row.values.some(Boolean));
+
+  return {
+    discipline: discipline === "all" ? "Alle disciplines" : discipline,
+    generatedAt: new Date(),
+    rows: shooters,
+  };
+}
+
+function pdfText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/[\\()]/g, "\\$&");
+}
+
+function createProgressPdf(data) {
+  const pageWidth = 842;
+  const pageHeight = 595;
+  const margin = 36;
+  const nameWidth = 132;
+  const roundWidth = (pageWidth - margin * 2 - nameWidth) / progressRounds.length;
+  const rowHeight = 24;
+  const pages = [];
+  let lines = [];
+  let y = 0;
+
+  const cmd = (value) => lines.push(value);
+  const text = (value, x, textY, size = 10, font = "F1") => {
+    cmd(`BT /${font} ${size} Tf ${x.toFixed(2)} ${textY.toFixed(2)} Td (${pdfText(value)}) Tj ET`);
+  };
+  const rect = (x, rectY, width, height, fill = false) => {
+    cmd(`${x.toFixed(2)} ${rectY.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re ${fill ? "f" : "S"}`);
+  };
+
+  const startPage = () => {
+    lines = [];
+    cmd("0.05 0.05 0.055 rg");
+    rect(0, 0, pageWidth, pageHeight, true);
+    cmd("0.96 0.77 0.09 rg");
+    rect(0, pageHeight - 76, pageWidth, 76, true);
+    cmd("0.05 0.05 0.055 rg");
+    text("DSR trainingsrondes", margin, pageHeight - 36, 22, "F2");
+    text(`Discipline: ${data.discipline}`, margin, pageHeight - 58, 10, "F2");
+    text(
+      new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(data.generatedAt),
+      pageWidth - 210,
+      pageHeight - 58,
+      10,
+      "F2",
+    );
+    y = pageHeight - 112;
+    drawHeader();
+  };
+
+  const finishPage = () => {
+    if (lines.length) pages.push(lines.join("\n"));
+  };
+
+  const drawHeader = () => {
+    cmd("0.11 0.11 0.13 rg");
+    rect(margin, y, pageWidth - margin * 2, rowHeight, true);
+    cmd("0.96 0.77 0.09 rg");
+    text("Schutter", margin + 8, y + 8, 9, "F2");
+    progressRounds.forEach((round, index) => {
+      text(String(round), margin + nameWidth + index * roundWidth + 8, y + 8, 9, "F2");
+    });
+    y -= rowHeight;
+  };
+
+  startPage();
+  data.rows.forEach((row, rowIndex) => {
+    if (y < margin + rowHeight) {
+      finishPage();
+      startPage();
+    }
+
+    cmd(rowIndex % 2 ? "0.10 0.10 0.12 rg" : "0.075 0.075 0.085 rg");
+    rect(margin, y, pageWidth - margin * 2, rowHeight, true);
+    cmd("0.95 0.95 0.95 rg");
+    text(row.name.slice(0, 22), margin + 8, y + 8, 9, "F2");
+    cmd("0.96 0.77 0.09 rg");
+    row.values.forEach((value, index) => {
+      if (value) text(value, margin + nameWidth + index * roundWidth + 5, y + 8, 8, "F2");
+    });
+    y -= rowHeight;
+  });
+  finishPage();
+
+  const objects = [];
+  const addObject = (body) => {
+    objects.push(body);
+    return objects.length;
+  };
+  const fontRegular = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const fontBold = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const pageIds = [];
+  const contentIds = pages.map((content) => {
+    const stream = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+    return addObject(stream);
+  });
+  const pagesId = objects.length + contentIds.length + 1;
+
+  contentIds.forEach((contentId) => {
+    pageIds.push(
+      addObject(
+        `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> /Contents ${contentId} 0 R >>`,
+      ),
+    );
+  });
+  const actualPagesId = addObject(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`);
+  const catalogId = addObject(`<< /Type /Catalog /Pages ${actualPagesId} 0 R >>`);
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((body, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadProgressPdf() {
+  const data = getProgressPdfData();
+  if (!data.rows.length) {
+    showToast("Geen rondes om te exporteren");
+    return;
+  }
+
+  const blob = createProgressPdf(data);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `dsr-trainingsrondes-${new Date().toISOString().slice(0, 10)}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("PDF gedownload");
+}
+
 function updateStoredBestScores() {
   const bestByShooter = new Map();
   getBestScoreCandidates().forEach((score) => {
@@ -3167,6 +3328,7 @@ $("#resetScoreButton").addEventListener("click", () => {
 });
 
 $("#exportButton").addEventListener("click", exportCsv);
+$("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
 $("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
