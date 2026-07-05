@@ -2131,6 +2131,7 @@ document.addEventListener(
   "touchend",
   (event) => {
     if (!event.target.closest("button")) return;
+    if (event.target.closest("[data-step]")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
@@ -2357,6 +2358,12 @@ function getNextScoreRound(shooterId) {
 function triggerHapticFeedback() {
   if (!("vibrate" in navigator)) return;
   navigator.vibrate(12);
+}
+
+function updateStepperValue(stepButton, key) {
+  const output = stepButton.closest("[data-counter]")?.querySelector("output");
+  if (output) output.textContent = scoreDraft[key];
+  renderScores();
 }
 
 function getActiveProcedurePenalty() {
@@ -3078,7 +3085,7 @@ document.addEventListener("click", (event) => {
     triggerHapticFeedback();
     const key = stepButton.closest("[data-counter]").dataset.counter;
     scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
-    render();
+    updateStepperValue(stepButton, key);
   }
 
 });
