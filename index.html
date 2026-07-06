@@ -1424,6 +1424,57 @@ dialog .primary-action::after {
   display: none;
 }
 
+.login-gate[hidden] {
+  display: none;
+}
+
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+}
+
+.login-card {
+  width: min(100%, 380px);
+  display: grid;
+  gap: 16px;
+  padding: 28px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.login-card h2 {
+  margin: 0;
+}
+
+.login-card label {
+  text-align: left;
+}
+
+.login-error {
+  min-height: 20px;
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -1546,65 +1597,18 @@ dialog .primary-action::after {
   }
 }
 
-.login-gate[hidden] {
-  display: none;
-}
-
-.login-gate {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
-}
-
-.login-card {
-  width: min(100%, 380px);
-  display: grid;
-  gap: 16px;
-  padding: 28px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius);
-  background: linear-gradient(170deg, #1e1e22, #141416);
-  box-shadow: var(--shadow-card);
-  text-align: center;
-}
-
-.login-logo {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto;
-  border-radius: 16px;
-  object-fit: cover;
-}
-
-.login-card h2 {
-  margin: 0;
-}
-
-.login-card label {
-  text-align: left;
-}
-
-.login-error {
-  min-height: 20px;
-  margin: 0;
-  color: var(--danger);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
     </style>
   </head>
   <body>
     <div class="login-gate" id="loginGate">
       <form class="login-card" id="loginForm">
         <img src="dsr-logo.jpeg" alt="" class="login-logo" />
-        <h2>SVBB DSR</h2>
-        <p class="muted">Log in als trainer of schutter.</p>
+        <h2>DSR score</h2>
+        <p class="muted">Log in met je vereniging en rol.</p>
+        <label>
+          <span>Vereniging</span>
+          <input type="text" id="loginClub" autocomplete="organization" autocapitalize="characters" maxlength="24" required />
+        </label>
         <label>
           <span>Wachtwoord</span>
           <input type="password" id="loginPassword" autocomplete="current-password" required />
@@ -1619,7 +1623,7 @@ dialog .primary-action::after {
         <span class="app-logo" aria-hidden="true">
           <img src="dsr-logo.jpeg" alt="" />
         </span>
-        <h1>SVBB</h1>
+        <h1 id="appClubTitle">SVBB</h1>
       </header>
 
       <main class="content">
@@ -1936,7 +1940,7 @@ dialog .primary-action::after {
               <section class="section-block">
                 <h3>Sessie</h3>
                 <article class="sync-card" id="roleStatus">Ingelogd</article>
-                <button class="secondary-action" id="logoutButton" type="button" style="width: 100%; color: var(--danger)">Uitloggen</button>
+                <button class="secondary-action full-width" id="logoutButton" type="button">Uitloggen</button>
               </section>
 
               <section class="section-block" data-trainer-only>
@@ -2061,6 +2065,8 @@ dialog .primary-action::after {
     <script type="module">
 const STORAGE_KEY = "dsr-score-app-v5";
 const AUTH_STORAGE_KEY = "dsr-app-auth-v2";
+const CLUB_STORAGE_KEY = "dsr-app-club-v1";
+const DEFAULT_CLUB_CODE = "SVBB";
 const AUTH_CONFIG = {
   trainerHashes: [
     "acc4000223bcdfa348e0f3524fdf5028d2944f713f122b9f57f7a86f036dacb5",
@@ -2072,6 +2078,7 @@ const SYNC_CONFIG = {
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0cG5nbmdycXd1cWJkcHhpaWhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMDA0MjksImV4cCI6MjA5ODY3NjQyOX0.rnFGMaKGst8s3_f327It32vHOs4Dc66x_-7GbWxrC9c",
   table: "dsr_app_state",
   documentId: "svbb-dsr-score",
+  documentPrefix: "dsr-score",
 };
 
 const defaultData = {
@@ -2121,6 +2128,7 @@ const iconX = `
   </svg>
 `;
 
+let currentClubId = normalizeClubCode(localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
 let state = loadState();
 let scoreDraft = createEmptyDraft();
 let lastButtonTouchAt = 0;
@@ -2147,7 +2155,9 @@ document.addEventListener(
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const clubState = localStorage.getItem(getStateStorageKey());
+    const legacyState = currentClubId === normalizeClubCode(DEFAULT_CLUB_CODE) ? localStorage.getItem(STORAGE_KEY) : null;
+    const saved = JSON.parse(clubState || legacyState);
     return saved ? mergeData(defaultData, saved) : structuredClone(defaultData);
   } catch {
     return structuredClone(defaultData);
@@ -2203,8 +2213,28 @@ function mergeData(base, saved) {
 }
 
 function saveState({ sync = true } = {}) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(getStateStorageKey(), JSON.stringify(state));
   if (sync && !isApplyingRemoteState) scheduleSync();
+}
+
+function normalizeClubCode(value) {
+  return (value || DEFAULT_CLUB_CODE)
+    .toString()
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24) || DEFAULT_CLUB_CODE;
+}
+
+function getStateStorageKey() {
+  return `${STORAGE_KEY}:${currentClubId || normalizeClubCode(DEFAULT_CLUB_CODE)}`;
+}
+
+function getRemoteDocumentId() {
+  const clubId = currentClubId || normalizeClubCode(DEFAULT_CLUB_CODE);
+  if (clubId === normalizeClubCode(DEFAULT_CLUB_CODE)) return SYNC_CONFIG.documentId;
+  return `${SYNC_CONFIG.documentPrefix}-${clubId.toLowerCase()}`;
 }
 
 function markDirty() {
@@ -2250,7 +2280,7 @@ async function pullRemoteState() {
   try {
     setSyncStatus("Online synchronisatie controleren...");
     const response = await fetch(
-      `${syncBaseUrl()}?id=eq.${encodeURIComponent(SYNC_CONFIG.documentId)}&select=data,updated_at&limit=1`,
+      `${syncBaseUrl()}?id=eq.${encodeURIComponent(getRemoteDocumentId())}&select=data,updated_at&limit=1`,
       { headers: syncHeaders() },
     );
     if (!response.ok) throw new Error(`Sync ophalen mislukt (${response.status})`);
@@ -2295,7 +2325,7 @@ async function pushRemoteState({ force = false } = {}) {
       method: "POST",
       headers: syncHeaders({ Prefer: "resolution=merge-duplicates" }),
       body: JSON.stringify({
-        id: SYNC_CONFIG.documentId,
+        id: getRemoteDocumentId(),
         data: state,
         updated_at: state.updatedAt,
       }),
@@ -2430,7 +2460,8 @@ function getRanking(filters = {}) {
     const scoreDiscipline = getScoreDiscipline(score, shooter);
     if (discipline !== "all" && scoreDiscipline !== discipline) return;
     if (level !== "all" && shooter.level !== level) return;
-    const candidate = scoreToRankingItem(score, shooter, scoreDiscipline);
+    const disciplineLabel = discipline === "all" ? scoreDiscipline : scoreDiscipline;
+    const candidate = scoreToRankingItem(score, shooter, disciplineLabel);
     const current = grouped.get(score.shooterId);
     if (!current || candidate.hitfactor > current.hitfactor) grouped.set(score.shooterId, candidate);
   });
@@ -2441,6 +2472,7 @@ function getRanking(filters = {}) {
 function render() {
   document.body.classList.add("dark");
   document.body.classList.toggle("home-active", $("#view-home")?.classList.contains("is-active"));
+  renderClubIdentity();
   renderCounters();
   renderSelects();
   renderHome();
@@ -2454,6 +2486,11 @@ function render() {
   renderDashboard();
   applyRolePermissions();
   saveState();
+}
+
+function renderClubIdentity() {
+  const title = $("#appClubTitle");
+  if (title) title.textContent = currentClubId || DEFAULT_CLUB_CODE;
 }
 
 function renderCounters() {
@@ -2966,7 +3003,11 @@ function applyRolePermissions() {
   const readOnly = currentRole === "shooter";
   document.body.dataset.role = currentRole || "";
   const roleStatus = $("#roleStatus");
-  if (roleStatus) roleStatus.textContent = readOnly ? "Ingelogd als schutter - alleen kijken" : "Ingelogd als trainer - wijzigen toegestaan";
+  if (roleStatus) {
+    roleStatus.textContent = readOnly
+      ? `Ingelogd als schutter - ${currentClubId} - alleen kijken`
+      : `Ingelogd als trainer - ${currentClubId} - wijzigen toegestaan`;
+  }
 
   $$("[data-trainer-only]").forEach((element) => {
     element.hidden = readOnly;
@@ -3445,6 +3486,10 @@ $$("[data-more-tab]").forEach((button) => {
 
 $("#progressDisciplineFilter").addEventListener("change", renderProgress);
 
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
 async function sha256Hex(text) {
   const bytes = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -3453,8 +3498,37 @@ async function sha256Hex(text) {
     .join("");
 }
 
-function startApp(role) {
+function parseStoredAuth(value) {
+  if (!value) return null;
+  if (value === "1" || value === "trainer") return { role: "trainer", clubId: DEFAULT_CLUB_CODE };
+  if (value === "shooter") return { role: "shooter", clubId: DEFAULT_CLUB_CODE };
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed?.role === "trainer" || parsed?.role === "shooter") {
+      return {
+        role: parsed.role,
+        clubId: normalizeClubCode(parsed.clubId || DEFAULT_CLUB_CODE),
+      };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function storeAuth(role, clubId) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ role, clubId }));
+  localStorage.setItem(CLUB_STORAGE_KEY, clubId);
+}
+
+function startApp(role, clubCode = DEFAULT_CLUB_CODE) {
   currentRole = role;
+  currentClubId = normalizeClubCode(clubCode);
+  localStorage.setItem(CLUB_STORAGE_KEY, currentClubId);
+  state = loadState();
+  scoreDraft = createEmptyDraft();
+  lastSyncedAt = "";
+  syncStatus = "Online synchronisatie controleren...";
   $("#loginGate").setAttribute("hidden", "");
   $("#appShell").removeAttribute("hidden");
   render();
@@ -3465,6 +3539,7 @@ function showLoginGate() {
   currentRole = "";
   $("#appShell").setAttribute("hidden", "");
   $("#loginGate").removeAttribute("hidden");
+  $("#loginClub").value = currentClubId || localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE;
   $("#loginPassword").value = "";
   $("#loginError").textContent = "";
   $("#loginPassword").focus();
@@ -3472,15 +3547,17 @@ function showLoginGate() {
 
 $("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const clubId = normalizeClubCode($("#loginClub").value);
+  $("#loginClub").value = clubId;
   const hash = await sha256Hex($("#loginPassword").value);
   if (AUTH_CONFIG.trainerHashes.includes(hash)) {
-    localStorage.setItem(AUTH_STORAGE_KEY, "trainer");
-    startApp("trainer");
+    storeAuth("trainer", clubId);
+    startApp("trainer", clubId);
     return;
   }
   if (hash === AUTH_CONFIG.shooterHash) {
-    localStorage.setItem(AUTH_STORAGE_KEY, "shooter");
-    startApp("shooter");
+    storeAuth("shooter", clubId);
+    startApp("shooter", clubId);
     return;
   }
   $("#loginError").textContent = "Onjuist wachtwoord. Probeer het opnieuw.";
@@ -3491,11 +3568,9 @@ $("#logoutButton").addEventListener("click", () => {
   showLoginGate();
 });
 
-const storedRole = localStorage.getItem(AUTH_STORAGE_KEY);
-if (storedRole === "1" || storedRole === "trainer") {
-  startApp("trainer");
-} else if (storedRole === "shooter") {
-  startApp("shooter");
+const storedAuth = parseStoredAuth(localStorage.getItem(AUTH_STORAGE_KEY));
+if (storedAuth) {
+  startApp(storedAuth.role, storedAuth.clubId);
 } else {
   showLoginGate();
 }
