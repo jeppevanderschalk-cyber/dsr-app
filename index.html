@@ -1228,6 +1228,14 @@ select:focus {
   border-radius: var(--radius);
 }
 
+.chart-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 canvas {
   display: block;
   width: 100%;
@@ -1901,7 +1909,7 @@ dialog .primary-action::after {
           <div class="tab-strip" role="tablist" aria-label="Meer opties">
             <button class="is-active" type="button" data-more-tab="shooters">Leden</button>
             <button type="button" data-more-tab="progress">Rondes</button>
-            <button type="button" data-more-tab="dashboard">Stats</button>
+            <button type="button" data-more-tab="dashboard">Analyse</button>
             <button type="button" data-more-tab="settings">Set-up</button>
           </div>
 
@@ -1974,19 +1982,25 @@ dialog .primary-action::after {
           </section>
 
           <section class="more-panel" id="more-dashboard">
+            <section class="section-block">
+              <h3>Wat zie je hier?</h3>
+              <p class="notice">Analyse van alle opgeslagen scores: ontwikkeling van de hitfactor, verdeling van treffers en aandachtspunten voor de training.</p>
+            </section>
             <div class="dashboard-grid">
               <article class="chart-panel">
                 <h3>Hitfactor door de tijd</h3>
+                <p class="chart-note">Laatste 8 opgeslagen scores, van oud naar nieuw.</p>
                 <canvas id="hitfactorChart" width="360" height="180"></canvas>
               </article>
               <article class="chart-panel">
-                <h3>Alpha / Charlie / Delta</h3>
+                <h3>Treffers totaal</h3>
+                <p class="chart-note">Alle Alpha, Charlie en Delta treffers bij elkaar.</p>
                 <canvas id="ratioChart" width="360" height="180"></canvas>
               </article>
             </div>
 
             <section class="section-block">
-              <h3>Automatische inzichten</h3>
+              <h3>Aandachtspunten</h3>
               <div class="insight-list" id="insightList"></div>
             </section>
           </section>
@@ -2919,9 +2933,9 @@ function renderDashboard() {
   const weakPart = getWeakestPart();
 
   $("#insightList").innerHTML = [
-    top ? `Huidige leider: ${top.shooter.name} met HF ${formatNumber(top.hitfactor, 3)}.` : "Nog geen leider beschikbaar.",
-    mostImproved ? `Grootste verbetering: ${mostImproved.name} steeg ${formatNumber(mostImproved.delta, 3)} HF.` : "Meer scores nodig voor verbeteringstrend.",
-    weakPart ? `Zwakste onderdeel: ${weakPart}.` : "Nog te weinig data voor zwakste onderdeel.",
+    top ? `Beste opgeslagen hitfactor: ${top.shooter.name} met ${formatNumber(top.hitfactor, 3)}.` : "Nog geen beste hitfactor beschikbaar.",
+    mostImproved ? `Sterkste stijging: ${mostImproved.name} steeg ${formatNumber(mostImproved.delta, 3)} hitfactor.` : "Meer scores nodig om progressie te meten.",
+    weakPart ? `Meeste verlies komt door: ${weakPart}.` : "Nog te weinig data voor aandachtspunten.",
   ]
     .map((text) => `<article class="insight-item">${text}</article>`)
     .join("");
@@ -3014,19 +3028,23 @@ function drawRatioChart() {
 
   values.forEach(([label, value, color], index) => {
     const y = 32 + index * 44;
-    const width = Math.max(4, (value / max) * (canvas.width - 128));
+    const labelX = 18;
+    const barX = 96;
+    const valueX = canvas.width - 22;
+    const barMaxWidth = canvas.width - barX - 76;
+    const width = Math.max(4, (value / max) * barMaxWidth);
     ctx.fillStyle = cssVar("--panel", "#202126");
-    roundRect(ctx, 96, y, canvas.width - 124, 22, 11);
+    roundRect(ctx, barX, y, barMaxWidth, 22, 11);
     ctx.fill();
     ctx.fillStyle = color;
-    roundRect(ctx, 96, y, width, 22, 11);
+    roundRect(ctx, barX, y, width, 22, 11);
     ctx.fill();
     ctx.fillStyle = cssVar("--ink", "#f7f7f8");
     ctx.font = "700 13px system-ui";
     ctx.textAlign = "left";
-    ctx.fillText(label, 18, y + 16);
+    ctx.fillText(label, labelX, y + 16);
     ctx.textAlign = "right";
-    ctx.fillText(String(value), canvas.width - 18, y + 16);
+    ctx.fillText(String(value), valueX, y + 16);
     ctx.textAlign = "left";
   });
 }
