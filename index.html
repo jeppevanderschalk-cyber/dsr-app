@@ -1607,7 +1607,11 @@ dialog .primary-action::after {
         <p class="muted">Log in met je vereniging en rol.</p>
         <label>
           <span>Vereniging</span>
-          <input type="text" id="loginClub" autocomplete="organization" autocapitalize="characters" maxlength="24" required />
+          <select id="loginClub" autocomplete="organization" required>
+            <option value="SVBB">SVBB</option>
+            <option value="APS-DSR">APS-DSR</option>
+            <option value="GAST-GEBRUIKER">Gast gebruiker</option>
+          </select>
         </label>
         <label>
           <span>Wachtwoord</span>
@@ -2067,6 +2071,11 @@ const STORAGE_KEY = "dsr-score-app-v5";
 const AUTH_STORAGE_KEY = "dsr-app-auth-v2";
 const CLUB_STORAGE_KEY = "dsr-app-club-v1";
 const DEFAULT_CLUB_CODE = "SVBB";
+const CLUB_OPTIONS = [
+  { id: "SVBB", label: "SVBB" },
+  { id: "APS-DSR", label: "APS-DSR" },
+  { id: "GAST-GEBRUIKER", label: "Gast gebruiker" },
+];
 const AUTH_CONFIG = {
   trainerHashes: [
     "acc4000223bcdfa348e0f3524fdf5028d2944f713f122b9f57f7a86f036dacb5",
@@ -2235,6 +2244,11 @@ function getRemoteDocumentId() {
   const clubId = currentClubId || normalizeClubCode(DEFAULT_CLUB_CODE);
   if (clubId === normalizeClubCode(DEFAULT_CLUB_CODE)) return SYNC_CONFIG.documentId;
   return `${SYNC_CONFIG.documentPrefix}-${clubId.toLowerCase()}`;
+}
+
+function getClubLabel(clubId = currentClubId) {
+  const normalized = normalizeClubCode(clubId);
+  return CLUB_OPTIONS.find((option) => option.id === normalized)?.label || normalized;
 }
 
 function markDirty() {
@@ -2490,7 +2504,7 @@ function render() {
 
 function renderClubIdentity() {
   const title = $("#appClubTitle");
-  if (title) title.textContent = currentClubId || DEFAULT_CLUB_CODE;
+  if (title) title.textContent = getClubLabel();
 }
 
 function renderCounters() {
@@ -3005,8 +3019,8 @@ function applyRolePermissions() {
   const roleStatus = $("#roleStatus");
   if (roleStatus) {
     roleStatus.textContent = readOnly
-      ? `Ingelogd als schutter - ${currentClubId} - alleen kijken`
-      : `Ingelogd als trainer - ${currentClubId} - wijzigen toegestaan`;
+      ? `Ingelogd als schutter - ${getClubLabel()} - alleen kijken`
+      : `Ingelogd als trainer - ${getClubLabel()} - wijzigen toegestaan`;
   }
 
   $$("[data-trainer-only]").forEach((element) => {
@@ -3539,7 +3553,8 @@ function showLoginGate() {
   currentRole = "";
   $("#appShell").setAttribute("hidden", "");
   $("#loginGate").removeAttribute("hidden");
-  $("#loginClub").value = currentClubId || localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE;
+  const preferredClub = normalizeClubCode(currentClubId || localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
+  $("#loginClub").value = CLUB_OPTIONS.some((option) => option.id === preferredClub) ? preferredClub : DEFAULT_CLUB_CODE;
   $("#loginPassword").value = "";
   $("#loginError").textContent = "";
   $("#loginPassword").focus();
