@@ -1266,6 +1266,38 @@ canvas {
   color: var(--danger);
 }
 
+.donation-card {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(245, 197, 24, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.donation-card span,
+.donation-card small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.donation-card strong {
+  display: block;
+  margin: 7px 0 2px;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.donation-card .text-button {
+  justify-self: start;
+}
+
 .insight-item::before {
   position: absolute;
   left: 18px;
@@ -1945,6 +1977,19 @@ dialog .primary-action::after {
                 <h3>Sessie</h3>
                 <article class="sync-card" id="roleStatus">Ingelogd</article>
                 <button class="secondary-action full-width" id="logoutButton" type="button">Uitloggen</button>
+              </section>
+
+              <section class="section-block app-credit">
+                <h3>Over deze app</h3>
+                <p class="notice">Gebouwd en ontwikkeld door J. van der Schalk.</p>
+                <article class="donation-card">
+                  <div>
+                    <span>Donatie voor hosting en ontwikkeling</span>
+                    <strong>NL89INGB0796202257</strong>
+                    <small>t.n.v. J. van der Schalk</small>
+                  </div>
+                  <button class="text-button" id="donateButton" type="button">IBAN kopiëren</button>
+                </article>
               </section>
 
               <section class="section-block" data-trainer-only>
@@ -3581,6 +3626,16 @@ $("#loginForm").addEventListener("submit", async (event) => {
 $("#logoutButton").addEventListener("click", () => {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   showLoginGate();
+});
+
+$("#donateButton").addEventListener("click", async () => {
+  const donationText = "Donatie DSR score - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk";
+  try {
+    await navigator.clipboard.writeText(donationText);
+    showToast("IBAN gekopieerd");
+  } catch {
+    showToast("IBAN: NL89INGB0796202257");
+  }
 });
 
 const storedAuth = parseStoredAuth(localStorage.getItem(AUTH_STORAGE_KEY));
