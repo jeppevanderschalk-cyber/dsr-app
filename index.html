@@ -1227,6 +1227,59 @@ select:focus {
   color: var(--danger);
 }
 
+.high-score-section {
+  margin-top: 22px;
+}
+
+.high-score-history,
+.high-score-list {
+  display: grid;
+  gap: 12px;
+}
+
+.high-score-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
+}
+
+.high-score-card header,
+.high-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.high-score-row {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--tile);
+}
+
+.high-score-row > div {
+  min-width: 0;
+}
+
+.high-score-card strong,
+.high-score-row strong {
+  display: block;
+}
+
+.high-score-card small,
+.high-score-row small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .dashboard-grid {
   display: grid;
   gap: 14px;
@@ -1932,6 +1985,12 @@ dialog .primary-action::after {
               </button>
             </div>
             <div class="profile-list" id="profileList"></div>
+
+            <section class="section-block high-score-section">
+              <h3>Hi-score geschiedenis</h3>
+              <p class="notice">Opgeslagen beste scores per training. Trainers kunnen losse hi-scores verwijderen.</p>
+              <div class="high-score-history" id="highScoreHistory"></div>
+            </section>
           </section>
 
           <section class="more-panel" id="more-progress">
@@ -2050,7 +2109,7 @@ dialog .primary-action::after {
 
               <section class="section-block" data-trainer-only>
                 <h3>Training</h3>
-                <p class="notice">Bewaart de beste score per schutter in het klassement en wist de losse trainingsrondes.</p>
+                <p class="notice">Voegt de beste score per schutter toe aan de hi-score geschiedenis en wist de losse trainingsrondes.</p>
                 <button class="secondary-action danger-action full-width" id="resetTrainingButton" type="button">Nieuwe training starten</button>
               </section>
 
@@ -2297,6 +2356,7 @@ function mergeData(base, saved) {
     ? saved.bestScores
         .map((score) => ({
           ...score,
+          id: score.id || createId("best"),
           discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
         }))
         .filter((score) => score.shooterId)
@@ -2503,6 +2563,18 @@ function formatSignedNumber(value, digits = 2) {
   const normalized = Number.isFinite(value) && !Object.is(value, -0) ? value : 0;
   const prefix = normalized > 0 ? "+" : "";
   return `${prefix}${formatNumber(normalized, digits)}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "onbekende datum";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "onbekende datum";
+  return new Intl.DateTimeFormat("nl-NL", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function parseDecimal(value) {
@@ -2837,6 +2909,59 @@ function renderProfiles() {
     })
     .join("")
     : `<div class="empty">Nog geen schutters. Tik op + om iemand toe te voegen.</div>`;
+
+  renderHighScoreHistory();
+}
+
+function renderHighScoreHistory() {
+  const history = $("#highScoreHistory");
+  if (!history) return;
+
+  const scores = (state.bestScores || [])
+    .filter((score) => getShooter(score.shooterId))
+    .sort((a, b) => String(b.bestSavedAt || b.createdAt).localeCompare(String(a.bestSavedAt || a.createdAt)));
+
+  if (!scores.length) {
+    history.innerHTML = `<div class="empty">Nog geen hi-scores opgeslagen. Start een nieuwe training om de beste scores te bewaren.</div>`;
+    return;
+  }
+
+  const groups = state.shooters
+    .map((shooter) => ({
+      shooter,
+      scores: scores.filter((score) => score.shooterId === shooter.id),
+    }))
+    .filter((group) => group.scores.length);
+
+  history.innerHTML = groups
+    .map(
+      ({ shooter, scores: shooterScores }) => `
+        <article class="high-score-card">
+          <header>
+            <div>
+              <strong>${shooter.name}</strong>
+              <small>${shooter.level} · ${shooterScores.length} hi-scores</small>
+            </div>
+          </header>
+          <div class="high-score-list">
+            ${shooterScores
+              .map(
+                (score) => `
+                  <div class="high-score-row">
+                    <div>
+                      <strong>${formatNumber(score.hitfactor, 3)}</strong>
+                      <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec · ${formatDateTime(score.bestSavedAt || score.createdAt)}</small>
+                    </div>
+                    <button class="delete-button" type="button" data-delete-best-score="${score.id}" aria-label="Hi-score verwijderen" title="Hi-score verwijderen" data-trainer-only>${iconX}</button>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        </article>
+      `,
+    )
+    .join("");
 }
 
 function renderProgress() {
@@ -3430,18 +3555,19 @@ function downloadProgressPdf() {
 
 function updateStoredBestScores() {
   const bestByShooter = new Map();
-  getBestScoreCandidates().forEach((score) => {
+  state.scores.forEach((score) => {
     if (!score.shooterId) return;
     const current = bestByShooter.get(score.shooterId);
     if (!current || (score.hitfactor || 0) > (current.hitfactor || 0)) {
       bestByShooter.set(score.shooterId, {
         ...score,
-        id: score.id || createId("best"),
+        id: createId("best"),
+        sourceScoreId: score.id,
         bestSavedAt: new Date().toISOString(),
       });
     }
   });
-  state.bestScores = Array.from(bestByShooter.values());
+  state.bestScores = [...(state.bestScores || []), ...Array.from(bestByShooter.values())];
 }
 
 function resetTrainingScores() {
@@ -3451,7 +3577,7 @@ function resetTrainingScores() {
     return;
   }
 
-  const confirmed = window.confirm("Nieuwe training starten? De beste score per schutter blijft in het klassement staan. Alle losse trainingsscores worden gewist.");
+  const confirmed = window.confirm("Nieuwe training starten? De beste score per schutter wordt toegevoegd aan de hi-score geschiedenis. Alle losse trainingsscores worden gewist.");
   if (!confirmed) return;
 
   updateStoredBestScores();
@@ -3603,6 +3729,23 @@ document.addEventListener("click", (event) => {
   markDirty();
   render();
   showToast("Oefenronde verwijderd");
+});
+
+document.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-delete-best-score]");
+  if (!deleteButton) return;
+  if (!requireTrainer()) return;
+
+  const score = state.bestScores.find((item) => item.id === deleteButton.dataset.deleteBestScore);
+  if (!score) return;
+  const shooter = getShooter(score.shooterId);
+  const confirmed = window.confirm(`Hi-score van ${shooter?.name || "deze schutter"} verwijderen?`);
+  if (!confirmed) return;
+
+  state.bestScores = state.bestScores.filter((item) => item.id !== score.id);
+  markDirty();
+  render();
+  showToast("Hi-score verwijderd");
 });
 
 $("#entryForm").addEventListener("submit", (event) => {
