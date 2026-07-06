@@ -1294,8 +1294,28 @@ canvas {
   letter-spacing: 0.3px;
 }
 
-.donation-card .text-button {
-  justify-self: start;
+.donation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.donation-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
+  text-decoration: none;
+  box-shadow: var(--shadow-yellow);
+}
+
+.muted-button {
+  color: var(--muted);
 }
 
 .insight-item::before {
@@ -1988,7 +2008,17 @@ dialog .primary-action::after {
                     <strong>NL89INGB0796202257</strong>
                     <small>t.n.v. J. van der Schalk</small>
                   </div>
-                  <button class="text-button" id="donateButton" type="button">IBAN kopiëren</button>
+                  <div class="donation-actions">
+                    <a
+                      class="text-button donation-link"
+                      href="https://www.ing.nl/payreq/m/?trxid=WHUfzGumUOrs0LK419CNQYuHLT9dGwQt"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      Doneer via iDEAL
+                    </a>
+                    <button class="text-button muted-button" id="copyIbanButton" type="button">IBAN kopiëren</button>
+                  </div>
                 </article>
               </section>
 
@@ -3628,7 +3658,7 @@ $("#logoutButton").addEventListener("click", () => {
   showLoginGate();
 });
 
-$("#donateButton").addEventListener("click", async () => {
+$("#copyIbanButton").addEventListener("click", async () => {
   const donationText = "Donatie DSR score - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk";
   try {
     await navigator.clipboard.writeText(donationText);
