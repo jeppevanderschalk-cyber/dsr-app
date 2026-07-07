@@ -783,7 +783,7 @@ small {
 
 .score-round-row {
   display: grid;
-  grid-template-columns: minmax(82px, 0.75fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(82px, 0.75fr) auto minmax(0, 1fr) 38px;
   align-items: center;
   gap: 10px;
   min-height: 58px;
@@ -810,6 +810,13 @@ small {
   min-width: 0;
   margin-top: 0;
   text-align: right;
+}
+
+.score-round-row .compact-delete {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 12px;
 }
 
 .status-pill,
@@ -1694,12 +1701,17 @@ dialog .primary-action::after {
   }
 
   .score-round-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto 36px;
   }
 
   .score-round-row small {
     grid-column: 1 / -1;
     text-align: left;
+  }
+
+  .score-round-row .compact-delete {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .filter-bar {
@@ -2003,40 +2015,13 @@ dialog .primary-action::after {
             <div class="section-heading">
               <div>
                 <h3>Oefenrondes</h3>
-                <p class="muted">Hitfactor per ronde bijhouden.</p>
+                <p class="muted">Automatisch gevuld vanuit opgeslagen scores.</p>
               </div>
             </div>
 
-            <form id="progressForm" class="progress-form" data-trainer-only>
-              <div class="field-grid progress-entry-grid">
-                <label>
-                  <span>Schutter</span>
-                  <select id="progressShooter"></select>
-                </label>
-                <label>
-                  <span>Ronde</span>
-                  <select id="progressRound"></select>
-                </label>
-                <label>
-                  <span>Discipline</span>
-                  <select id="progressDiscipline"></select>
-                </label>
-                <label>
-                  <span>Hitfactor</span>
-                  <input id="progressHitfactor" type="number" min="0" step="0.001" inputmode="decimal" placeholder="0,000" />
-                </label>
-              </div>
-              <button class="primary-action full-width" type="submit">
-                <span aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></svg>
-                </span>
-                Ronde opslaan
-              </button>
-            </form>
-
             <section class="section-block">
               <div class="section-heading">
-                <h3>Progressietabel</h3>
+                <h3>Score-rondes</h3>
                 <button class="text-button" id="progressPdfButton" type="button">PDF downloaden</button>
               </div>
               <div class="filter-bar single-filter">
@@ -2049,7 +2034,7 @@ dialog .primary-action::after {
 
             <section class="section-block">
               <div class="section-heading">
-                <h3>Laatste rondes</h3>
+                <h3>Laatste opgeslagen rondes</h3>
               </div>
               <div class="list" id="recentProgress"></div>
             </section>
@@ -2618,7 +2603,37 @@ function formatRound(round) {
 }
 
 function getNextScoreRound(shooterId) {
-  return state.scores.filter((score) => score.shooterId === shooterId).length + 1;
+  const usedRounds = new Set();
+  state.scores
+    .filter((score) => score.shooterId === shooterId)
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+    .forEach((score, index) => {
+      const storedRound = Number(score.round);
+      usedRounds.add(Number.isInteger(storedRound) && storedRound > 0 ? storedRound : index + 1);
+    });
+  return progressRounds.find((round) => !usedRounds.has(round)) || progressRounds.at(-1) + 1;
+}
+
+function getScoreRoundEntries(discipline = "all") {
+  const groupedIndex = new Map();
+  return state.scores
+    .slice()
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+    .map((score) => {
+      if (!score.shooterId) return null;
+      const shooterScores = groupedIndex.get(score.shooterId) || 0;
+      groupedIndex.set(score.shooterId, shooterScores + 1);
+      const shooter = getShooter(score.shooterId);
+      const scoreDiscipline = getScoreDiscipline(score, shooter);
+      const displayRound = Math.min(Number(score.round) || shooterScores + 1, progressRounds.at(-1));
+      if (discipline !== "all" && scoreDiscipline !== discipline) return null;
+      return {
+        ...score,
+        displayRound,
+        displayDiscipline: scoreDiscipline,
+      };
+    })
+    .filter(Boolean);
 }
 
 function triggerHapticFeedback() {
@@ -2745,9 +2760,6 @@ function renderCounters() {
 
 function renderSelects() {
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
-  const selectedProgressShooter = $("#progressShooter").value;
-  const selectedProgressRound = $("#progressRound").value;
-  const selectedProgressDiscipline = $("#progressDiscipline").value;
   const selectedProgressFilter = $("#progressDisciplineFilter").value;
   const selectedDashboardShooter = $("#dashboardShooterFilter").value;
   const shooterOptions = activeShooters.length
@@ -2759,11 +2771,6 @@ function renderSelects() {
 
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
-  $("#progressShooter").innerHTML = shooterOptions;
-  $("#progressRound").innerHTML = progressRounds
-    .map((round) => `<option value="${round}">${formatRound(round)} ronde</option>`)
-    .join("");
-  $("#progressDiscipline").innerHTML = disciplineOptionsHtml;
   $("#progressDisciplineFilter").innerHTML = [
     `<option value="all">Alle disciplines</option>`,
     ...disciplineOptions.map((discipline) => `<option value="${discipline}">${discipline}</option>`),
@@ -2784,11 +2791,6 @@ function renderSelects() {
   $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreTime").value = scoreDraft.time;
   $("#scoreNotes").value = scoreDraft.notes;
-  $("#progressShooter").value = activeShooters.some((shooter) => shooter.id === selectedProgressShooter)
-    ? selectedProgressShooter
-    : activeShooters[0]?.id || "";
-  $("#progressRound").value = progressRounds.includes(Number(selectedProgressRound)) ? selectedProgressRound : "1";
-  $("#progressDiscipline").value = disciplineOptions.includes(selectedProgressDiscipline) ? selectedProgressDiscipline : defaultDiscipline;
   $("#progressDisciplineFilter").value =
     selectedProgressFilter === "all" || disciplineOptions.includes(selectedProgressFilter) ? selectedProgressFilter || "all" : "all";
   $("#dashboardShooterFilter").value =
@@ -2831,7 +2833,7 @@ function renderScoreProgress() {
       const scores = state.scores
         .filter((score) => score.shooterId === shooter.id)
         .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
-        .map((score, index) => ({ ...score, displayRound: Math.min(index + 1, 15) }));
+        .map((score, index) => ({ ...score, displayRound: Math.min(Number(score.round) || index + 1, 15) }));
 
       return { shooter, scores };
     })
@@ -2857,6 +2859,7 @@ function renderScoreProgress() {
                     <span>${formatRound(score.displayRound)} ronde</span>
                     <strong>${formatNumber(score.hitfactor, 3)}</strong>
                     <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
+                    <button class="delete-button compact-delete" type="button" data-delete-score-round="${score.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
                   </div>
                 `,
               )
@@ -3002,11 +3005,11 @@ function renderProgress() {
   if (!table || !recent) return;
 
   const discipline = $("#progressDisciplineFilter").value || "all";
-  const entries = state.progressEntries.filter((entry) => discipline === "all" || entry.discipline === discipline);
+  const entries = getScoreRoundEntries(discipline);
   const shooters = state.shooters.filter(
-    (shooter) => shooter.active || entries.some((entry) => entry.shooterId === shooter.id),
+    (shooter) => shooter.active || entries.some((score) => score.shooterId === shooter.id),
   );
-  const maxRound = Math.max(4, ...progressRounds, ...entries.map((entry) => Number(entry.round) || 1));
+  const maxRound = Math.min(progressRounds.at(-1), Math.max(4, ...entries.map((score) => Number(score.displayRound) || 1)));
   const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
 
   if (!shooters.length) {
@@ -3026,10 +3029,10 @@ function renderProgress() {
       ${shooters
         .map((shooter) => {
           const cells = rounds.map((round) => {
-            const entry = entries
-              .filter((item) => item.shooterId === shooter.id && Number(item.round) === round)
+            const score = entries
+              .filter((item) => item.shooterId === shooter.id && Number(item.displayRound) === round)
               .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-            return `<td>${entry ? formatNumber(entry.hitfactor, 3) : ""}</td>`;
+            return `<td>${score ? formatNumber(score.hitfactor, 3) : ""}</td>`;
           });
           return `
             <tr>
@@ -3047,21 +3050,21 @@ function renderProgress() {
         .slice()
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         .slice(0, 6)
-        .map((entry) => {
-          const shooter = getShooter(entry.shooterId);
+        .map((score) => {
+          const shooter = getShooter(score.shooterId);
           return `
             <article class="list-item">
               <div>
                 <strong>${shooter?.name || "Onbekend"}</strong>
-                <small>${entry.discipline} · ${formatRound(entry.round)} ronde</small>
+                <small>${score.displayDiscipline} · ${formatRound(score.displayRound)} ronde · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
               </div>
-              <strong>${formatNumber(entry.hitfactor, 3)}</strong>
-              <button class="delete-button" type="button" data-delete-progress="${entry.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+              <strong>${formatNumber(score.hitfactor, 3)}</strong>
+              <button class="delete-button" type="button" data-delete-score-round="${score.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
             </article>
           `;
         })
         .join("")
-    : `<div class="empty">Nog geen oefenrondes ingevoerd.</div>`;
+    : `<div class="empty">Nog geen score-rondes opgeslagen.</div>`;
 }
 
 function renderSettings() {
@@ -3398,13 +3401,14 @@ function addDemoScores() {
 }
 
 function exportCsv() {
+  const scoreRows = getScoreRoundEntries("all");
   const rows = [
     ["Schutter", "Discipline", "Niveau", "Ronde", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
-    ...state.scores.map((score) => [
+    ...scoreRows.map((score) => [
       getShooter(score.shooterId)?.name || "",
-      getScoreDiscipline(score),
+      score.displayDiscipline,
       getShooter(score.shooterId)?.level || "",
-      Number(score.round) || "",
+      Number(score.displayRound) || "",
       score.alpha,
       score.charlie,
       score.delta,
@@ -3427,15 +3431,15 @@ function exportCsv() {
 
 function getProgressPdfData() {
   const discipline = $("#progressDisciplineFilter").value || "all";
-  const entries = state.progressEntries.filter((entry) => discipline === "all" || entry.discipline === discipline);
+  const entries = getScoreRoundEntries(discipline);
   const shooters = state.shooters
-    .filter((shooter) => shooter.active || entries.some((entry) => entry.shooterId === shooter.id))
+    .filter((shooter) => shooter.active || entries.some((score) => score.shooterId === shooter.id))
     .map((shooter) => {
       const values = progressRounds.map((round) => {
-        const entry = entries
-          .filter((item) => item.shooterId === shooter.id && Number(item.round) === round)
+        const score = entries
+          .filter((item) => item.shooterId === shooter.id && Number(item.displayRound) === round)
           .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-        return entry ? formatNumber(entry.hitfactor, 3) : "";
+        return score ? formatNumber(score.hitfactor, 3) : "";
       });
       return { name: shooter.name, level: shooter.level, values };
     })
@@ -3690,35 +3694,6 @@ $("#scoreForm").addEventListener("submit", (event) => {
   showToast("Score opgeslagen");
 });
 
-$("#progressForm").addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (!requireTrainer()) return;
-  const shooterId = $("#progressShooter").value;
-  const round = Math.max(1, Number($("#progressRound").value) || 1);
-  const discipline = normalizeDiscipline($("#progressDiscipline").value);
-  const hitfactor = parseDecimal($("#progressHitfactor").value);
-
-  if (!shooterId || !Number.isFinite(hitfactor) || hitfactor < 0) {
-    showToast("Kies een schutter en vul een hitfactor in");
-    return;
-  }
-
-  state.progressEntries.push({
-    id: createId("progress"),
-    shooterId,
-    round,
-    discipline,
-    hitfactor,
-    createdAt: new Date().toISOString(),
-  });
-  markDirty();
-  $("#progressHitfactor").value = "";
-  const nextRound = Math.min(progressRounds.at(-1), round + 1);
-  $("#progressRound").value = String(nextRound);
-  render();
-  showToast("Oefenronde opgeslagen");
-});
-
 $("#resetScoreButton").addEventListener("click", () => {
   scoreDraft = createEmptyDraft();
   render();
@@ -3753,14 +3728,20 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  const deleteButton = event.target.closest("[data-delete-progress]");
+  const deleteButton = event.target.closest("[data-delete-score-round]");
   if (!deleteButton) return;
   if (!requireTrainer()) return;
 
-  state.progressEntries = state.progressEntries.filter((entry) => entry.id !== deleteButton.dataset.deleteProgress);
+  const score = state.scores.find((item) => item.id === deleteButton.dataset.deleteScoreRound);
+  if (!score) return;
+  const shooter = getShooter(score.shooterId);
+  const confirmed = window.confirm(`Ronde van ${shooter?.name || "deze schutter"} verwijderen?`);
+  if (!confirmed) return;
+
+  state.scores = state.scores.filter((item) => item.id !== score.id);
   markDirty();
   render();
-  showToast("Oefenronde verwijderd");
+  showToast("Ronde verwijderd");
 });
 
 document.addEventListener("click", (event) => {
