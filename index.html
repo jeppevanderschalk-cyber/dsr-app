@@ -2294,6 +2294,7 @@ const counters = [
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
+const liveSyncIntervalMs = 5000;
 
 const iconX = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2307,7 +2308,9 @@ let state = loadState();
 let scoreDraft = createEmptyDraft();
 let lastButtonTouchAt = 0;
 let syncTimer = 0;
+let syncPollTimer = 0;
 let isApplyingRemoteState = false;
+let isPullingRemoteState = false;
 let lastSyncedAt = "";
 let syncStatus = "Lokale opslag actief. Cloud-sync is nog niet gekoppeld.";
 let currentRole = "";
@@ -2429,7 +2432,7 @@ function renderSyncStatus() {
   const element = $("#syncStatus");
   if (!element) return;
   element.textContent = syncStatus;
-  element.classList.toggle("is-online", syncStatus.includes("Online"));
+  element.classList.toggle("is-online", syncStatus.includes("sync actief"));
   element.classList.toggle("is-error", syncStatus.includes("fout") || syncStatus.includes("niet gelukt"));
 }
 
@@ -2451,14 +2454,16 @@ function syncBaseUrl() {
   return `${SYNC_CONFIG.supabaseUrl.replace(/\/$/, "")}/rest/v1/${SYNC_CONFIG.table}`;
 }
 
-async function pullRemoteState() {
+async function pullRemoteState({ silent = false } = {}) {
   if (!isSyncConfigured()) {
-    setSyncStatus("Lokale opslag actief. Cloud-sync is nog niet gekoppeld.");
+    if (!silent) setSyncStatus("Lokale opslag actief. Cloud-sync is nog niet gekoppeld.");
     return;
   }
+  if (isPullingRemoteState) return;
 
+  isPullingRemoteState = true;
   try {
-    setSyncStatus("Online synchronisatie controleren...");
+    if (!silent) setSyncStatus("Live synchronisatie controleren...");
     const response = await fetch(
       `${syncBaseUrl()}?id=eq.${encodeURIComponent(getRemoteDocumentId())}&select=data,updated_at&limit=1`,
       { headers: syncHeaders() },
@@ -2468,7 +2473,7 @@ async function pullRemoteState() {
 
     if (!remote?.data) {
       if (state.updatedAt) await pushRemoteState({ force: true });
-      setSyncStatus("Online sync actief. Nog geen gedeelde data gevonden.");
+      setSyncStatus("Live sync actief. Nog geen gedeelde data gevonden.");
       return;
     }
 
@@ -2479,20 +2484,21 @@ async function pullRemoteState() {
     if (remoteUpdatedAt > localUpdatedAt) {
       isApplyingRemoteState = true;
       state = remoteState;
-      scoreDraft = createEmptyDraft();
       saveState({ sync: false });
       render();
       isApplyingRemoteState = false;
       lastSyncedAt = state.updatedAt || remoteUpdatedAt;
-      setSyncStatus(`Online sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
+      setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
       return;
     }
 
     if (localUpdatedAt > remoteUpdatedAt) await pushRemoteState({ force: true });
     lastSyncedAt = state.updatedAt || remoteUpdatedAt;
-    setSyncStatus(`Online sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
+    setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
   } catch (error) {
-    setSyncStatus("Synchronisatie niet gelukt. Lokale opslag blijft actief.");
+    if (!silent) setSyncStatus("Synchronisatie niet gelukt. Lokale opslag blijft actief.");
+  } finally {
+    isPullingRemoteState = false;
   }
 }
 
@@ -2512,7 +2518,7 @@ async function pushRemoteState({ force = false } = {}) {
     });
     if (!response.ok) throw new Error(`Sync opslaan mislukt (${response.status})`);
     lastSyncedAt = state.updatedAt;
-    setSyncStatus(`Online sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
+    setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
   } catch (error) {
     setSyncStatus("Synchronisatie fout bij opslaan. Data staat lokaal veilig.");
   }
@@ -2522,6 +2528,25 @@ function scheduleSync() {
   if (!isSyncConfigured() || isApplyingRemoteState) return;
   window.clearTimeout(syncTimer);
   syncTimer = window.setTimeout(() => pushRemoteState(), 900);
+}
+
+function startLiveSync() {
+  stopLiveSync();
+  if (!isSyncConfigured()) return;
+  syncPollTimer = window.setInterval(() => {
+    if (!currentRole || document.hidden) return;
+    pullRemoteState({ silent: true });
+  }, liveSyncIntervalMs);
+}
+
+function stopLiveSync() {
+  window.clearInterval(syncPollTimer);
+  syncPollTimer = 0;
+}
+
+function refreshWhenVisible() {
+  if (!currentRole || document.hidden) return;
+  pullRemoteState({ silent: true });
 }
 
 function formatSyncTime(value) {
@@ -3834,15 +3859,17 @@ function startApp(role, clubCode = DEFAULT_CLUB_CODE) {
   state = loadState();
   scoreDraft = createEmptyDraft();
   lastSyncedAt = "";
-  syncStatus = "Online synchronisatie controleren...";
+  syncStatus = "Live synchronisatie controleren...";
   $("#loginGate").setAttribute("hidden", "");
   $("#appShell").removeAttribute("hidden");
   render();
   pullRemoteState();
+  startLiveSync();
 }
 
 function showLoginGate() {
   currentRole = "";
+  stopLiveSync();
   $("#appShell").setAttribute("hidden", "");
   $("#loginGate").removeAttribute("hidden");
   const preferredClub = normalizeClubCode(currentClubId || localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
@@ -3874,6 +3901,10 @@ $("#logoutButton").addEventListener("click", () => {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   showLoginGate();
 });
+
+document.addEventListener("visibilitychange", refreshWhenVisible);
+window.addEventListener("focus", refreshWhenVisible);
+window.addEventListener("online", refreshWhenVisible);
 
 $("#copyIbanButton").addEventListener("click", async () => {
   const donationText = "Donatie DSR score - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk";
