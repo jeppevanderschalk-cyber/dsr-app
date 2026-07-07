@@ -3432,22 +3432,44 @@ function exportCsv() {
 function getProgressPdfData() {
   const discipline = $("#progressDisciplineFilter").value || "all";
   const entries = getScoreRoundEntries(discipline);
+  const scoreByShooterRound = new Map();
+  entries.forEach((score) => {
+    const round = Number(score.displayRound);
+    if (!round) return;
+    const key = `${score.shooterId}:${round}`;
+    const current = scoreByShooterRound.get(key);
+    if (!current || String(score.createdAt).localeCompare(String(current.createdAt)) > 0) {
+      scoreByShooterRound.set(key, score);
+    }
+  });
+  const displayedScores = Array.from(scoreByShooterRound.values());
+  const rounds = [...new Set(displayedScores.map((score) => Number(score.displayRound)).filter(Boolean))].sort((a, b) => a - b);
+  const bestByRound = new Map();
+  displayedScores.forEach((score) => {
+    const round = Number(score.displayRound);
+    const best = bestByRound.get(round);
+    if (!best || score.hitfactor > best.hitfactor) bestByRound.set(round, score);
+  });
   const shooters = state.shooters
-    .filter((shooter) => shooter.active || entries.some((score) => score.shooterId === shooter.id))
+    .filter((shooter) => shooter.active || displayedScores.some((score) => score.shooterId === shooter.id))
     .map((shooter) => {
-      const values = progressRounds.map((round) => {
-        const score = entries
-          .filter((item) => item.shooterId === shooter.id && Number(item.displayRound) === round)
-          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-        return score ? formatNumber(score.hitfactor, 3) : "";
+      const values = rounds.map((round) => {
+        const score = scoreByShooterRound.get(`${shooter.id}:${round}`);
+        return score
+          ? {
+              text: formatNumber(score.hitfactor, 3),
+              isBest: bestByRound.get(round)?.id === score.id,
+            }
+          : { text: "", isBest: false };
       });
       return { name: shooter.name, level: shooter.level, values };
     })
-    .filter((row) => row.values.some(Boolean));
+    .filter((row) => row.values.some((value) => value.text));
 
   return {
     discipline: discipline === "all" ? "Alle disciplines" : discipline,
     generatedAt: new Date(),
+    rounds,
     rows: shooters,
   };
 }
@@ -3465,7 +3487,8 @@ function createProgressPdf(data) {
   const pageHeight = 595;
   const margin = 36;
   const nameWidth = 132;
-  const roundWidth = (pageWidth - margin * 2 - nameWidth) / progressRounds.length;
+  const pdfRounds = data.rounds?.length ? data.rounds : progressRounds;
+  const roundWidth = (pageWidth - margin * 2 - nameWidth) / pdfRounds.length;
   const rowHeight = 24;
   const pages = [];
   let lines = [];
@@ -3508,7 +3531,7 @@ function createProgressPdf(data) {
     rect(margin, y, pageWidth - margin * 2, rowHeight, true);
     cmd("0.96 0.77 0.09 rg");
     text("Schutter", margin + 8, y + 8, 9, "F2");
-    progressRounds.forEach((round, index) => {
+    pdfRounds.forEach((round, index) => {
       text(String(round), margin + nameWidth + index * roundWidth + 8, y + 8, 9, "F2");
     });
     y -= rowHeight;
@@ -3525,9 +3548,18 @@ function createProgressPdf(data) {
     rect(margin, y, pageWidth - margin * 2, rowHeight, true);
     cmd("0.95 0.95 0.95 rg");
     text(row.name.slice(0, 22), margin + 8, y + 8, 9, "F2");
-    cmd("0.96 0.77 0.09 rg");
     row.values.forEach((value, index) => {
-      if (value) text(value, margin + nameWidth + index * roundWidth + 5, y + 8, 8, "F2");
+      if (!value.text) return;
+      const x = margin + nameWidth + index * roundWidth;
+      if (value.isBest) {
+        cmd("1.00 0.89 0.28 rg");
+        rect(x + 2, y + 3, roundWidth - 4, rowHeight - 6, true);
+        cmd("0.05 0.05 0.055 rg");
+        text(value.text, x + 5, y + 8, 8, "F2");
+      } else {
+        cmd("0.96 0.77 0.09 rg");
+        text(value.text, x + 5, y + 8, 8, "F2");
+      }
     });
     y -= rowHeight;
   });
