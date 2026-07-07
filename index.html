@@ -682,6 +682,21 @@ small {
   color: var(--accent-ink);
 }
 
+.podium-1 .rank-number {
+  background: linear-gradient(145deg, #ffe58a, #f5c518 55%, #b88700);
+  color: #09090a;
+}
+
+.podium-2 .rank-number {
+  background: linear-gradient(145deg, #f4f4f5, #bfc3ca 55%, #777d86);
+  color: #09090a;
+}
+
+.podium-3 .rank-number {
+  background: linear-gradient(145deg, #f1c08a, #c7803d 55%, #8b4a1d);
+  color: #09090a;
+}
+
 .rank-main {
   flex: 1;
   min-width: 0;
@@ -704,6 +719,21 @@ small {
 .is-leader .rank-score strong,
 .list-item > strong {
   color: var(--yellow);
+}
+
+.podium-1 .rank-score strong,
+.podium-1 > strong {
+  color: #ffd21f;
+}
+
+.podium-2 .rank-score strong,
+.podium-2 > strong {
+  color: #d8dde6;
+}
+
+.podium-3 .rank-score strong,
+.podium-3 > strong {
+  color: #d99456;
 }
 
 .rank-score small {
@@ -729,6 +759,18 @@ small {
 
 .is-leader .rank-progress i {
   background: var(--yellow);
+}
+
+.podium-1 .rank-progress i {
+  background: #ffd21f;
+}
+
+.podium-2 .rank-progress i {
+  background: #d8dde6;
+}
+
+.podium-3 .rank-progress i {
+  background: #d99456;
 }
 
 .danger-action {
@@ -2896,9 +2938,10 @@ function renderRankingItems(items, compact) {
       (item, index) => {
         const progress = Math.min(100, Math.max(0, (item.hitfactor / maxHitfactor) * 100));
         const leaderClass = index === 0 ? " is-leader" : "";
+        const podiumClass = index < 3 ? ` podium-${index + 1}` : "";
 
         return `
-        <article class="${compact ? "list-item" : "rank-item"}${leaderClass}">
+        <article class="${compact ? "list-item" : "rank-item"}${leaderClass}${podiumClass}">
           <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
