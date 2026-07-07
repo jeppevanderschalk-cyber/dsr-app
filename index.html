@@ -3487,11 +3487,10 @@ function getProgressPdfData() {
   });
   const displayedScores = Array.from(scoreByShooterRound.values());
   const rounds = [...new Set(displayedScores.map((score) => Number(score.displayRound)).filter(Boolean))].sort((a, b) => a - b);
-  const bestByRound = new Map();
+  const bestByShooter = new Map();
   displayedScores.forEach((score) => {
-    const round = Number(score.displayRound);
-    const best = bestByRound.get(round);
-    if (!best || score.hitfactor > best.hitfactor) bestByRound.set(round, score);
+    const best = bestByShooter.get(score.shooterId);
+    if (!best || score.hitfactor > best.hitfactor) bestByShooter.set(score.shooterId, score);
   });
   const shooters = state.shooters
     .filter((shooter) => shooter.active || displayedScores.some((score) => score.shooterId === shooter.id))
@@ -3501,7 +3500,7 @@ function getProgressPdfData() {
         return score
           ? {
               text: formatNumber(score.hitfactor, 3),
-              isBest: bestByRound.get(round)?.id === score.id,
+              isBest: bestByShooter.get(shooter.id)?.id === score.id,
             }
           : { text: "", isBest: false };
       });
