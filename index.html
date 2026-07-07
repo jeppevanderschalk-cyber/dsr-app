@@ -1341,6 +1341,12 @@ canvas {
   color: var(--danger);
 }
 
+.sync-now-button {
+  margin-top: 12px;
+  min-height: 54px;
+  color: var(--yellow);
+}
+
 .donation-card {
   display: grid;
   gap: 14px;
@@ -2136,6 +2142,7 @@ dialog .primary-action::after {
               <section class="section-block">
                 <h3>Synchronisatie</h3>
                 <article class="sync-card" id="syncStatus">Lokale opslag actief</article>
+                <button class="secondary-action full-width sync-now-button" id="syncNowButton" type="button">Nu synchroniseren</button>
               </section>
             </form>
           </section>
@@ -3900,6 +3907,11 @@ $("#loginForm").addEventListener("submit", async (event) => {
 $("#logoutButton").addEventListener("click", () => {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   showLoginGate();
+});
+
+$("#syncNowButton").addEventListener("click", async () => {
+  await pullRemoteState();
+  if (syncStatus.includes("sync actief")) showToast("Gesynchroniseerd");
 });
 
 document.addEventListener("visibilitychange", refreshWhenVisible);
