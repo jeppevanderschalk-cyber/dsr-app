@@ -3153,7 +3153,7 @@ async function startShotTimer() {
       analyser,
       source,
       stream,
-      lastTriggerAt: performance.now() + 1050,
+      lastTriggerAt: performance.now() + 1250,
     };
     renderTimer();
     playStartBeep(audioContext);
@@ -3167,17 +3167,18 @@ async function startShotTimer() {
 
 function playStartBeep(audioContext) {
   const start = audioContext.currentTime;
-  const stop = start + 0.74;
+  const stop = start + 0.82;
   const master = audioContext.createGain();
   master.gain.setValueAtTime(0.0001, start);
-  master.gain.exponentialRampToValueAtTime(0.95, start + 0.025);
-  master.gain.setValueAtTime(0.95, start + 0.56);
+  master.gain.exponentialRampToValueAtTime(2.2, start + 0.018);
+  master.gain.setValueAtTime(2.2, start + 0.64);
   master.gain.exponentialRampToValueAtTime(0.0001, stop);
   master.connect(audioContext.destination);
 
   [
-    { type: "square", frequency: 3150, gain: 0.72 },
-    { type: "sawtooth", frequency: 3650, gain: 0.28 },
+    { type: "square", frequency: 3200, gain: 0.9 },
+    { type: "square", frequency: 2550, gain: 0.45 },
+    { type: "sawtooth", frequency: 3900, gain: 0.55 },
   ].forEach((tone) => {
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -3190,7 +3191,7 @@ function playStartBeep(audioContext) {
     oscillator.stop(stop);
   });
 
-  if ("vibrate" in navigator) navigator.vibrate([90, 30, 90]);
+  if ("vibrate" in navigator) navigator.vibrate([110, 35, 110]);
 }
 
 function listenForShots() {
