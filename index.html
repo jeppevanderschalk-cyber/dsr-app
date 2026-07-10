@@ -3210,10 +3210,11 @@ function listenForShots() {
   const rms = Math.sqrt(sum / data.length);
   const level = Math.max(rms * 2.4, peak);
   const now = performance.now();
+  const isShotLike = level > 0.48 && peak > 0.52 && rms > 0.09;
   shotTimer.elapsed = (now - shotTimer.startTime) / 1000;
   shotTimer.peak = Math.max(shotTimer.peak * 0.86, Math.min(level, 1));
 
-  if (level > 0.22 && now - shotTimer.lastTriggerAt > 170) {
+  if (isShotLike && now - shotTimer.lastTriggerAt > 280) {
     shotTimer.lastTriggerAt = now;
     shotTimer.shots.push({
       id: createId("shot"),
