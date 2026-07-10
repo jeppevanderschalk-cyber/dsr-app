@@ -1085,6 +1085,130 @@ select:focus {
   text-shadow: 0 0 30px rgba(245, 197, 24, 0.4);
 }
 
+.timer-panel {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  background: linear-gradient(170deg, #1e1e22, #141416);
+  box-shadow: var(--shadow-card);
+}
+
+.timer-face {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-height: 214px;
+  padding: 26px 18px;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(245, 197, 24, 0.14), transparent 48%),
+    var(--tile);
+}
+
+.timer-face small,
+.timer-face span {
+  color: var(--muted);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timer-face strong {
+  color: var(--yellow);
+  font-size: clamp(4.4rem, 18vw, 6.6rem);
+  line-height: 0.92;
+  font-weight: 900;
+  text-shadow: 0 0 30px rgba(245, 197, 24, 0.45);
+}
+
+.timer-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(92px, 0.55fr);
+  gap: 12px;
+}
+
+.timer-start-button {
+  min-height: 104px;
+  border: 0;
+  border-radius: 26px;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
+  font-size: 2rem;
+  font-weight: 900;
+  box-shadow: 0 20px 42px rgba(245, 197, 24, 0.2);
+}
+
+.timer-start-button:disabled {
+  opacity: 0.55;
+}
+
+.timer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.timer-stats article,
+.timer-shot-row {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--tile);
+}
+
+.timer-stats article {
+  display: grid;
+  place-items: center;
+  min-height: 86px;
+  padding: 12px 8px;
+}
+
+.timer-stats span {
+  color: var(--yellow);
+  font-size: 1.65rem;
+  font-weight: 900;
+}
+
+.timer-stats small,
+.timer-shot-row small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.timer-shot-list {
+  display: grid;
+  gap: 10px;
+}
+
+.timer-shot-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px 14px;
+}
+
+.timer-shot-row span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(245, 197, 24, 0.12);
+  color: var(--yellow);
+  font-weight: 900;
+}
+
+.timer-shot-row strong {
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
 .filter-bar {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1497,9 +1621,9 @@ canvas {
   bottom: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   width: min(100%, 430px);
-  padding: 14px 22px calc(20px + env(safe-area-inset-bottom));
+  padding: 12px 10px calc(18px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   border-top: 1px solid var(--line);
   background: rgba(19, 19, 21, 0.92);
@@ -1542,13 +1666,13 @@ canvas {
 .nav-icon {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 23px;
+  height: 23px;
 }
 
 .nav-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 23px;
+  height: 23px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -1561,7 +1685,7 @@ canvas {
   max-width: 100%;
   overflow: hidden;
   color: currentColor;
-  font-size: 0.625rem;
+  font-size: 0.58rem;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1983,6 +2107,64 @@ dialog .primary-action::after {
           </section>
         </section>
 
+        <section class="view" id="view-timer" aria-labelledby="timer-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Timer</p>
+              <h2 id="timer-title">Schottimer</h2>
+            </div>
+            <button class="icon-button" id="timerResetButton" type="button" aria-label="Timer wissen" title="Timer wissen" data-trainer-only>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /></svg>
+              </span>
+            </button>
+          </div>
+
+          <section class="timer-panel" data-trainer-only>
+            <label>
+              <span>Schutter</span>
+              <select id="timerShooter"></select>
+            </label>
+
+            <div class="timer-face">
+              <small id="timerStatus">Klaar</small>
+              <strong id="timerDisplay">0,00</strong>
+              <span id="timerPeak">Geluid 0%</span>
+            </div>
+
+            <div class="timer-actions">
+              <button class="timer-start-button" id="timerStartButton" type="button">Start</button>
+              <button class="secondary-action" id="timerStopButton" type="button" disabled>Stop</button>
+            </div>
+
+            <div class="timer-stats">
+              <article>
+                <span id="timerShotCount">0</span>
+                <small>schoten</small>
+              </article>
+              <article>
+                <span id="timerLastShot">0,00</span>
+                <small>laatste</small>
+              </article>
+              <article>
+                <span id="timerLastSplit">0,00</span>
+                <small>split</small>
+              </article>
+            </div>
+
+            <button class="primary-action full-width" id="timerApplyButton" type="button" disabled>
+              Tijd naar scoreformulier
+            </button>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <h3>Schoten</h3>
+            </div>
+            <div class="timer-shot-list" id="timerShotList"></div>
+          </section>
+        </section>
+
         <section class="view" id="view-ranking" aria-labelledby="ranking-title">
           <div class="section-heading">
             <div>
@@ -2208,6 +2390,16 @@ dialog .primary-action::after {
           </span>
           <small>Scores</small>
         </button>
+        <button type="button" data-nav="timer" aria-label="Timer">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="13" r="8" />
+              <path d="M12 13 16 9" />
+              <path d="M9 2h6" />
+            </svg>
+          </span>
+          <small>Timer</small>
+        </button>
         <button type="button" data-nav="ranking" aria-label="Klassement">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">
@@ -2348,6 +2540,7 @@ let isPullingRemoteState = false;
 let lastSyncedAt = "";
 let syncStatus = "Lokale opslag actief. Cloud-sync is nog niet gekoppeld.";
 let currentRole = "";
+let shotTimer = createShotTimerState();
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -2610,6 +2803,24 @@ function createEmptyDraft() {
   });
 }
 
+function createShotTimerState() {
+  return {
+    shooterId: "",
+    running: false,
+    startTime: 0,
+    elapsed: 0,
+    shots: [],
+    peak: 0,
+    status: "Klaar",
+    audioContext: null,
+    analyser: null,
+    source: null,
+    stream: null,
+    animationId: 0,
+    lastTriggerAt: 0,
+  };
+}
+
 function formatNumber(value, digits = 2) {
   const normalized = Object.is(value, -0) ? 0 : value;
   return new Intl.NumberFormat("nl-NL", {
@@ -2765,6 +2976,7 @@ function render() {
   renderHome();
   renderCompetition();
   renderScores();
+  renderTimer();
   renderRanking();
   renderProfiles();
   renderProgress();
@@ -2804,6 +3016,7 @@ function renderSelects() {
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
   const selectedProgressFilter = $("#progressDisciplineFilter").value;
   const selectedDashboardShooter = $("#dashboardShooterFilter").value;
+  const selectedTimerShooter = $("#timerShooter")?.value || shotTimer.shooterId;
   const shooterOptions = activeShooters.length
     ? activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`).join("")
     : `<option value="">Geen schutters</option>`;
@@ -2813,6 +3026,7 @@ function renderSelects() {
 
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
+  $("#timerShooter").innerHTML = shooterOptions;
   $("#progressDisciplineFilter").innerHTML = [
     `<option value="all">Alle disciplines</option>`,
     ...disciplineOptions.map((discipline) => `<option value="${discipline}">${discipline}</option>`),
@@ -2833,6 +3047,10 @@ function renderSelects() {
   $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreTime").value = scoreDraft.time;
   $("#scoreNotes").value = scoreDraft.notes;
+  shotTimer.shooterId = activeShooters.some((shooter) => shooter.id === selectedTimerShooter)
+    ? selectedTimerShooter
+    : scoreDraft.shooterId || activeShooters[0]?.id || "";
+  $("#timerShooter").value = shotTimer.shooterId;
   $("#progressDisciplineFilter").value =
     selectedProgressFilter === "all" || disciplineOptions.includes(selectedProgressFilter) ? selectedProgressFilter || "all" : "all";
   $("#dashboardShooterFilter").value =
@@ -2865,6 +3083,192 @@ function renderScores() {
   $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
 
   $("#recentScores").innerHTML = renderScoreProgress();
+}
+
+function renderTimer() {
+  const display = $("#timerDisplay");
+  if (!display) return;
+  const lastShot = shotTimer.shots.at(-1);
+  const previousShot = shotTimer.shots.at(-2);
+  const lastSplit = lastShot && previousShot ? lastShot.time - previousShot.time : 0;
+
+  display.textContent = formatNumber(lastShot?.time || shotTimer.elapsed || 0, 2);
+  $("#timerStatus").textContent = shotTimer.status;
+  $("#timerPeak").textContent = `Geluid ${Math.round((shotTimer.peak || 0) * 100)}%`;
+  $("#timerShotCount").textContent = shotTimer.shots.length;
+  $("#timerLastShot").textContent = formatNumber(lastShot?.time || 0, 2);
+  $("#timerLastSplit").textContent = formatNumber(lastSplit, 2);
+  $("#timerStartButton").disabled = shotTimer.running || !shotTimer.shooterId;
+  $("#timerStopButton").disabled = !shotTimer.running;
+  $("#timerApplyButton").disabled = shotTimer.running || !lastShot || !shotTimer.shooterId;
+  $("#timerShotList").innerHTML = shotTimer.shots.length
+    ? shotTimer.shots
+        .map(
+          (shot, index) => `
+            <article class="timer-shot-row">
+              <span>#${index + 1}</span>
+              <strong>${formatNumber(shot.time, 2)} sec</strong>
+              <small>Split ${formatNumber(index ? shot.time - shotTimer.shots[index - 1].time : 0, 2)}</small>
+            </article>
+          `,
+        )
+        .join("")
+    : `<div class="empty">Nog geen schoten gemeten.</div>`;
+}
+
+async function startShotTimer() {
+  if (!requireTrainer()) return;
+  if (!shotTimer.shooterId) {
+    showToast("Kies eerst een schutter");
+    return;
+  }
+
+  try {
+    await stopShotTimer({ keepShots: true, silent: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+    });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContextClass();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.2;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    if (audioContext.state === "suspended") await audioContext.resume();
+
+    shotTimer = {
+      ...shotTimer,
+      running: true,
+      startTime: performance.now(),
+      elapsed: 0,
+      shots: [],
+      peak: 0,
+      status: "Luistert",
+      audioContext,
+      analyser,
+      source,
+      stream,
+      lastTriggerAt: performance.now() + 1050,
+    };
+    renderTimer();
+    playStartBeep(audioContext);
+    listenForShots();
+  } catch {
+    shotTimer.status = "Microfoon niet beschikbaar";
+    renderTimer();
+    showToast("Microfoon kon niet worden gestart");
+  }
+}
+
+function playStartBeep(audioContext) {
+  const start = audioContext.currentTime;
+  const stop = start + 0.74;
+  const master = audioContext.createGain();
+  master.gain.setValueAtTime(0.0001, start);
+  master.gain.exponentialRampToValueAtTime(0.95, start + 0.025);
+  master.gain.setValueAtTime(0.95, start + 0.56);
+  master.gain.exponentialRampToValueAtTime(0.0001, stop);
+  master.connect(audioContext.destination);
+
+  [
+    { type: "square", frequency: 3150, gain: 0.72 },
+    { type: "sawtooth", frequency: 3650, gain: 0.28 },
+  ].forEach((tone) => {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = tone.type;
+    oscillator.frequency.setValueAtTime(tone.frequency, start);
+    gain.gain.setValueAtTime(tone.gain, start);
+    oscillator.connect(gain);
+    gain.connect(master);
+    oscillator.start(start);
+    oscillator.stop(stop);
+  });
+
+  if ("vibrate" in navigator) navigator.vibrate([90, 30, 90]);
+}
+
+function listenForShots() {
+  if (!shotTimer.running || !shotTimer.analyser) return;
+  const data = new Uint8Array(shotTimer.analyser.fftSize);
+  shotTimer.analyser.getByteTimeDomainData(data);
+
+  let sum = 0;
+  let peak = 0;
+  data.forEach((value) => {
+    const level = Math.abs(value - 128) / 128;
+    sum += level * level;
+    peak = Math.max(peak, level);
+  });
+
+  const rms = Math.sqrt(sum / data.length);
+  const level = Math.max(rms * 2.4, peak);
+  const now = performance.now();
+  shotTimer.elapsed = (now - shotTimer.startTime) / 1000;
+  shotTimer.peak = Math.max(shotTimer.peak * 0.86, Math.min(level, 1));
+
+  if (level > 0.22 && now - shotTimer.lastTriggerAt > 170) {
+    shotTimer.lastTriggerAt = now;
+    shotTimer.shots.push({
+      id: createId("shot"),
+      time: Math.max(0, (now - shotTimer.startTime) / 1000),
+      level,
+    });
+    triggerHapticFeedback();
+  }
+
+  renderTimer();
+  shotTimer.animationId = requestAnimationFrame(listenForShots);
+}
+
+async function stopShotTimer({ keepShots = true, silent = false } = {}) {
+  if (shotTimer.animationId) cancelAnimationFrame(shotTimer.animationId);
+  shotTimer.stream?.getTracks().forEach((track) => track.stop());
+  if (shotTimer.audioContext?.state !== "closed") {
+    await shotTimer.audioContext?.close().catch(() => {});
+  }
+  shotTimer = {
+    ...shotTimer,
+    running: false,
+    status: keepShots && shotTimer.shots.length ? "Meting klaar" : "Klaar",
+    audioContext: null,
+    analyser: null,
+    source: null,
+    stream: null,
+    animationId: 0,
+    peak: 0,
+  };
+  if (!keepShots) {
+    const shooterId = shotTimer.shooterId;
+    shotTimer = createShotTimerState();
+    shotTimer.shooterId = shooterId;
+  }
+  if (!silent) renderTimer();
+}
+
+async function resetShotTimer() {
+  await stopShotTimer({ keepShots: false, silent: true });
+  renderTimer();
+}
+
+function applyTimerToScoreForm() {
+  if (!requireTrainer()) return;
+  const lastShot = shotTimer.shots.at(-1);
+  if (!lastShot || !shotTimer.shooterId) {
+    showToast("Geen eindtijd beschikbaar");
+    return;
+  }
+  scoreDraft.shooterId = shotTimer.shooterId;
+  scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
+  scoreDraft.time = lastShot.time.toFixed(2);
+  render();
+  setView("scores");
+  showToast("Tijd doorgezet naar scoreformulier");
 }
 
 function renderScoreProgress() {
@@ -3772,6 +4176,15 @@ $("#resetScoreButton").addEventListener("click", () => {
   scoreDraft = createEmptyDraft();
   render();
 });
+
+$("#timerShooter").addEventListener("change", (event) => {
+  shotTimer.shooterId = event.target.value;
+  renderTimer();
+});
+$("#timerStartButton").addEventListener("click", startShotTimer);
+$("#timerStopButton").addEventListener("click", () => stopShotTimer());
+$("#timerResetButton").addEventListener("click", resetShotTimer);
+$("#timerApplyButton").addEventListener("click", applyTimerToScoreForm);
 
 $("#exportButton").addEventListener("click", exportCsv);
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
