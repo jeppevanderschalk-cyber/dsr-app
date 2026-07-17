@@ -2192,13 +2192,13 @@ dialog .primary-action::after {
               <option value="Open">Open</option>
             </select>
             <select id="rankSort" aria-label="Sortering">
-              <option value="hitfactor">Hitfactor</option>
+              <option value="hitfactor">Gemiddelde</option>
               <option value="points">Punten</option>
               <option value="time">Tijd</option>
             </select>
           </div>
 
-          <p class="notice">Alleen voor trainingen en interne vergelijking. Geen officiele ranglijst.</p>
+          <p class="notice">Ranglijst op gemiddelde relatieve score per oefenronde. De beste per ronde telt als 100%.</p>
           <div class="ranking-list" id="rankingList"></div>
         </section>
 
@@ -2951,17 +2951,45 @@ function getRanking(filters = {}) {
   const discipline = filters.discipline || "all";
   const level = filters.level || "all";
   const grouped = new Map();
+  const entries = getScoreRoundEntries(discipline).filter((score) => {
+    const shooter = getShooter(score.shooterId);
+    if (!shooter) return false;
+    return level === "all" || shooter.level === level;
+  });
+  const bestByRound = new Map();
 
-  getBestScoreCandidates().forEach((score) => {
+  entries.forEach((score) => {
+    const roundKey = `${score.displayDiscipline}:${score.displayRound}`;
+    const currentBest = bestByRound.get(roundKey) || 0;
+    bestByRound.set(roundKey, Math.max(currentBest, score.hitfactor || 0));
+  });
+
+  entries.forEach((score) => {
     const shooter = getShooter(score.shooterId);
     if (!shooter) return;
-    const scoreDiscipline = getScoreDiscipline(score, shooter);
-    if (discipline !== "all" && scoreDiscipline !== discipline) return;
-    if (level !== "all" && shooter.level !== level) return;
-    const disciplineLabel = discipline === "all" ? scoreDiscipline : scoreDiscipline;
-    const candidate = scoreToRankingItem(score, shooter, disciplineLabel);
-    const current = grouped.get(score.shooterId);
-    if (!current || candidate.hitfactor > current.hitfactor) grouped.set(score.shooterId, candidate);
+    const roundKey = `${score.displayDiscipline}:${score.displayRound}`;
+    const roundBest = bestByRound.get(roundKey) || 0;
+    const relativeScore = roundBest > 0 ? (score.hitfactor / roundBest) * 100 : 0;
+    const current = grouped.get(score.shooterId) || {
+      shooter,
+      discipline: discipline === "all" ? "Alle disciplines" : score.displayDiscipline,
+      points: 0,
+      time: 0,
+      hitfactor: 0,
+      entries: 0,
+      bestHitfactor: 0,
+      bestPoints: 0,
+      relativeTotal: 0,
+    };
+
+    current.points += score.net || 0;
+    current.time += score.time || 0;
+    current.entries += 1;
+    current.relativeTotal += relativeScore;
+    current.bestHitfactor = Math.max(current.bestHitfactor, score.hitfactor || 0);
+    current.bestPoints = Math.max(current.bestPoints, score.net || 0);
+    current.hitfactor = current.relativeTotal / current.entries;
+    grouped.set(score.shooterId, current);
   });
 
   return Array.from(grouped.values());
@@ -3351,12 +3379,12 @@ function renderRankingItems(items, compact) {
           <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
-            <small>${item.discipline} · ${item.shooter.level} · beste score · ${formatNumber(item.points, 0)} punten · ${formatNumber(item.time, 2)} sec</small>
+            <small>${item.discipline} · ${item.shooter.level} · ${item.entries} rondes · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten</small>
           </div>
           <div class="rank-score">
-            <strong>${formatNumber(item.hitfactor, 3)}</strong>
+            <strong>${formatNumber(item.hitfactor, 1)}%</strong>
             <span class="rank-progress" aria-hidden="true"><i style="width: ${progress}%"></i></span>
-            <small>HF</small>
+            <small>Gem.</small>
           </div>
         </article>
       `;
