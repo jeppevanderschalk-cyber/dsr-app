@@ -2380,15 +2380,11 @@ dialog .primary-action::after {
             <div class="score-status-actions" aria-label="Score status">
               <button class="status-button danger" type="button" data-score-status="dq">
                 <span>DQ</span>
-                <small>Diskwalificatie · 0 punten</small>
+                <small>Diskwalificatie · schutter klaar voor deze wedstrijd</small>
               </button>
               <button class="status-button warning" type="button" data-score-status="ended">
                 <span>Einde wedstrijd</span>
-                <small>0 punten · re-shoot mogelijk</small>
-              </button>
-              <button class="status-button neutral is-active" id="scoreStatusClear" type="button" data-score-status="normal">
-                <span>Normaal</span>
-                <small>Score telt mee</small>
+                <small>0 punten voor deze ronde · later opnieuw mogelijk</small>
               </button>
             </div>
 
@@ -2845,7 +2841,7 @@ const liveSyncIntervalMs = 5000;
 const scoreStatusOptions = {
   normal: { label: "Normaal", detail: "Score telt mee", blocksScore: false, reshootAvailable: false },
   dq: { label: "DQ", detail: "Diskwalificatie", blocksScore: true, reshootAvailable: false },
-  ended: { label: "Einde wedstrijd", detail: "0 punten · re-shoot mogelijk", blocksScore: true, reshootAvailable: true },
+  ended: { label: "Einde wedstrijd", detail: "0 punten · later opnieuw mogelijk", blocksScore: true, reshootAvailable: true },
 };
 
 const iconX = `
@@ -3239,7 +3235,8 @@ function getScoreStatusMeta(status) {
 }
 
 function setScoreStatus(status) {
-  scoreDraft.status = scoreStatusOptions[status] ? status : "normal";
+  const nextStatus = scoreStatusOptions[status] ? status : "normal";
+  scoreDraft.status = scoreDraft.status === nextStatus ? "normal" : nextStatus;
   renderScores();
 }
 
