@@ -1819,12 +1819,243 @@ dialog .primary-action::after {
   }
 
   .app-shell {
+    width: min(calc(100% - 48px), 760px);
     min-height: calc(100vh - 48px);
     border-radius: 40px;
   }
 
+  .content {
+    padding-inline: 40px;
+  }
+
+  .hero-panel {
+    margin-inline: -40px;
+    padding-inline: 40px;
+  }
+
+  .field-grid,
+  .counter-grid,
+  .dashboard-grid,
+  .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .score-form .field-grid:first-child,
+  .timer-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .counter-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .stepper {
+    grid-template-columns: minmax(64px, 1fr) 56px minmax(64px, 1fr);
+  }
+
+  .calc-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calc-panel > div:not(.target-rings):last-child {
+    grid-column: 1 / -1;
+  }
+
+  .timer-face,
+  .timer-actions,
+  .timer-stats,
+  .timer-panel .primary-action {
+    grid-column: 1 / -1;
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-list,
+  .high-score-history,
+  .ranking-list,
+  #recentScores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .bottom-nav {
+    width: min(calc(100% - 48px), 760px);
     border-radius: 0 0 40px 40px;
+  }
+}
+
+@media (min-width: 1100px) {
+  body,
+  body.home-active {
+    padding: 32px;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(245, 197, 24, 0.16), transparent 28%),
+      radial-gradient(circle at 88% 20%, rgba(245, 197, 24, 0.1), transparent 26%),
+      #080809;
+  }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    width: min(100%, 1180px);
+    min-height: calc(100vh - 64px);
+    overflow: hidden;
+  }
+
+  body.home-active .app-shell,
+  body:has(#view-home.is-active) .app-shell {
+    background: var(--bg);
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+    padding: 24px 42px;
+  }
+
+  .app-logo {
+    width: 72px;
+    height: 72px;
+  }
+
+  h1 {
+    font-size: 2.6rem;
+  }
+
+  h2 {
+    font-size: 2.4rem;
+  }
+
+  h3 {
+    font-size: 1.55rem;
+  }
+
+  .content {
+    grid-column: 2;
+    min-width: 0;
+    max-height: calc(100vh - 184px);
+    overflow-y: auto;
+    padding: 34px 48px 58px;
+  }
+
+  .view:not(#view-home) {
+    padding-top: 0;
+  }
+
+  .hero-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    gap: 28px;
+    align-items: end;
+    margin: 0 0 28px;
+    padding: 42px;
+    border-radius: 32px;
+  }
+
+  .hero-panel h2 {
+    max-width: none;
+    font-size: 4rem;
+  }
+
+  .hero-panel .muted {
+    display: block;
+    max-width: 52ch;
+    margin-top: 14px;
+    color: rgba(0, 0, 0, 0.62);
+    font-weight: 800;
+  }
+
+  .metric-row {
+    margin: 0;
+    align-self: stretch;
+  }
+
+  .quick-actions {
+    margin-top: 0;
+  }
+
+  .quick-actions .primary-action,
+  .quick-actions .secondary-action {
+    min-height: 176px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .score-form {
+    grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+    align-items: start;
+  }
+
+  .score-form > .field-grid,
+  .score-form > .counter-grid {
+    grid-column: 1;
+  }
+
+  .score-form > .field-grid:nth-of-type(3),
+  .score-form > .calc-panel,
+  .score-form > .primary-action {
+    grid-column: 2;
+  }
+
+  .score-form > .primary-action {
+    position: sticky;
+    top: 16px;
+  }
+
+  .counter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bottom-nav {
+    position: sticky;
+    grid-column: 1;
+    grid-row: 2;
+    align-self: stretch;
+    left: auto;
+    bottom: auto;
+    display: flex;
+    width: auto;
+    min-height: 0;
+    padding: 18px 10px;
+    transform: none;
+    flex-direction: column;
+    border-top: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 0;
+    background: rgba(19, 19, 21, 0.96);
+  }
+
+  .bottom-nav button {
+    min-height: 74px;
+    border-radius: 18px;
+  }
+
+  .bottom-nav button::before {
+    top: 50%;
+    left: -10px;
+    width: 4px;
+    height: 34px;
+    transform: translateY(-50%);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .nav-icon,
+  .nav-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .bottom-nav button small {
+    font-size: 0.68rem;
+  }
+
+  .toast {
+    bottom: 34px;
   }
 }
 
