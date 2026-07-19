@@ -2380,7 +2380,7 @@ dialog .primary-action::after {
             <div class="score-status-actions" aria-label="Score status">
               <button class="status-button danger" type="button" data-score-status="dq">
                 <span>DQ</span>
-                <small>Diskwalificatie · schutter klaar voor deze wedstrijd</small>
+                <small>Diskwalificatie - einde wedstrijd voor schutter en direct van terrein vereniging</small>
               </button>
               <button class="status-button warning" type="button" data-score-status="ended">
                 <span>Einde wedstrijd</span>
@@ -2840,7 +2840,7 @@ const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const liveSyncIntervalMs = 5000;
 const scoreStatusOptions = {
   normal: { label: "Normaal", detail: "Score telt mee", blocksScore: false, reshootAvailable: false },
-  dq: { label: "DQ", detail: "Diskwalificatie", blocksScore: true, reshootAvailable: false },
+  dq: { label: "DQ", detail: "Diskwalificatie - einde wedstrijd voor schutter en direct van terrein vereniging", blocksScore: true, reshootAvailable: false },
   ended: { label: "Einde wedstrijd", detail: "0 punten · later opnieuw mogelijk", blocksScore: true, reshootAvailable: true },
 };
 
