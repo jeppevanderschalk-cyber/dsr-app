@@ -2863,6 +2863,7 @@ let isPullingRemoteState = false;
 let lastSyncedAt = "";
 let syncStatus = "Lokale opslag actief. Cloud-sync is nog niet gekoppeld.";
 let currentRole = "";
+let sessionTrainerPassword = ""; // alleen in memory, nooit opgeslagen
 let shotTimer = createShotTimerState();
 
 const $ = (selector) => document.querySelector(selector);
@@ -3078,17 +3079,22 @@ async function pullRemoteState({ silent = false } = {}) {
 async function pushRemoteState({ force = false } = {}) {
   if (!isSyncConfigured() || !state.updatedAt) return;
   if (!force && state.updatedAt === lastSyncedAt) return;
+  if (currentRole !== "trainer") return;
 
   try {
-    const response = await fetch(`${syncBaseUrl()}?on_conflict=id`, {
-      method: "POST",
-      headers: syncHeaders({ Prefer: "resolution=merge-duplicates" }),
-      body: JSON.stringify({
-        id: getRemoteDocumentId(),
-        data: state,
-        updated_at: state.updatedAt,
-      }),
-    });
+    const response = await fetch(
+      `${SYNC_CONFIG.supabaseUrl.replace(/\/$/, "")}/functions/v1/save-score`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: sessionTrainerPassword,
+          id: getRemoteDocumentId(),
+          data: state,
+          updatedAt: state.updatedAt,
+        }),
+      },
+    );
     if (!response.ok) throw new Error(`Sync opslaan mislukt (${response.status})`);
     lastSyncedAt = state.updatedAt;
     setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
@@ -4910,8 +4916,10 @@ $("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const clubId = normalizeClubCode($("#loginClub").value);
   $("#loginClub").value = clubId;
-  const hash = await sha256Hex($("#loginPassword").value);
+  const enteredPassword = $("#loginPassword").value;
+  const hash = await sha256Hex(enteredPassword);
   if (AUTH_CONFIG.trainerHashes.includes(hash)) {
+    sessionTrainerPassword = enteredPassword;
     storeAuth("trainer", clubId);
     startApp("trainer", clubId);
     return;
@@ -4926,6 +4934,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
 
 $("#logoutButton").addEventListener("click", () => {
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionTrainerPassword = "";
   showLoginGate();
 });
 
