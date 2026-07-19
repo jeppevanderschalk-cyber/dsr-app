@@ -2811,11 +2811,11 @@ const defaultData = {
     alpha: 5,
     charlie: 3,
     delta: 1,
-    miss: -10,
+    miss: -5,
     noshoot: -10,
   },
   penalties: [
-    { id: "pen-procedure", name: "Procedure fout", value: -10, active: true },
+    { id: "pen-procedure", name: "Procedure fout", value: -5, active: true },
     { id: "pen-late", name: "Late start", value: -5, active: true },
     { id: "pen-dq", name: "Onveilig wapengebruik", value: 0, active: false },
   ],
@@ -2948,13 +2948,18 @@ function mergeData(base, saved) {
         .filter((entry) => entry.shooterId)
     : [];
   const hasLocalContent = shooters.length > 0 || scores.length > 0 || bestScores.length > 0 || trainingResults.length > 0 || progressEntries.length > 0;
+  const points = { ...base.points, ...saved.points };
+  if (points.miss === -10) points.miss = -5;
+  const penalties = (saved.penalties?.length ? saved.penalties : base.penalties).map((penalty) =>
+    penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty,
+  );
 
   return {
     ...structuredClone(base),
     ...saved,
     competition: { ...base.competition, ...saved.competition },
-    points: { ...base.points, ...saved.points },
-    penalties: saved.penalties?.length ? saved.penalties : base.penalties,
+    points,
+    penalties,
     shooters,
     scores,
     bestScores,
@@ -3265,7 +3270,7 @@ function setScoreStatus(status) {
 }
 
 function getActiveProcedurePenalty() {
-  return state.penalties.find((penalty) => penalty.id === "pen-procedure") || state.penalties[0] || { value: -10 };
+  return state.penalties.find((penalty) => penalty.id === "pen-procedure") || state.penalties[0] || { value: -5 };
 }
 
 function calculateScore(input) {
