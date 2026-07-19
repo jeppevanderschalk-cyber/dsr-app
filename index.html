@@ -825,7 +825,7 @@ small {
 
 .score-round-row {
   display: grid;
-  grid-template-columns: minmax(82px, 0.75fr) auto minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(82px, 0.75fr) auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 58px;
@@ -859,6 +859,24 @@ small {
   height: 34px;
   min-height: 34px;
   border-radius: 12px;
+}
+
+.score-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mini-action {
+  min-height: 34px;
+  border: 1px solid rgba(245, 197, 24, 0.5);
+  border-radius: 999px;
+  background: rgba(245, 197, 24, 0.12);
+  color: var(--yellow);
+  padding: 0 12px;
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .status-pill,
@@ -952,6 +970,57 @@ select:focus {
 .score-form {
   display: grid;
   gap: 14px;
+}
+
+.score-status-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.status-button {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--tile);
+  color: var(--ink);
+  padding: 14px 16px;
+  text-align: left;
+}
+
+.status-button span {
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.status-button small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.status-button.is-active {
+  border-color: rgba(245, 197, 24, 0.85);
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
+}
+
+.status-button.is-active small {
+  color: rgba(0, 0, 0, 0.62);
+}
+
+.status-button.danger.is-active {
+  border-color: rgba(255, 107, 93, 0.9);
+  background: var(--danger);
+  color: #fff;
+}
+
+.status-button.danger.is-active small {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .counter-grid {
@@ -1836,7 +1905,8 @@ dialog .primary-action::after {
   .field-grid,
   .counter-grid,
   .dashboard-grid,
-  .settings-grid {
+  .settings-grid,
+  .score-status-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1997,6 +2067,7 @@ dialog .primary-action::after {
   }
 
   .score-form > .field-grid:nth-of-type(3),
+  .score-form > .score-status-actions,
   .score-form > .calc-panel,
   .score-form > .primary-action {
     grid-column: 2;
@@ -2098,7 +2169,7 @@ dialog .primary-action::after {
   }
 
   .score-round-row {
-    grid-template-columns: minmax(0, 1fr) auto 36px;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .score-round-row small {
@@ -2106,8 +2177,8 @@ dialog .primary-action::after {
     text-align: left;
   }
 
-  .score-round-row .compact-delete {
-    grid-column: 3;
+  .score-round-row .score-row-actions {
+    grid-column: 2;
     grid-row: 1;
   }
 
@@ -2297,9 +2368,28 @@ dialog .primary-action::after {
                 <input id="scoreTime" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" />
               </label>
               <label>
+                <span>Flexpunten</span>
+                <input id="scoreFlexPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+              </label>
+              <label>
                 <span>Opmerkingen</span>
                 <input id="scoreNotes" type="text" placeholder="Optioneel" />
               </label>
+            </div>
+
+            <div class="score-status-actions" aria-label="Score status">
+              <button class="status-button danger" type="button" data-score-status="dq">
+                <span>DQ</span>
+                <small>Diskwalificatie · 0 punten</small>
+              </button>
+              <button class="status-button warning" type="button" data-score-status="ended">
+                <span>Einde wedstrijd</span>
+                <small>0 punten · re-shoot mogelijk</small>
+              </button>
+              <button class="status-button neutral is-active" id="scoreStatusClear" type="button" data-score-status="normal">
+                <span>Normaal</span>
+                <small>Score telt mee</small>
+              </button>
             </div>
 
             <section class="calc-panel" aria-label="Live berekening">
@@ -2752,6 +2842,11 @@ const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const liveSyncIntervalMs = 5000;
+const scoreStatusOptions = {
+  normal: { label: "Normaal", detail: "Score telt mee", blocksScore: false, reshootAvailable: false },
+  dq: { label: "DQ", detail: "Diskwalificatie", blocksScore: true, reshootAvailable: false },
+  ended: { label: "Einde wedstrijd", detail: "0 punten · re-shoot mogelijk", blocksScore: true, reshootAvailable: true },
+};
 
 const iconX = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -2809,6 +2904,9 @@ function mergeData(base, saved) {
   const scores = Array.isArray(saved.scores)
     ? saved.scores.map((score) => ({
         ...score,
+        flexPoints: Math.max(0, Number(score.flexPoints) || 0),
+        status: scoreStatusOptions[score.status] ? score.status : "normal",
+        reshootAvailable: Boolean(score.reshootAvailable),
         round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
         discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
       }))
@@ -2818,6 +2916,9 @@ function mergeData(base, saved) {
         .map((score) => ({
           ...score,
           id: score.id || createId("best"),
+          flexPoints: Math.max(0, Number(score.flexPoints) || 0),
+          status: scoreStatusOptions[score.status] ? score.status : "normal",
+          reshootAvailable: Boolean(score.reshootAvailable),
           discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
         }))
         .filter((score) => score.shooterId)
@@ -3030,7 +3131,9 @@ function createEmptyDraft() {
     shooterId: "",
     discipline: defaultDiscipline,
     time: "",
+    flexPoints: "",
     notes: "",
+    status: "normal",
   });
 }
 
@@ -3131,24 +3234,36 @@ function updateStepperValue(stepButton, key) {
   renderScores();
 }
 
+function getScoreStatusMeta(status) {
+  return scoreStatusOptions[status] || scoreStatusOptions.normal;
+}
+
+function setScoreStatus(status) {
+  scoreDraft.status = scoreStatusOptions[status] ? status : "normal";
+  renderScores();
+}
+
 function getActiveProcedurePenalty() {
   return state.penalties.find((penalty) => penalty.id === "pen-procedure") || state.penalties[0] || { value: -10 };
 }
 
 function calculateScore(input) {
+  const status = scoreStatusOptions[input.status] ? input.status : "normal";
+  const flexPoints = Math.max(0, Number(input.flexPoints) || 0);
   const hitPoints =
     input.alpha * state.points.alpha +
     input.charlie * state.points.charlie +
-    input.delta * state.points.delta;
+    input.delta * state.points.delta +
+    flexPoints;
   const penaltyPoints =
     input.miss * state.points.miss +
     input.noshoot * state.points.noshoot +
     input.procedure * (getActiveProcedurePenalty().active ? getActiveProcedurePenalty().value : 0);
-  const net = Math.max(0, hitPoints + penaltyPoints);
+  const net = scoreStatusOptions[status].blocksScore ? 0 : Math.max(0, hitPoints + penaltyPoints);
   const time = Number(input.time);
   const hitfactor = time > 0 ? net / time : 0;
 
-  return { hitPoints, penaltyPoints, net, time: time || 0, hitfactor };
+  return { hitPoints, penaltyPoints, net, time: time || 0, hitfactor, flexPoints, status };
 }
 
 function getShooter(id) {
@@ -3305,6 +3420,7 @@ function renderSelects() {
   $("#scoreShooter").value = scoreDraft.shooterId;
   $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreTime").value = scoreDraft.time;
+  $("#scoreFlexPoints").value = scoreDraft.flexPoints;
   $("#scoreNotes").value = scoreDraft.notes;
   shotTimer.shooterId = activeShooters.some((shooter) => shooter.id === selectedTimerShooter)
     ? selectedTimerShooter
@@ -3336,10 +3452,15 @@ function renderCompetition() {
 
 function renderScores() {
   const calc = calculateScore(scoreDraft);
+  const statusMeta = getScoreStatusMeta(calc.status);
   $("#calcHits").textContent = formatNumber(calc.hitPoints, 0);
   $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
   $("#calcNet").textContent = formatNumber(calc.net, 0);
   $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+  $$(".status-button[data-score-status]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.scoreStatus === calc.status);
+  });
+  $("#scoreForm")?.classList.toggle("has-blocked-score", statusMeta.blocksScore);
 
   $("#recentScores").innerHTML = renderScoreProgress();
 }
@@ -3565,8 +3686,15 @@ function renderScoreProgress() {
                   <div class="score-round-row">
                     <span>${formatRound(score.displayRound)} ronde</span>
                     <strong>${formatNumber(score.hitfactor, 3)}</strong>
-                    <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
-                    <button class="delete-button compact-delete" type="button" data-delete-score-round="${score.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+                    <small>${formatScoreDetails(score, shooter)}</small>
+                    <div class="score-row-actions">
+                      ${
+                        score.reshootAvailable
+                          ? `<button class="mini-action" type="button" data-reshoot-score="${score.id}" data-trainer-only>Re-shoot</button>`
+                          : ""
+                      }
+                      <button class="delete-button compact-delete" type="button" data-delete-score-round="${score.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+                    </div>
                   </div>
                 `,
               )
@@ -3576,6 +3704,12 @@ function renderScoreProgress() {
       `,
     )
     .join("");
+}
+
+function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
+  const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
+  const flex = Number(score.flexPoints) > 0 ? ` · flex +${formatNumber(score.flexPoints, 0)}` : "";
+  return `${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec${flex}${status}`;
 }
 
 function renderRanking() {
@@ -3693,7 +3827,7 @@ function renderHighScoreHistory() {
                   <div class="high-score-row">
                     <div>
                       <strong>${formatNumber(score.hitfactor, 3)}</strong>
-                      <small>${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec · ${formatDateTime(score.bestSavedAt || score.createdAt)}</small>
+                      <small>${formatScoreDetails(score, shooter)} · ${formatDateTime(score.bestSavedAt || score.createdAt)}</small>
                     </div>
                     <button class="delete-button" type="button" data-delete-best-score="${score.id}" aria-label="Hi-score verwijderen" title="Hi-score verwijderen" data-trainer-only>${iconX}</button>
                   </div>
@@ -3764,10 +3898,17 @@ function renderProgress() {
             <article class="list-item">
               <div>
                 <strong>${shooter?.name || "Onbekend"}</strong>
-                <small>${score.displayDiscipline} · ${formatRound(score.displayRound)} ronde · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec</small>
+                <small>${score.displayDiscipline} · ${formatRound(score.displayRound)} ronde · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec${Number(score.flexPoints) > 0 ? ` · flex +${formatNumber(score.flexPoints, 0)}` : ""}${score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : ""}</small>
               </div>
               <strong>${formatNumber(score.hitfactor, 3)}</strong>
-              <button class="delete-button" type="button" data-delete-score-round="${score.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+              <div class="score-row-actions">
+                ${
+                  score.reshootAvailable
+                    ? `<button class="mini-action" type="button" data-reshoot-score="${score.id}" data-trainer-only>Re-shoot</button>`
+                    : ""
+                }
+                <button class="delete-button" type="button" data-delete-score-round="${score.id}" aria-label="Ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+              </div>
             </article>
           `;
         })
@@ -4111,7 +4252,7 @@ function addDemoScores() {
 function exportCsv() {
   const scoreRows = getScoreRoundEntries("all");
   const rows = [
-    ["Schutter", "Discipline", "Niveau", "Ronde", "Alpha", "Charlie", "Delta", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor"],
+    ["Schutter", "Discipline", "Niveau", "Ronde", "Alpha", "Charlie", "Delta", "Flexpunten", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor", "Status"],
     ...scoreRows.map((score) => [
       getShooter(score.shooterId)?.name || "",
       score.displayDiscipline,
@@ -4120,12 +4261,14 @@ function exportCsv() {
       score.alpha,
       score.charlie,
       score.delta,
+      score.flexPoints || 0,
       score.miss,
       score.noshoot,
       score.procedure,
       score.time,
       score.net,
       score.hitfactor.toFixed(3),
+      getScoreStatusMeta(score.status).label,
     ]),
   ];
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
@@ -4387,6 +4530,12 @@ document.addEventListener("click", (event) => {
     updateStepperValue(stepButton, key);
   }
 
+  const statusButton = event.target.closest("[data-score-status]");
+  if (statusButton) {
+    if (!requireTrainer()) return;
+    setScoreStatus(statusButton.dataset.scoreStatus);
+  }
+
 });
 
 $("#scoreForm").addEventListener("input", (event) => {
@@ -4397,6 +4546,7 @@ $("#scoreForm").addEventListener("input", (event) => {
   }
   if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
+  if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
 });
@@ -4405,7 +4555,8 @@ $("#scoreForm").addEventListener("submit", (event) => {
   event.preventDefault();
   if (!requireTrainer()) return;
   const calc = calculateScore(scoreDraft);
-  if (!scoreDraft.shooterId || calc.time <= 0) {
+  const requiresTime = !getScoreStatusMeta(calc.status).blocksScore;
+  if (!scoreDraft.shooterId || (requiresTime && calc.time <= 0)) {
     showToast("Kies een schutter en een geldige tijd");
     return;
   }
@@ -4421,6 +4572,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
     ...scoreDraft,
     round: currentRound,
     ...calc,
+    reshootAvailable: getScoreStatusMeta(calc.status).reshootAvailable,
     createdAt: new Date().toISOString(),
   });
   markDirty();
@@ -4490,6 +4642,24 @@ document.addEventListener("click", (event) => {
   markDirty();
   render();
   showToast("Ronde verwijderd");
+});
+
+document.addEventListener("click", (event) => {
+  const reshootButton = event.target.closest("[data-reshoot-score]");
+  if (!reshootButton) return;
+  if (!requireTrainer()) return;
+
+  const score = state.scores.find((item) => item.id === reshootButton.dataset.reshootScore);
+  if (!score) return;
+
+  state.scores = state.scores.filter((item) => item.id !== score.id);
+  scoreDraft = createEmptyDraft();
+  scoreDraft.shooterId = score.shooterId;
+  scoreDraft.discipline = getScoreDiscipline(score);
+  markDirty();
+  setView("scores");
+  render();
+  showToast("Re-shoot klaar voor invoer");
 });
 
 document.addEventListener("click", (event) => {
