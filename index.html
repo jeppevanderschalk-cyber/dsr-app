@@ -2515,7 +2515,7 @@ dialog .primary-action::after {
             </select>
           </div>
 
-          <p class="notice">Ranglijst op gemiddelde relatieve score per oefenronde. De beste per ronde telt als 100%.</p>
+          <p class="notice">Ranglijst op beste trainingsgemiddelde per schutter. Per ronde telt de beste schutter als 100%; bewaarde trainingen blijven meetellen zonder aanwezigheid te belonen.</p>
           <div class="ranking-list" id="rankingList"></div>
         </section>
 
@@ -2821,6 +2821,7 @@ const defaultData = {
   ],
   scores: [],
   bestScores: [],
+  trainingResults: [],
   progressEntries: [],
   updatedAt: "",
 };
@@ -2919,6 +2920,22 @@ function mergeData(base, saved) {
         }))
         .filter((score) => score.shooterId)
     : [];
+  const trainingResults = Array.isArray(saved.trainingResults)
+    ? saved.trainingResults
+        .map((result) => ({
+          ...result,
+          id: result.id || createId("training"),
+          discipline: result.discipline === "all" ? "all" : normalizeDiscipline(result.discipline),
+          hitfactor: Number(result.hitfactor) || 0,
+          entries: Number(result.entries) || 0,
+          points: Number(result.points) || 0,
+          time: Number(result.time) || 0,
+          bestHitfactor: Number(result.bestHitfactor) || 0,
+          bestPoints: Number(result.bestPoints) || 0,
+          savedAt: result.savedAt || result.createdAt || new Date().toISOString(),
+        }))
+        .filter((result) => result.shooterId)
+    : [];
   const progressEntries = Array.isArray(saved.progressEntries)
     ? saved.progressEntries
         .map((entry) => ({
@@ -2929,7 +2946,7 @@ function mergeData(base, saved) {
         }))
         .filter((entry) => entry.shooterId)
     : [];
-  const hasLocalContent = shooters.length > 0 || scores.length > 0 || bestScores.length > 0 || progressEntries.length > 0;
+  const hasLocalContent = shooters.length > 0 || scores.length > 0 || bestScores.length > 0 || trainingResults.length > 0 || progressEntries.length > 0;
 
   return {
     ...structuredClone(base),
@@ -2940,6 +2957,7 @@ function mergeData(base, saved) {
     shooters,
     scores,
     bestScores,
+    trainingResults,
     progressEntries,
     updatedAt: saved.updatedAt || (hasLocalContent ? new Date().toISOString() : ""),
   };
@@ -3290,7 +3308,7 @@ function getBestScoreCandidates() {
   return [...(state.bestScores || []), ...state.scores];
 }
 
-function getRanking(filters = {}) {
+function getCurrentTrainingRanking(filters = {}) {
   const discipline = filters.discipline || "all";
   const level = filters.level || "all";
   const grouped = new Map();
@@ -3333,6 +3351,76 @@ function getRanking(filters = {}) {
     current.bestPoints = Math.max(current.bestPoints, score.net || 0);
     current.hitfactor = current.relativeTotal / current.entries;
     grouped.set(score.shooterId, current);
+  });
+
+  return Array.from(grouped.values());
+}
+
+function getTrainingResultDisciplineLabel(discipline) {
+  return discipline === "all" ? "Alle disciplines" : normalizeDiscipline(discipline);
+}
+
+function getBestStoredTrainingResults(filters = {}) {
+  const discipline = filters.discipline || "all";
+  const level = filters.level || "all";
+  const grouped = new Map();
+  const counts = new Map();
+
+  (state.trainingResults || []).forEach((result) => {
+    if ((result.discipline || "all") !== discipline) return;
+    const shooter = getShooter(result.shooterId);
+    if (!shooter) return;
+    if (level !== "all" && shooter.level !== level) return;
+    counts.set(result.shooterId, (counts.get(result.shooterId) || 0) + 1);
+    const current = grouped.get(result.shooterId);
+    if (!current || (result.hitfactor || 0) > (current.hitfactor || 0)) {
+      grouped.set(result.shooterId, {
+        shooter,
+        discipline: getTrainingResultDisciplineLabel(discipline),
+        points: result.points || 0,
+        time: result.time || 0,
+        hitfactor: result.hitfactor || 0,
+        entries: result.entries || 0,
+        penalties: result.penalties || 0,
+        alpha: result.alpha || 0,
+        charlie: result.charlie || 0,
+        delta: result.delta || 0,
+        bestHitfactor: result.bestHitfactor || 0,
+        bestPoints: result.bestPoints || 0,
+        savedTrainingCount: 0,
+        currentEntries: 0,
+      });
+    }
+  });
+
+  grouped.forEach((item, shooterId) => {
+    item.savedTrainingCount = counts.get(shooterId) || 0;
+  });
+
+  return Array.from(grouped.values());
+}
+
+function getRanking(filters = {}) {
+  const grouped = new Map();
+
+  getBestStoredTrainingResults(filters).forEach((item) => {
+    grouped.set(item.shooter.id, item);
+  });
+
+  getCurrentTrainingRanking(filters).forEach((currentItem) => {
+    const savedItem = grouped.get(currentItem.shooter.id);
+    const mergedItem =
+      !savedItem || currentItem.hitfactor >= savedItem.hitfactor
+        ? {
+            ...currentItem,
+            savedTrainingCount: savedItem?.savedTrainingCount || 0,
+            currentEntries: currentItem.entries,
+          }
+        : {
+            ...savedItem,
+            currentEntries: currentItem.entries,
+          };
+    grouped.set(currentItem.shooter.id, mergedItem);
   });
 
   return Array.from(grouped.values());
@@ -3741,7 +3829,7 @@ function renderRankingItems(items, compact) {
           <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
-            <small>${item.discipline} · ${item.shooter.level} · ${item.entries} rondes · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten</small>
+            <small>${formatRankingMeta(item)}</small>
           </div>
           <div class="rank-score">
             <strong>${formatNumber(item.hitfactor, 1)}%</strong>
@@ -3753,6 +3841,12 @@ function renderRankingItems(items, compact) {
       },
     )
     .join("");
+}
+
+function formatRankingMeta(item) {
+  const saved = item.savedTrainingCount ? `${item.savedTrainingCount} trainingen bewaard` : "huidige training";
+  const current = item.currentEntries ? ` · nu ${item.currentEntries} rondes` : "";
+  return `${item.discipline} · ${item.shooter.level} · ${saved}${current} · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten`;
 }
 
 function renderProfiles() {
@@ -4485,6 +4579,35 @@ function updateStoredBestScores() {
   state.bestScores = [...(state.bestScores || []), ...Array.from(bestByShooter.values())];
 }
 
+function createTrainingResultSnapshots() {
+  const savedAt = new Date().toISOString();
+  const scopes = ["all", ...disciplineOptions];
+  return scopes.flatMap((discipline) =>
+    getCurrentTrainingRanking({ discipline, level: "all" }).map((item) => ({
+      id: createId("training"),
+      shooterId: item.shooter.id,
+      discipline,
+      hitfactor: item.hitfactor || 0,
+      entries: item.entries || 0,
+      points: item.points || 0,
+      time: item.time || 0,
+      penalties: item.penalties || 0,
+      alpha: item.alpha || 0,
+      charlie: item.charlie || 0,
+      delta: item.delta || 0,
+      bestHitfactor: item.bestHitfactor || 0,
+      bestPoints: item.bestPoints || 0,
+      savedAt,
+    })),
+  );
+}
+
+function updateStoredTrainingResults() {
+  const snapshots = createTrainingResultSnapshots().filter((result) => result.entries > 0);
+  if (!snapshots.length) return;
+  state.trainingResults = [...(state.trainingResults || []), ...snapshots];
+}
+
 function resetTrainingScores() {
   if (!requireTrainer()) return;
   if (!state.scores.length && !state.progressEntries.length) {
@@ -4492,10 +4615,11 @@ function resetTrainingScores() {
     return;
   }
 
-  const confirmed = window.confirm("Nieuwe training starten? De beste score per schutter wordt toegevoegd aan de hi-score geschiedenis. Alle losse trainingsscores worden gewist.");
+  const confirmed = window.confirm("Nieuwe training starten? Per schutter wordt het trainingsgemiddelde bewaard voor de ranglijst. De beste losse score blijft in de hi-score geschiedenis. Alle losse trainingsscores worden gewist.");
   if (!confirmed) return;
 
   updateStoredBestScores();
+  updateStoredTrainingResults();
   state.scores = [];
   state.progressEntries = [];
   scoreDraft = createEmptyDraft();
