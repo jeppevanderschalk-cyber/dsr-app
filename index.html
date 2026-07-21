@@ -1542,8 +1542,8 @@ select:focus {
 .beamer-shell {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: clamp(14px, 2vw, 24px);
-  width: min(100%, 1600px);
+  gap: clamp(8px, 1.15vw, 16px);
+  width: min(100%, 1780px);
   height: 100%;
   margin: 0 auto;
 }
@@ -1552,15 +1552,15 @@ select:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 22px;
-  padding-bottom: clamp(14px, 2vw, 26px);
+  gap: clamp(12px, 1.6vw, 22px);
+  padding-bottom: clamp(8px, 1.1vw, 14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .beamer-header h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2.8rem, 6vw, 6.4rem);
+  font-size: clamp(2.1rem, 4vw, 4.9rem);
   line-height: 0.9;
   letter-spacing: 0;
 }
@@ -1572,8 +1572,8 @@ select:focus {
 }
 
 .beamer-brand img {
-  width: clamp(70px, 8vw, 128px);
-  height: clamp(70px, 8vw, 128px);
+  width: clamp(58px, 6vw, 94px);
+  height: clamp(58px, 6vw, 94px);
   border-radius: 50%;
   object-fit: cover;
   box-shadow: 0 16px 35px rgba(0, 0, 0, 0.55);
@@ -1581,7 +1581,7 @@ select:focus {
 
 .beamer-brand strong {
   color: #fff;
-  font-size: clamp(2.3rem, 5vw, 5.4rem);
+  font-size: clamp(1.9rem, 3.8vw, 4.4rem);
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -1591,32 +1591,11 @@ select:focus {
 }
 
 .beamer-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(10px, 1.4vw, 18px);
-}
-
-.beamer-summary article {
-  display: grid;
-  gap: 4px;
-  min-height: clamp(86px, 10vw, 128px);
-  align-content: center;
-  padding: clamp(12px, 1.6vw, 22px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  background: linear-gradient(170deg, rgba(31, 31, 35, 0.96), rgba(14, 14, 16, 0.96));
-}
-
-.beamer-summary strong {
-  color: var(--yellow);
-  font-size: clamp(2rem, 4vw, 4.2rem);
-  line-height: 0.9;
-  font-weight: 900;
-}
-
-.beamer-summary small {
-  color: var(--muted);
-  font-size: clamp(0.78rem, 1.2vw, 1.1rem);
+  display: flex;
+  justify-content: flex-end;
+  min-height: 22px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: clamp(0.78rem, 1vw, 1.05rem);
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1626,7 +1605,7 @@ select:focus {
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 28px;
+  border-radius: 20px;
   background: rgba(12, 12, 14, 0.88);
 }
 
@@ -1634,11 +1613,11 @@ select:focus {
   display: grid;
   grid-template-columns: minmax(56px, 0.38fr) minmax(220px, 2.2fr) minmax(130px, 0.9fr) minmax(112px, 0.75fr) minmax(120px, 0.85fr) minmax(160px, 1fr);
   align-items: center;
-  gap: clamp(10px, 1.2vw, 18px);
-  min-height: clamp(48px, 6.5vh, 76px);
-  padding: 0 clamp(14px, 1.8vw, 28px);
+  gap: clamp(8px, 1vw, 16px);
+  min-height: clamp(42px, 5.6vh, 64px);
+  padding: 0 clamp(12px, 1.4vw, 22px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: clamp(1rem, 1.65vw, 1.72rem);
+  font-size: clamp(0.92rem, 1.38vw, 1.48rem);
   font-weight: 850;
 }
 
@@ -1661,6 +1640,58 @@ select:focus {
   font-size: clamp(0.86rem, 1.35vw, 1.34rem);
 }
 
+.beamer-table.is-split {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.beamer-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.2vw, 18px);
+  height: 100%;
+  min-height: 0;
+}
+
+.beamer-column {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: rgba(12, 12, 14, 0.9);
+}
+
+.beamer-table.is-split .beamer-row {
+  grid-template-columns: minmax(34px, 0.32fr) minmax(150px, 1.7fr) minmax(82px, 0.75fr) minmax(76px, 0.62fr) minmax(62px, 0.52fr) minmax(112px, 0.9fr);
+  min-height: clamp(26px, 3.35vh, 38px);
+  padding-inline: clamp(8px, 0.8vw, 14px);
+  gap: clamp(5px, 0.6vw, 10px);
+  font-size: clamp(0.66rem, 0.92vw, 0.96rem);
+}
+
+.beamer-table.is-split .beamer-head {
+  min-height: clamp(24px, 3vh, 32px);
+  font-size: clamp(0.54rem, 0.68vw, 0.72rem);
+}
+
+.beamer-table.is-split .beamer-row strong {
+  font-size: clamp(0.84rem, 1.18vw, 1.22rem);
+}
+
+.beamer-table.is-mega .beamer-row {
+  min-height: clamp(22px, 2.85vh, 32px);
+  font-size: clamp(0.58rem, 0.78vw, 0.84rem);
+}
+
+.beamer-table.is-mega .beamer-head {
+  min-height: clamp(22px, 2.6vh, 28px);
+}
+
+.beamer-table.is-mega .beamer-row strong {
+  font-size: clamp(0.76rem, 1.02vw, 1.06rem);
+}
+
 .beamer-row:nth-child(odd):not(.beamer-head) {
   background: rgba(255, 255, 255, 0.025);
 }
@@ -1670,10 +1701,10 @@ select:focus {
 }
 
 .beamer-head {
-  min-height: clamp(44px, 5vh, 62px);
+  min-height: clamp(34px, 4vh, 46px);
   background: rgba(245, 197, 24, 0.14);
   color: var(--yellow);
-  font-size: clamp(0.78rem, 1.1vw, 1.1rem);
+  font-size: clamp(0.66rem, 0.85vw, 0.92rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1682,7 +1713,7 @@ select:focus {
   min-width: 0;
   overflow: hidden;
   color: #fff;
-  font-size: clamp(1.25rem, 2.2vw, 2.3rem);
+  font-size: clamp(1.08rem, 1.78vw, 1.9rem);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4078,60 +4109,64 @@ function renderBeamerBoard() {
   if (!overlay || overlay.hidden) return;
 
   const rows = getBeamerRows();
-  const scoredRows = rows.filter((row) => row.position);
   const updatedAt = state.updatedAt || new Date().toISOString();
   const table = $("#beamerTable");
   $("#beamerClubTitle").textContent = getClubLabel();
   $("#beamerSummary").innerHTML = `
-    <article>
-      <strong>${rows.length}</strong>
-      <small>deelnemers</small>
-    </article>
-    <article>
-      <strong>${state.scores.length}</strong>
-      <small>scores live</small>
-    </article>
-    <article>
-      <strong>${scoredRows.length}</strong>
-      <small>met score</small>
-    </article>
-    <article>
-      <strong>${formatSyncTime(updatedAt)}</strong>
-      <small>laatste update</small>
-    </article>
+    <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
   table.classList.toggle("is-dense", rows.length > 12);
   table.classList.toggle("is-ultra-dense", rows.length > 18);
+  table.classList.toggle("is-split", rows.length > 24);
+  table.classList.toggle("is-mega", rows.length > 42);
+
+  const renderBeamerHeader = () => `
+    <div class="beamer-row beamer-head">
+      <span>#</span>
+      <span>Schutter</span>
+      <span>Niveau</span>
+      <span>Gem.</span>
+      <span>Rondes</span>
+      <span>Laatste HF</span>
+    </div>
+  `;
+  const renderBeamerRows = (sourceRows) =>
+    sourceRows
+      .map((row) => {
+        const podiumClass = row.position && row.position <= 3 ? ` podium-${row.position}` : "";
+        const latest = row.latestScore;
+        const latestText = latest ? `${formatNumber(latest.hitfactor, 3)} · ${formatNumber(latest.net, 0)} pt` : "—";
+        const roundsText = row.entries ? `${row.entries}${row.savedTrainingCount ? ` · ${row.savedTrainingCount} tr.` : ""}` : "—";
+        return `
+          <div class="beamer-row${podiumClass}">
+            <span class="beamer-rank">${row.position || "—"}</span>
+            <strong>${row.shooter.name}</strong>
+            <span>${row.shooter.level}</span>
+            <span class="beamer-score">${row.position ? `${formatNumber(row.average, 1)}%` : "—"}</span>
+            <span>${roundsText}</span>
+            <span>${latestText}</span>
+          </div>
+        `;
+      })
+      .join("");
 
   table.innerHTML = rows.length
-    ? `
-      <div class="beamer-row beamer-head">
-        <span>#</span>
-        <span>Schutter</span>
-        <span>Niveau</span>
-        <span>Gem.</span>
-        <span>Rondes</span>
-        <span>Laatste HF</span>
-      </div>
-      ${rows
-        .map((row) => {
-          const podiumClass = row.position && row.position <= 3 ? ` podium-${row.position}` : "";
-          const latest = row.latestScore;
-          const latestText = latest ? `${formatNumber(latest.hitfactor, 3)} · ${formatNumber(latest.net, 0)} pt` : "—";
-          const roundsText = row.entries ? `${row.entries}${row.savedTrainingCount ? ` · ${row.savedTrainingCount} tr.` : ""}` : "—";
-          return `
-            <div class="beamer-row${podiumClass}">
-              <span class="beamer-rank">${row.position || "—"}</span>
-              <strong>${row.shooter.name}</strong>
-              <span>${row.shooter.level}</span>
-              <span class="beamer-score">${row.position ? `${formatNumber(row.average, 1)}%` : "—"}</span>
-              <span>${roundsText}</span>
-              <span>${latestText}</span>
-            </div>
-          `;
-        })
-        .join("")}
-    `
+    ? rows.length > 24
+      ? `
+        <div class="beamer-columns">
+          ${[rows.slice(0, Math.ceil(rows.length / 2)), rows.slice(Math.ceil(rows.length / 2))]
+            .map(
+              (columnRows) => `
+                <div class="beamer-column">
+                  ${renderBeamerHeader()}
+                  ${renderBeamerRows(columnRows)}
+                </div>
+              `,
+            )
+            .join("")}
+        </div>
+      `
+      : `${renderBeamerHeader()}${renderBeamerRows(rows)}`
     : `<div class="empty">Nog geen actieve deelnemers.</div>`;
 }
 
