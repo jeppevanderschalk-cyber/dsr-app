@@ -991,6 +991,57 @@ select:focus {
   gap: 10px;
 }
 
+.signature-panel[hidden] {
+  display: none;
+}
+
+.signature-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: linear-gradient(170deg, rgba(30, 30, 34, 0.96), rgba(16, 16, 18, 0.96));
+}
+
+.signature-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.signature-heading strong,
+.signature-heading small {
+  display: block;
+}
+
+.signature-heading strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.signature-heading small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+#scoreSignaturePad {
+  width: 100%;
+  height: 170px;
+  border: 1px dashed rgba(245, 197, 24, 0.45);
+  border-radius: 18px;
+  background:
+    linear-gradient(transparent calc(100% - 42px), rgba(245, 197, 24, 0.16) calc(100% - 42px), rgba(245, 197, 24, 0.16) calc(100% - 40px), transparent calc(100% - 40px)),
+    #0d0d0f;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  touch-action: none;
+}
+
 .status-button {
   display: grid;
   justify-items: start;
@@ -2367,6 +2418,7 @@ dialog .primary-action::after {
   .score-form > .field-grid:nth-of-type(3),
   .score-form > .score-status-actions,
   .score-form > .calc-panel,
+  .score-form > .signature-panel,
   .score-form > .primary-action {
     grid-column: 2;
   }
@@ -2709,6 +2761,17 @@ dialog .primary-action::after {
                 <small>Hitfactor</small>
                 <strong id="calcHitfactor">0.000</strong>
               </div>
+            </section>
+
+            <section class="signature-panel" id="scoreSignaturePanel" hidden>
+              <div class="signature-heading">
+                <div>
+                  <strong>Akkoord schutter</strong>
+                  <small>Laat de schutter tekenen voor akkoord van score en tijd.</small>
+                </div>
+                <button class="mini-action" id="clearSignatureButton" type="button">Wissen</button>
+              </div>
+              <canvas id="scoreSignaturePad" aria-label="Handtekening score akkoord"></canvas>
             </section>
 
             <button class="primary-action full-width" type="submit">
@@ -3211,6 +3274,11 @@ let syncStatus = "Lokale opslag actief. Cloud-sync is nog niet gekoppeld.";
 let currentRole = "";
 let sessionTrainerPassword = ""; // alleen in memory, nooit opgeslagen
 let shotTimer = createShotTimerState();
+let signaturePad = {
+  initialized: false,
+  drawing: false,
+  hasInk: false,
+};
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -3253,6 +3321,9 @@ function mergeData(base, saved) {
         reshootAvailable: Boolean(score.reshootAvailable),
         round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
         discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+        signatureDataUrl: typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
+        signedAt: score.signedAt || "",
+        agreementText: score.agreementText || "",
       }))
     : [];
   const bestScores = Array.isArray(saved.bestScores)
@@ -3264,6 +3335,9 @@ function mergeData(base, saved) {
           status: scoreStatusOptions[score.status] ? score.status : "normal",
           reshootAvailable: Boolean(score.reshootAvailable),
           discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+          signatureDataUrl: typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
+          signedAt: score.signedAt || "",
+          agreementText: score.agreementText || "",
         }))
         .filter((score) => score.shooterId)
     : [];
@@ -3345,6 +3419,105 @@ function getRemoteDocumentId() {
 function getClubLabel(clubId = currentClubId) {
   const normalized = normalizeClubCode(clubId);
   return CLUB_OPTIONS.find((option) => option.id === normalized)?.label || normalized;
+}
+
+function isInternalCompetitionClub() {
+  return normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
+}
+
+function getSignatureCanvas() {
+  return $("#scoreSignaturePad");
+}
+
+function resizeSignatureCanvas() {
+  const canvas = getSignatureCanvas();
+  if (!canvas || canvas.closest("[hidden]")) return;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const ratio = Math.max(1, window.devicePixelRatio || 1);
+  const previousSignature = signaturePad.hasInk ? canvas.toDataURL("image/png") : "";
+  canvas.width = Math.round(rect.width * ratio);
+  canvas.height = Math.round(rect.height * ratio);
+  const context = canvas.getContext("2d");
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.lineWidth = 4;
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.strokeStyle = "#f5c518";
+
+  if (!previousSignature) return;
+  const image = new Image();
+  image.onload = () => context.drawImage(image, 0, 0, rect.width, rect.height);
+  image.src = previousSignature;
+}
+
+function getSignaturePoint(event) {
+  const canvas = getSignatureCanvas();
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+}
+
+function clearScoreSignature() {
+  const canvas = getSignatureCanvas();
+  if (!canvas) return;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  signaturePad.hasInk = false;
+  signaturePad.drawing = false;
+}
+
+function clearScoreSignatureAfterChange() {
+  if (!signaturePad.hasInk) return;
+  clearScoreSignature();
+}
+
+function getScoreSignatureDataUrl() {
+  const canvas = getSignatureCanvas();
+  return canvas && signaturePad.hasInk ? canvas.toDataURL("image/png") : "";
+}
+
+function setupSignaturePad() {
+  const canvas = getSignatureCanvas();
+  if (!canvas || signaturePad.initialized) return;
+  signaturePad.initialized = true;
+
+  const startDrawing = (event) => {
+    if (!isInternalCompetitionClub() || !isTrainer()) return;
+    event.preventDefault();
+    resizeSignatureCanvas();
+    const point = getSignaturePoint(event);
+    const context = canvas.getContext("2d");
+    signaturePad.drawing = true;
+    signaturePad.hasInk = true;
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    canvas.setPointerCapture?.(event.pointerId);
+  };
+
+  const draw = (event) => {
+    if (!signaturePad.drawing) return;
+    event.preventDefault();
+    const point = getSignaturePoint(event);
+    const context = canvas.getContext("2d");
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+
+  const stopDrawing = (event) => {
+    if (!signaturePad.drawing) return;
+    event.preventDefault();
+    signaturePad.drawing = false;
+    canvas.releasePointerCapture?.(event.pointerId);
+  };
+
+  canvas.addEventListener("pointerdown", startDrawing);
+  canvas.addEventListener("pointermove", draw);
+  canvas.addEventListener("pointerup", stopDrawing);
+  canvas.addEventListener("pointercancel", stopDrawing);
+  window.addEventListener("resize", resizeSignatureCanvas);
 }
 
 function markDirty() {
@@ -3604,6 +3777,7 @@ function triggerHapticFeedback() {
 function updateStepperValue(stepButton, key) {
   const output = stepButton.closest("[data-counter]")?.querySelector("output");
   if (output) output.textContent = scoreDraft[key];
+  clearScoreSignatureAfterChange();
   renderScores();
 }
 
@@ -3614,6 +3788,7 @@ function getScoreStatusMeta(status) {
 function setScoreStatus(status) {
   const nextStatus = scoreStatusOptions[status] ? status : "normal";
   scoreDraft.status = scoreDraft.status === nextStatus ? "normal" : nextStatus;
+  clearScoreSignatureAfterChange();
   renderScores();
 }
 
@@ -3951,6 +4126,17 @@ function renderScores() {
     button.classList.toggle("is-active", button.dataset.scoreStatus === calc.status);
   });
   $("#scoreForm")?.classList.toggle("has-blocked-score", statusMeta.blocksScore);
+  const signaturePanel = $("#scoreSignaturePanel");
+  if (signaturePanel) {
+    const showSignature = isInternalCompetitionClub();
+    signaturePanel.hidden = !showSignature;
+    if (showSignature) {
+      setupSignaturePad();
+      requestAnimationFrame(resizeSignatureCanvas);
+    } else {
+      clearScoreSignature();
+    }
+  }
 
   $("#recentScores").innerHTML = renderScoreProgress();
 }
@@ -4138,6 +4324,7 @@ function applyTimerToScoreForm() {
   scoreDraft.shooterId = shotTimer.shooterId;
   scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
   scoreDraft.time = lastShot.time.toFixed(2);
+  clearScoreSignatureAfterChange();
   render();
   setView("scores");
   showToast("Tijd doorgezet naar scoreformulier");
@@ -4199,7 +4386,8 @@ function renderScoreProgress() {
 function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
   const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
   const flex = Number(score.flexPoints) > 0 ? ` · flex +${formatNumber(score.flexPoints, 0)}` : "";
-  return `${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec${flex}${status}`;
+  const agreement = score.signatureDataUrl ? " · akkoord getekend" : "";
+  return `${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec${flex}${status}${agreement}`;
 }
 
 function renderRanking() {
@@ -5238,6 +5426,9 @@ document.addEventListener("click", (event) => {
 });
 
 $("#scoreForm").addEventListener("input", (event) => {
+  if (["scoreShooter", "scoreDiscipline", "scoreTime", "scoreFlexPoints"].includes(event.target.id)) {
+    clearScoreSignatureAfterChange();
+  }
   if (event.target.id === "scoreShooter") {
     scoreDraft.shooterId = event.target.value;
     scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
@@ -5259,6 +5450,11 @@ $("#scoreForm").addEventListener("submit", (event) => {
     showToast("Kies een schutter en een geldige tijd");
     return;
   }
+  const signatureDataUrl = isInternalCompetitionClub() ? getScoreSignatureDataUrl() : "";
+  if (isInternalCompetitionClub() && !signatureDataUrl) {
+    showToast("Laat de schutter eerst tekenen voor akkoord");
+    return;
+  }
 
   const currentRound = getNextScoreRound(scoreDraft.shooterId);
   if (currentRound > progressRounds.at(-1)) {
@@ -5272,6 +5468,9 @@ $("#scoreForm").addEventListener("submit", (event) => {
     round: currentRound,
     ...calc,
     reshootAvailable: getScoreStatusMeta(calc.status).reshootAvailable,
+    signatureDataUrl,
+    signedAt: signatureDataUrl ? new Date().toISOString() : "",
+    agreementText: signatureDataUrl ? "Score en tijd akkoord door schutter" : "",
     createdAt: new Date().toISOString(),
   });
   markDirty();
@@ -5280,12 +5479,14 @@ $("#scoreForm").addEventListener("submit", (event) => {
   scoreDraft = createEmptyDraft();
   scoreDraft.shooterId = nextShooterId;
   scoreDraft.discipline = nextDiscipline;
+  clearScoreSignature();
   render();
   showToast("Score opgeslagen");
 });
 
 $("#resetScoreButton").addEventListener("click", () => {
   scoreDraft = createEmptyDraft();
+  clearScoreSignature();
   render();
 });
 
@@ -5297,6 +5498,7 @@ $("#timerStartButton").addEventListener("click", startShotTimer);
 $("#timerStopButton").addEventListener("click", () => stopShotTimer());
 $("#timerResetButton").addEventListener("click", resetShotTimer);
 $("#timerApplyButton").addEventListener("click", applyTimerToScoreForm);
+$("#clearSignatureButton").addEventListener("click", clearScoreSignature);
 
 $("#maxTimeButton").addEventListener("click", () => {
   if (!requireTrainer()) return;
@@ -5306,6 +5508,7 @@ $("#maxTimeButton").addEventListener("click", () => {
     return;
   }
   scoreDraft.time = maxRoundTime.toFixed(2);
+  clearScoreSignatureAfterChange();
   render();
   showToast("Maximale tijd ingevuld");
 });
@@ -5373,6 +5576,7 @@ document.addEventListener("click", (event) => {
   scoreDraft = createEmptyDraft();
   scoreDraft.shooterId = score.shooterId;
   scoreDraft.discipline = getScoreDiscipline(score);
+  clearScoreSignature();
   markDirty();
   setView("scores");
   render();
