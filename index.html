@@ -19,7 +19,7 @@
 :root {
   color-scheme: dark;
   --bg: #0c0c0d;
-  --desk: #f4f4f2;
+  --desk: #f5c518;
   --panel: #1a1a1d;
   --panel-deep: #121214;
   --tile: #101012;
@@ -47,14 +47,16 @@
 }
 
 html {
-  background: var(--desk);
+  min-height: 100%;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
   touch-action: manipulation;
 }
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  background: var(--desk);
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
   color: var(--ink);
   touch-action: manipulation;
 }
@@ -2312,6 +2314,22 @@ dialog .primary-action::after {
     grid-template-columns: minmax(64px, 1fr) 56px minmax(64px, 1fr);
   }
 
+  .signature-panel {
+    padding: 20px;
+  }
+
+  #scoreSignaturePad {
+    height: 220px;
+  }
+
+  .signature-dialog {
+    width: min(calc(100% - 72px), 680px);
+  }
+
+  #signatureDialogImage {
+    min-height: 230px;
+  }
+
   .calc-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2341,6 +2359,39 @@ dialog .primary-action::after {
   .bottom-nav {
     width: min(calc(100% - 48px), 760px);
     border-radius: 0 0 40px 40px;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1099px) and (orientation: portrait) {
+  body {
+    padding: 18px 0;
+  }
+
+  .app-shell {
+    width: min(calc(100% - 28px), 760px);
+    min-height: calc(100dvh - 36px);
+    border-radius: 34px;
+  }
+
+  .content {
+    padding-inline: 34px;
+  }
+
+  .score-form {
+    gap: 18px;
+  }
+
+  .score-form > .field-grid:nth-of-type(3) {
+    grid-template-columns: 1fr;
+  }
+
+  #scoreSignaturePad {
+    height: 260px;
+  }
+
+  .bottom-nav {
+    width: min(calc(100% - 28px), 760px);
+    border-radius: 0 0 34px 34px;
   }
 }
 
