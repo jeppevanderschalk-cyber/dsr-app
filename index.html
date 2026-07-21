@@ -1616,7 +1616,7 @@ select:focus {
 
 .beamer-row {
   display: grid;
-  grid-template-columns: minmax(56px, 0.38fr) minmax(220px, 2.2fr) minmax(130px, 0.9fr) minmax(112px, 0.75fr) minmax(120px, 0.85fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(56px, 0.38fr) minmax(220px, 2.35fr) minmax(112px, 0.8fr) minmax(120px, 0.85fr) minmax(160px, 1fr);
   align-items: center;
   gap: clamp(8px, 1vw, 16px);
   min-height: clamp(42px, 5.6vh, 64px);
@@ -1667,8 +1667,42 @@ select:focus {
   background: rgba(12, 12, 14, 0.9);
 }
 
+.beamer-level-group {
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.beamer-level-group:last-child {
+  border-bottom: 0;
+}
+
+.beamer-level-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: clamp(34px, 4vh, 46px);
+  padding: 0 clamp(12px, 1.4vw, 22px);
+  background: linear-gradient(90deg, rgba(245, 197, 24, 0.34), rgba(245, 197, 24, 0.06));
+  color: #fff;
+}
+
+.beamer-level-title strong {
+  color: var(--yellow);
+  font-size: clamp(1rem, 1.6vw, 1.72rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.beamer-level-title span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(0.68rem, 0.9vw, 0.94rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .beamer-table.is-split .beamer-row {
-  grid-template-columns: minmax(34px, 0.32fr) minmax(150px, 1.7fr) minmax(82px, 0.75fr) minmax(76px, 0.62fr) minmax(62px, 0.52fr) minmax(112px, 0.9fr);
+  grid-template-columns: minmax(34px, 0.32fr) minmax(150px, 1.75fr) minmax(76px, 0.62fr) minmax(62px, 0.52fr) minmax(112px, 0.9fr);
   min-height: clamp(26px, 3.35vh, 38px);
   padding-inline: clamp(8px, 0.8vw, 14px);
   gap: clamp(5px, 0.6vw, 10px);
@@ -1695,6 +1729,23 @@ select:focus {
 
 .beamer-table.is-mega .beamer-row strong {
   font-size: clamp(0.76rem, 1.02vw, 1.06rem);
+}
+
+.beamer-table.is-split .beamer-level-title {
+  min-height: clamp(24px, 3vh, 34px);
+  padding-inline: clamp(8px, 0.8vw, 14px);
+}
+
+.beamer-table.is-split .beamer-level-title strong {
+  font-size: clamp(0.78rem, 1.05vw, 1.08rem);
+}
+
+.beamer-table.is-split .beamer-level-title span {
+  font-size: clamp(0.52rem, 0.66vw, 0.72rem);
+}
+
+.beamer-table.is-mega .beamer-level-title {
+  min-height: clamp(22px, 2.7vh, 30px);
 }
 
 .beamer-row:nth-child(odd):not(.beamer-head) {
@@ -4125,11 +4176,45 @@ function getBeamerRows() {
     });
 }
 
+function getBeamerLevelGroups(rows) {
+  const levelOrder = ["Beginner", "Gevorderd", "Wedstrijdschutter", "Open"];
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const level = row.shooter.level || "Open";
+    if (!grouped.has(level)) grouped.set(level, []);
+    grouped.get(level).push(row);
+  });
+
+  return Array.from(grouped.entries())
+    .sort(([levelA], [levelB]) => {
+      const indexA = levelOrder.includes(levelA) ? levelOrder.indexOf(levelA) : levelOrder.length;
+      const indexB = levelOrder.includes(levelB) ? levelOrder.indexOf(levelB) : levelOrder.length;
+      if (indexA !== indexB) return indexA - indexB;
+      return levelA.localeCompare(levelB, "nl");
+    })
+    .map(([level, levelRows]) => ({
+      level,
+      rows: levelRows.map((row, index) => ({ ...row, levelPosition: row.position ? index + 1 : 0 })),
+    }));
+}
+
+function splitBeamerGroups(groups) {
+  const columns = [[], []];
+  const totals = [0, 0];
+  groups.forEach((group) => {
+    const target = totals[0] <= totals[1] ? 0 : 1;
+    columns[target].push(group);
+    totals[target] += group.rows.length + 2;
+  });
+  return columns;
+}
+
 function renderBeamerBoard() {
   const overlay = $("#beamerOverlay");
   if (!overlay || overlay.hidden) return;
 
   const rows = getBeamerRows();
+  const groups = getBeamerLevelGroups(rows);
   const updatedAt = state.updatedAt || new Date().toISOString();
   const table = $("#beamerTable");
   $("#beamerClubTitle").textContent = getClubLabel();
@@ -4145,7 +4230,6 @@ function renderBeamerBoard() {
     <div class="beamer-row beamer-head">
       <span>#</span>
       <span>Schutter</span>
-      <span>Niveau</span>
       <span>Gem.</span>
       <span>Rondes</span>
       <span>Laatste HF</span>
@@ -4154,15 +4238,14 @@ function renderBeamerBoard() {
   const renderBeamerRows = (sourceRows) =>
     sourceRows
       .map((row) => {
-        const podiumClass = row.position && row.position <= 3 ? ` podium-${row.position}` : "";
+        const podiumClass = row.levelPosition && row.levelPosition <= 3 ? ` podium-${row.levelPosition}` : "";
         const latest = row.latestScore;
         const latestText = latest ? `${formatNumber(latest.hitfactor, 3)} · ${formatNumber(latest.net, 0)} pt` : "—";
         const roundsText = row.entries ? `${row.entries}${row.savedTrainingCount ? ` · ${row.savedTrainingCount} tr.` : ""}` : "—";
         return `
           <div class="beamer-row${podiumClass}">
-            <span class="beamer-rank">${row.position || "—"}</span>
+            <span class="beamer-rank">${row.levelPosition || "—"}</span>
             <strong>${row.shooter.name}</strong>
-            <span>${row.shooter.level}</span>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, 1)}%` : "—"}</span>
             <span>${roundsText}</span>
             <span>${latestText}</span>
@@ -4170,24 +4253,33 @@ function renderBeamerBoard() {
         `;
       })
       .join("");
+  const renderBeamerGroup = (group) => `
+    <section class="beamer-level-group">
+      <div class="beamer-level-title">
+        <strong>${group.level}</strong>
+        <span>${group.rows.length} schutters</span>
+      </div>
+      ${renderBeamerHeader()}
+      ${renderBeamerRows(group.rows)}
+    </section>
+  `;
 
   table.innerHTML = rows.length
     ? rows.length > 24
       ? `
         <div class="beamer-columns">
-          ${[rows.slice(0, Math.ceil(rows.length / 2)), rows.slice(Math.ceil(rows.length / 2))]
+          ${splitBeamerGroups(groups)
             .map(
-              (columnRows) => `
+              (columnGroups) => `
                 <div class="beamer-column">
-                  ${renderBeamerHeader()}
-                  ${renderBeamerRows(columnRows)}
+                  ${columnGroups.map(renderBeamerGroup).join("")}
                 </div>
               `,
             )
             .join("")}
         </div>
       `
-      : `${renderBeamerHeader()}${renderBeamerRows(rows)}`
+      : groups.map(renderBeamerGroup).join("")
     : `<div class="empty">Nog geen actieve deelnemers.</div>`;
 }
 
