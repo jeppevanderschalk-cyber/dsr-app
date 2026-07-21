@@ -1568,15 +1568,7 @@ select:focus {
 .beamer-brand {
   display: flex;
   align-items: center;
-  gap: clamp(14px, 2vw, 24px);
-}
-
-.beamer-brand img {
-  width: clamp(58px, 6vw, 94px);
-  height: clamp(58px, 6vw, 94px);
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 16px 35px rgba(0, 0, 0, 0.55);
+  justify-content: flex-end;
 }
 
 .beamer-brand strong {
@@ -3000,7 +2992,6 @@ dialog .primary-action::after {
             <h2>Wedstrijdstand</h2>
           </div>
           <div class="beamer-brand">
-            <img src="dsr-logo.jpeg" alt="" />
             <strong id="beamerClubTitle">SVBB</strong>
           </div>
           <button class="icon-button beamer-close" id="beamerCloseButton" type="button" aria-label="Beamerweergave sluiten" title="Sluiten">
