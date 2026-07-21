@@ -2132,6 +2132,14 @@ dialog .primary-action::after {
   text-align: left;
 }
 
+.login-hint {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .login-error {
   min-height: 20px;
   margin: 0;
@@ -2521,6 +2529,7 @@ dialog .primary-action::after {
           <span>Wachtwoord</span>
           <input type="password" id="loginPassword" autocomplete="current-password" required />
         </label>
+        <p class="login-hint">Schutters kijken alleen mee. Trainers kunnen schutters, scores en instellingen wijzigen.</p>
         <p class="login-error" id="loginError" role="alert"></p>
         <button class="primary-action full-width" type="submit">Inloggen</button>
       </form>
