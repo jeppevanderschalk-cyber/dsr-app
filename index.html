@@ -1199,10 +1199,14 @@ select:focus {
 }
 
 .timer-face strong {
+  max-width: 100%;
+  overflow: hidden;
   color: var(--yellow);
-  font-size: clamp(4.4rem, 18vw, 6.6rem);
+  font-size: clamp(3.8rem, 15vw, 6.6rem);
   line-height: 0.92;
   font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   text-shadow: 0 0 30px rgba(245, 197, 24, 0.45);
 }
 
@@ -1242,23 +1246,39 @@ select:focus {
 
 .timer-stats article {
   display: grid;
+  min-width: 0;
   place-items: center;
   min-height: 86px;
-  padding: 12px 8px;
+  padding: 12px 6px;
+  overflow: hidden;
 }
 
 .timer-stats span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--yellow);
-  font-size: 1.65rem;
+  font-size: clamp(1.15rem, 5.2vw, 1.65rem);
   font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .timer-stats small,
 .timer-shot-row small {
+  max-width: 100%;
+  overflow: hidden;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: clamp(0.58rem, 2.4vw, 0.74rem);
   font-weight: 800;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .timer-shot-list {
