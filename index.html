@@ -3309,7 +3309,8 @@ dialog .primary-action::after {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module">
 const STORAGE_KEY = "dsr-score-app-v5";
-const AUTH_STORAGE_KEY = "dsr-app-auth-v2";
+const AUTH_STORAGE_KEY = "dsr-app-auth-v3";
+const TRAINER_SESSION_KEY = "dsr-app-trainer-session-v1";
 const CLUB_STORAGE_KEY = "dsr-app-club-v1";
 const DEFAULT_CLUB_CODE = "SVBB";
 const CLUB_OPTIONS = [
@@ -3750,6 +3751,10 @@ async function pushRemoteState({ force = false } = {}) {
   if (!force && state.updatedAt === lastSyncedAt) return true;
   if (currentRole !== "trainer") {
     setSyncStatus("Alleen trainers kunnen wijzigingen synchroniseren.");
+    return false;
+  }
+  if (!sessionTrainerPassword) {
+    setSyncStatus("Trainer opnieuw inloggen om wijzigingen te synchroniseren.");
     return false;
   }
 
@@ -5861,14 +5866,22 @@ function parseStoredAuth(value) {
   return null;
 }
 
-function storeAuth(role, clubId) {
+function storeAuth(role, clubId, trainerPassword = "") {
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ role, clubId }));
   localStorage.setItem(CLUB_STORAGE_KEY, clubId);
+  if (role === "trainer" && trainerPassword) {
+    sessionStorage.setItem(TRAINER_SESSION_KEY, trainerPassword);
+  } else {
+    sessionStorage.removeItem(TRAINER_SESSION_KEY);
+  }
 }
 
 function startApp(role, clubCode = DEFAULT_CLUB_CODE) {
   currentRole = role;
   currentClubId = normalizeClubCode(clubCode);
+  if (currentRole === "trainer" && !sessionTrainerPassword) {
+    sessionTrainerPassword = sessionStorage.getItem(TRAINER_SESSION_KEY) || "";
+  }
   localStorage.setItem(CLUB_STORAGE_KEY, currentClubId);
   state = loadState();
   scoreDraft = createEmptyDraft();
@@ -5901,7 +5914,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
   const hash = await sha256Hex(enteredPassword);
   if (AUTH_CONFIG.trainerHashes.includes(hash)) {
     sessionTrainerPassword = enteredPassword;
-    storeAuth("trainer", clubId);
+    storeAuth("trainer", clubId, enteredPassword);
     startApp("trainer", clubId);
     return;
   }
@@ -5915,6 +5928,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
 
 $("#logoutButton").addEventListener("click", () => {
   localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(TRAINER_SESSION_KEY);
   sessionTrainerPassword = "";
   showLoginGate();
 });
@@ -5939,7 +5953,10 @@ $("#copyIbanButton").addEventListener("click", async () => {
 });
 
 const storedAuth = parseStoredAuth(localStorage.getItem(AUTH_STORAGE_KEY));
-if (storedAuth) {
+if (storedAuth?.role === "trainer" && !sessionStorage.getItem(TRAINER_SESSION_KEY)) {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  showLoginGate();
+} else if (storedAuth) {
   startApp(storedAuth.role, storedAuth.clubId);
 } else {
   showLoginGate();
