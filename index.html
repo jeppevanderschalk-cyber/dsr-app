@@ -4185,6 +4185,8 @@ function getBeamerRows() {
         savedTrainingCount: item?.savedTrainingCount || 0,
         currentEntries: item?.currentEntries || 0,
         bestHitfactor: item?.bestHitfactor || 0,
+        points: item?.points || 0,
+        time: item?.time || 0,
         latestScore,
       };
     })
@@ -4251,7 +4253,7 @@ function renderBeamerBoard() {
       <span>#</span>
       <span>Schutter</span>
       <span>Gem.</span>
-      <span>Rondes</span>
+      <span>Score / tijd</span>
       <span>Laatste HF</span>
     </div>
   `;
@@ -4260,14 +4262,18 @@ function renderBeamerBoard() {
       .map((row) => {
         const podiumClass = row.levelPosition && row.levelPosition <= 3 ? ` podium-${row.levelPosition}` : "";
         const latest = row.latestScore;
-        const latestText = latest ? `${formatNumber(latest.hitfactor, 3)} · ${formatNumber(latest.net, 0)} pt` : "—";
-        const roundsText = row.entries ? `${row.entries}${row.savedTrainingCount ? ` · ${row.savedTrainingCount} tr.` : ""}` : "—";
+        const scoreTimeText = latest
+          ? `${formatNumber(latest.net, 0)} pt · ${formatNumber(latest.time, 2)} s`
+          : row.entries
+            ? `${formatNumber(row.points, 0)} pt · ${formatNumber(row.time, 2)} s`
+            : "—";
+        const latestText = latest ? formatNumber(latest.hitfactor, 3) : "—";
         return `
           <div class="beamer-row${podiumClass}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
             <strong>${row.shooter.name}</strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, 1)}%` : "—"}</span>
-            <span>${roundsText}</span>
+            <span>${scoreTimeText}</span>
             <span>${latestText}</span>
           </div>
         `;
