@@ -2140,6 +2140,44 @@ dialog .primary-action::after {
   display: none;
 }
 
+.signature-dialog {
+  width: min(calc(100% - 32px), 560px);
+}
+
+.signature-dialog-content {
+  display: grid;
+  gap: 16px;
+}
+
+.signature-dialog-content h3 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.signature-meta {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.signature-meta strong {
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+#signatureDialogImage {
+  width: 100%;
+  min-height: 170px;
+  max-height: 360px;
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  border-radius: 18px;
+  background: #0d0d0f;
+  object-fit: contain;
+}
+
 .login-gate[hidden] {
   display: none;
 }
@@ -3157,6 +3195,15 @@ dialog .primary-action::after {
           <button class="primary-action" id="entrySaveButton" type="button">Opslaan</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="signatureDialog" class="signature-dialog">
+      <div class="signature-dialog-content">
+        <h3>Handtekening akkoord</h3>
+        <div class="signature-meta" id="signatureDialogMeta"></div>
+        <img id="signatureDialogImage" alt="Handtekening van schutter" />
+        <button class="primary-action full-width" id="signatureDialogCloseButton" type="button">Sluiten</button>
+      </div>
     </dialog>
 
     <section class="beamer-overlay" id="beamerOverlay" hidden aria-label="Live score beamerweergave">
@@ -4366,6 +4413,11 @@ function renderScoreProgress() {
                     <small>${formatScoreDetails(score, shooter)}</small>
                     <div class="score-row-actions">
                       ${
+                        score.signatureDataUrl
+                          ? `<button class="mini-action" type="button" data-view-signature="${score.id}">Handtekening</button>`
+                          : ""
+                      }
+                      ${
                         score.reshootAvailable
                           ? `<button class="mini-action" type="button" data-reshoot-score="${score.id}" data-trainer-only>Re-shoot</button>`
                           : ""
@@ -4388,6 +4440,23 @@ function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
   const flex = Number(score.flexPoints) > 0 ? ` · flex +${formatNumber(score.flexPoints, 0)}` : "";
   const agreement = score.signatureDataUrl ? " · akkoord getekend" : "";
   return `${getScoreDiscipline(score, shooter)} · ${formatNumber(score.net, 0)} punten · ${formatNumber(score.time, 2)} sec${flex}${status}${agreement}`;
+}
+
+function openSignatureDialog(scoreId) {
+  const score = state.scores.find((item) => item.id === scoreId) || state.bestScores.find((item) => item.id === scoreId);
+  if (!score?.signatureDataUrl) {
+    showToast("Geen handtekening gevonden");
+    return;
+  }
+
+  const shooter = getShooter(score.shooterId);
+  $("#signatureDialogMeta").innerHTML = `
+    <strong>${shooter?.name || "Onbekende schutter"}</strong>
+    <span>${formatScoreDetails(score, shooter)}</span>
+    <span>${formatDateTime(score.signedAt || score.createdAt)}</span>
+  `;
+  $("#signatureDialogImage").src = score.signatureDataUrl;
+  $("#signatureDialog").showModal();
 }
 
 function renderRanking() {
@@ -4758,6 +4827,11 @@ function renderProgress() {
               </div>
               <strong>${formatNumber(score.hitfactor, 3)}</strong>
               <div class="score-row-actions">
+                ${
+                  score.signatureDataUrl
+                    ? `<button class="mini-action" type="button" data-view-signature="${score.id}">Handtekening</button>`
+                    : ""
+                }
                 ${
                   score.reshootAvailable
                     ? `<button class="mini-action" type="button" data-reshoot-score="${score.id}" data-trainer-only>Re-shoot</button>`
@@ -5527,6 +5601,12 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const signatureButton = event.target.closest("[data-view-signature]");
+  if (signatureButton) {
+    openSignatureDialog(signatureButton.dataset.viewSignature);
+    return;
+  }
+
   const deleteButton = event.target.closest("[data-delete-shooter]");
   if (!deleteButton) return;
   if (!requireTrainer()) return;
@@ -5603,6 +5683,10 @@ document.addEventListener("click", (event) => {
 $("#entryForm").addEventListener("submit", (event) => {
   event.preventDefault();
   saveEntryDialog();
+});
+
+$("#signatureDialogCloseButton").addEventListener("click", () => {
+  $("#signatureDialog").close();
 });
 
 $("#settingsForm").addEventListener("submit", (event) => {
