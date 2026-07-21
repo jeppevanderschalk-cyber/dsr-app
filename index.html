@@ -967,6 +967,19 @@ select:focus {
   box-shadow: inset 0 0 0 2px var(--yellow);
 }
 
+.time-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.time-input-row .mini-action {
+  min-height: 58px;
+  border-radius: 16px;
+  white-space: nowrap;
+}
+
 .score-form {
   display: grid;
   gap: 14px;
@@ -2571,7 +2584,10 @@ dialog .primary-action::after {
             <div class="field-grid">
               <label>
                 <span>Tijd</span>
-                <input id="scoreTime" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" />
+                <div class="time-input-row">
+                  <input id="scoreTime" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" />
+                  <button class="mini-action max-time-button" id="maxTimeButton" type="button" disabled>Maximale tijd</button>
+                </div>
               </label>
               <label>
                 <span>Flexpunten</span>
@@ -2858,6 +2874,15 @@ dialog .primary-action::after {
               </section>
 
               <section class="section-block" data-trainer-only>
+                <h3>Rondetijd</h3>
+                <p class="notice">Stel een maximale tijd in als een ronde een tijdslimiet heeft. Trainers kunnen die tijd daarna met één knop invullen.</p>
+                <label>
+                  <span>Maximale tijd ronde (sec)</span>
+                  <input id="maxRoundTimeSetting" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Geen limiet" />
+                </label>
+              </section>
+
+              <section class="section-block" data-trainer-only>
                 <h3>Puntensysteem</h3>
                 <div class="settings-grid" id="pointsSettings"></div>
               </section>
@@ -3051,9 +3076,9 @@ const defaultData = {
   },
   penalties: [
     { id: "pen-procedure", name: "Procedure fout", value: -5, active: true },
-    { id: "pen-late", name: "Late start", value: -5, active: true },
     { id: "pen-dq", name: "Onveilig wapengebruik", value: 0, active: false },
   ],
+  maxRoundTime: "",
   scores: [],
   bestScores: [],
   trainingResults: [],
@@ -3185,9 +3210,10 @@ function mergeData(base, saved) {
   const hasLocalContent = shooters.length > 0 || scores.length > 0 || bestScores.length > 0 || trainingResults.length > 0 || progressEntries.length > 0;
   const points = { ...base.points, ...saved.points };
   if (points.miss === -10) points.miss = -5;
-  const penalties = (saved.penalties?.length ? saved.penalties : base.penalties).map((penalty) =>
-    penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty,
-  );
+  const penalties = (saved.penalties?.length ? saved.penalties : base.penalties)
+    .filter((penalty) => penalty.id !== "pen-late" && penalty.name !== "Late start")
+    .map((penalty) => (penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty));
+  const maxRoundTime = Number(saved.maxRoundTime) > 0 ? String(saved.maxRoundTime) : "";
 
   return {
     ...structuredClone(base),
@@ -3195,6 +3221,7 @@ function mergeData(base, saved) {
     competition: { ...base.competition, ...saved.competition },
     points,
     penalties,
+    maxRoundTime,
     shooters,
     scores,
     bestScores,
@@ -3752,6 +3779,7 @@ function renderSelects() {
   $("#scoreShooter").value = scoreDraft.shooterId;
   $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreTime").value = scoreDraft.time;
+  $("#maxTimeButton").disabled = !(Number(state.maxRoundTime) > 0);
   $("#scoreFlexPoints").value = scoreDraft.flexPoints;
   $("#scoreNotes").value = scoreDraft.notes;
   shotTimer.shooterId = activeShooters.some((shooter) => shooter.id === selectedTimerShooter)
@@ -4372,6 +4400,7 @@ function renderProgress() {
 }
 
 function renderSettings() {
+  $("#maxRoundTimeSetting").value = state.maxRoundTime || "";
   $("#pointsSettings").innerHTML = Object.entries(state.points)
     .map(
       ([key, value]) => `
@@ -5084,6 +5113,18 @@ $("#timerStopButton").addEventListener("click", () => stopShotTimer());
 $("#timerResetButton").addEventListener("click", resetShotTimer);
 $("#timerApplyButton").addEventListener("click", applyTimerToScoreForm);
 
+$("#maxTimeButton").addEventListener("click", () => {
+  if (!requireTrainer()) return;
+  const maxRoundTime = Number(state.maxRoundTime);
+  if (!(maxRoundTime > 0)) {
+    showToast("Stel eerst een maximale rondetijd in");
+    return;
+  }
+  scoreDraft.time = maxRoundTime.toFixed(2);
+  render();
+  showToast("Maximale tijd ingevuld");
+});
+
 $("#exportButton").addEventListener("click", exportCsv);
 $("#beamerButton").addEventListener("click", openBeamerBoard);
 $("#beamerCloseButton").addEventListener("click", closeBeamerBoard);
@@ -5181,6 +5222,8 @@ $("#settingsForm").addEventListener("submit", (event) => {
   $$("[data-point]").forEach((input) => {
     state.points[input.dataset.point] = Number(input.value);
   });
+  const maxRoundTime = parseDecimal($("#maxRoundTimeSetting").value);
+  state.maxRoundTime = maxRoundTime > 0 ? maxRoundTime.toFixed(2) : "";
   $$("[data-penalty]").forEach((row) => {
     const penalty = state.penalties.find((item) => item.id === row.dataset.penalty);
     penalty.name = row.querySelector("[data-penalty-name]").value.trim() || penalty.name;
