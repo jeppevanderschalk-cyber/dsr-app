@@ -2807,6 +2807,10 @@ dialog .primary-action::after {
               <option value="Wedstrijdschutter">Wedstrijdschutter</option>
               <option value="Open">Open</option>
             </select>
+            <select id="rankScope" aria-label="Training selectie">
+              <option value="all">Alle trainingen</option>
+              <option value="latest">Laatste training</option>
+            </select>
             <select id="rankSort" aria-label="Sortering">
               <option value="hitfactor">Gemiddelde</option>
               <option value="points">Punten</option>
@@ -2814,7 +2818,7 @@ dialog .primary-action::after {
             </select>
           </div>
 
-          <p class="notice">Ranglijst op beste trainingsgemiddelde per schutter. Per ronde telt de beste schutter als 100%; bewaarde trainingen blijven meetellen zonder aanwezigheid te belonen.</p>
+          <p class="notice">Kies alle trainingen voor de doorlopende ranglijst, of laatste training voor alleen de huidige of laatst opgeslagen training.</p>
           <div class="ranking-list" id="rankingList"></div>
         </section>
 
@@ -3704,6 +3708,25 @@ function getTrainingResultDisciplineLabel(discipline) {
   return discipline === "all" ? "Alle disciplines" : normalizeDiscipline(discipline);
 }
 
+function trainingResultToRankingItem(result, shooter, savedTrainingCount = 0) {
+  return {
+    shooter,
+    discipline: getTrainingResultDisciplineLabel(result.discipline || "all"),
+    points: result.points || 0,
+    time: result.time || 0,
+    hitfactor: result.hitfactor || 0,
+    entries: result.entries || 0,
+    penalties: result.penalties || 0,
+    alpha: result.alpha || 0,
+    charlie: result.charlie || 0,
+    delta: result.delta || 0,
+    bestHitfactor: result.bestHitfactor || 0,
+    bestPoints: result.bestPoints || 0,
+    savedTrainingCount,
+    currentEntries: 0,
+  };
+}
+
 function getBestStoredTrainingResults(filters = {}) {
   const discipline = filters.discipline || "all";
   const level = filters.level || "all";
@@ -3718,22 +3741,7 @@ function getBestStoredTrainingResults(filters = {}) {
     counts.set(result.shooterId, (counts.get(result.shooterId) || 0) + 1);
     const current = grouped.get(result.shooterId);
     if (!current || (result.hitfactor || 0) > (current.hitfactor || 0)) {
-      grouped.set(result.shooterId, {
-        shooter,
-        discipline: getTrainingResultDisciplineLabel(discipline),
-        points: result.points || 0,
-        time: result.time || 0,
-        hitfactor: result.hitfactor || 0,
-        entries: result.entries || 0,
-        penalties: result.penalties || 0,
-        alpha: result.alpha || 0,
-        charlie: result.charlie || 0,
-        delta: result.delta || 0,
-        bestHitfactor: result.bestHitfactor || 0,
-        bestPoints: result.bestPoints || 0,
-        savedTrainingCount: 0,
-        currentEntries: 0,
-      });
+      grouped.set(result.shooterId, trainingResultToRankingItem(result, shooter));
     }
   });
 
@@ -3742,6 +3750,46 @@ function getBestStoredTrainingResults(filters = {}) {
   });
 
   return Array.from(grouped.values());
+}
+
+function getLatestStoredTrainingResults(filters = {}) {
+  const discipline = filters.discipline || "all";
+  const level = filters.level || "all";
+  const eligible = (state.trainingResults || []).filter((result) => {
+    if ((result.discipline || "all") !== discipline) return false;
+    const shooter = getShooter(result.shooterId);
+    if (!shooter) return false;
+    return level === "all" || shooter.level === level;
+  });
+  const latestSavedAt = eligible.reduce((latest, result) => {
+    const savedAt = result.savedAt || "";
+    return savedAt > latest ? savedAt : latest;
+  }, "");
+
+  if (!latestSavedAt) return [];
+
+  return eligible
+    .filter((result) => (result.savedAt || "") === latestSavedAt)
+    .map((result) => {
+      const shooter = getShooter(result.shooterId);
+      return {
+        ...trainingResultToRankingItem(result, shooter, 1),
+        rankingScope: "latest-stored",
+      };
+    });
+}
+
+function getLatestTrainingRanking(filters = {}) {
+  if ((state.scores || []).length) {
+    return getCurrentTrainingRanking(filters).map((item) => ({
+      ...item,
+      currentEntries: item.entries,
+      savedTrainingCount: 0,
+      rankingScope: "latest-current",
+    }));
+  }
+
+  return getLatestStoredTrainingResults(filters);
 }
 
 function getRanking(filters = {}) {
@@ -4146,8 +4194,9 @@ function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
 function renderRanking() {
   const discipline = $("#rankDiscipline").value || "all";
   const level = $("#rankLevel").value || "all";
+  const scope = $("#rankScope").value || "all";
   const sort = $("#rankSort").value || "hitfactor";
-  let items = getRanking({ discipline, level });
+  let items = scope === "latest" ? getLatestTrainingRanking({ discipline, level }) : getRanking({ discipline, level });
 
   items.sort((a, b) => {
     if (sort === "points") return b.points - a.points;
@@ -4354,7 +4403,14 @@ function renderRankingItems(items, compact) {
 }
 
 function formatRankingMeta(item) {
-  const saved = item.savedTrainingCount ? `${item.savedTrainingCount} trainingen bewaard` : "huidige training";
+  const saved =
+    item.rankingScope === "latest-current"
+      ? "laatste training live"
+      : item.rankingScope === "latest-stored"
+        ? "laatste opgeslagen training"
+        : item.savedTrainingCount
+          ? `${item.savedTrainingCount} trainingen bewaard`
+          : "huidige training";
   const current = item.currentEntries ? ` · nu ${item.currentEntries} rondes` : "";
   return `${item.discipline} · ${item.shooter.level} · ${saved}${current} · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten`;
 }
@@ -5368,7 +5424,7 @@ $$("[data-more-tab]").forEach((button) => {
   });
 });
 
-["rankDiscipline", "rankLevel", "rankSort"].forEach((id) => {
+["rankDiscipline", "rankLevel", "rankScope", "rankSort"].forEach((id) => {
   $(`#${id}`).addEventListener("change", renderRanking);
 });
 
