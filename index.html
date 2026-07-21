@@ -870,6 +870,18 @@ small {
   gap: 8px;
 }
 
+.edit-score-notice {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  border-radius: 16px;
+  background: rgba(245, 197, 24, 0.1);
+  color: var(--yellow);
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
 .mini-action {
   min-height: 34px;
   border: 1px solid rgba(245, 197, 24, 0.5);
@@ -2890,11 +2902,13 @@ dialog .primary-action::after {
               <canvas id="scoreSignaturePad" aria-label="Handtekening score akkoord"></canvas>
             </section>
 
-            <button class="primary-action full-width" type="submit">
+            <p class="edit-score-notice" id="editScoreNotice" hidden>Je wijzigt een opgeslagen score. Sla opnieuw op om deze ronde te vervangen.</p>
+
+            <button class="primary-action full-width" id="scoreSubmitButton" type="submit">
               <span aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></svg>
               </span>
-              Score opslaan
+              <span id="scoreSubmitLabel">Score opslaan</span>
             </button>
           </form>
 
@@ -3833,6 +3847,7 @@ function createEmptyDraft() {
     flexPoints: "",
     notes: "",
     status: "normal",
+    editScoreId: "",
   });
 }
 
@@ -3888,10 +3903,10 @@ function formatRound(round) {
   return `${Math.max(1, Number(round) || 1)}e`;
 }
 
-function getNextScoreRound(shooterId) {
+function getNextScoreRound(shooterId, excludeScoreId = "") {
   const usedRounds = new Set();
   state.scores
-    .filter((score) => score.shooterId === shooterId)
+    .filter((score) => score.shooterId === shooterId && score.id !== excludeScoreId)
     .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
     .forEach((score, index) => {
       const storedRound = Number(score.round);
@@ -4271,6 +4286,7 @@ function renderCompetition() {
 function renderScores() {
   const calc = calculateScore(scoreDraft);
   const statusMeta = getScoreStatusMeta(calc.status);
+  const isEditing = Boolean(scoreDraft.editScoreId);
   $("#calcHits").textContent = formatNumber(calc.hitPoints, 0);
   $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
   $("#calcNet").textContent = formatNumber(calc.net, 0);
@@ -4279,6 +4295,12 @@ function renderScores() {
     button.classList.toggle("is-active", button.dataset.scoreStatus === calc.status);
   });
   $("#scoreForm")?.classList.toggle("has-blocked-score", statusMeta.blocksScore);
+  $("#scoreForm")?.classList.toggle("is-editing-score", isEditing);
+  $("#scoreSubmitLabel").textContent = isEditing ? "Score bijwerken" : "Score opslaan";
+  $("#resetScoreButton").title = isEditing ? "Wijzigen annuleren" : "Score wissen";
+  $("#resetScoreButton").setAttribute("aria-label", isEditing ? "Wijzigen annuleren" : "Score wissen");
+  const editNotice = $("#editScoreNotice");
+  if (editNotice) editNotice.hidden = !isEditing;
   const signaturePanel = $("#scoreSignaturePanel");
   if (signaturePanel) {
     const showSignature = isInternalCompetitionClub();
@@ -4483,6 +4505,30 @@ function applyTimerToScoreForm() {
   showToast("Tijd doorgezet naar scoreformulier");
 }
 
+function loadScoreForEdit(scoreId) {
+  if (!requireTrainer()) return;
+  const score = state.scores.find((item) => item.id === scoreId);
+  if (!score) {
+    showToast("Score niet gevonden");
+    return;
+  }
+
+  counters.forEach((counter) => {
+    scoreDraft[counter.key] = Math.max(0, Number(score[counter.key]) || 0);
+  });
+  scoreDraft.shooterId = score.shooterId || "";
+  scoreDraft.discipline = getScoreDiscipline(score);
+  scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
+  scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
+  scoreDraft.notes = score.notes || "";
+  scoreDraft.status = scoreStatusOptions[score.status] ? score.status : "normal";
+  scoreDraft.editScoreId = score.id;
+  clearScoreSignature();
+  setView("scores");
+  render();
+  showToast(isInternalCompetitionClub() ? "Score geopend. Laat opnieuw tekenen." : "Score geopend om te wijzigen");
+}
+
 function renderScoreProgress() {
   if (!state.scores.length) return `<div class="empty">Nog geen scores ingevoerd.</div>`;
 
@@ -4518,6 +4564,7 @@ function renderScoreProgress() {
                     <strong>${formatNumber(score.hitfactor, 3)}</strong>
                     <small>${formatScoreDetails(score, shooter)}</small>
                     <div class="score-row-actions">
+                      <button class="mini-action" type="button" data-edit-score="${score.id}" data-trainer-only>Wijzig</button>
                       ${
                         score.signatureDataUrl
                           ? `<button class="mini-action" type="button" data-view-signature="${score.id}">Handtekening</button>`
@@ -4933,6 +4980,7 @@ function renderProgress() {
               </div>
               <strong>${formatNumber(score.hitfactor, 3)}</strong>
               <div class="score-row-actions">
+                <button class="mini-action" type="button" data-edit-score="${score.id}" data-trainer-only>Wijzig</button>
                 ${
                   score.signatureDataUrl
                     ? `<button class="mini-action" type="button" data-view-signature="${score.id}">Handtekening</button>`
@@ -5636,23 +5684,36 @@ $("#scoreForm").addEventListener("submit", (event) => {
     return;
   }
 
-  const currentRound = getNextScoreRound(scoreDraft.shooterId);
+  const editingScore = scoreDraft.editScoreId ? state.scores.find((item) => item.id === scoreDraft.editScoreId) : null;
+  const sameShooter = editingScore?.shooterId === scoreDraft.shooterId;
+  const currentRound =
+    editingScore && sameShooter
+      ? Number(editingScore.round) || getNextScoreRound(scoreDraft.shooterId, editingScore.id)
+      : getNextScoreRound(scoreDraft.shooterId, editingScore?.id || "");
   if (currentRound > progressRounds.at(-1)) {
     showToast("Maximaal 15 rondes per schutter");
     return;
   }
 
-  state.scores.push({
-    id: createId("score"),
-    ...scoreDraft,
+  const { editScoreId, ...scoreData } = scoreDraft;
+  const savedScore = {
+    id: editingScore?.id || createId("score"),
+    ...scoreData,
     round: currentRound,
     ...calc,
     reshootAvailable: getScoreStatusMeta(calc.status).reshootAvailable,
     signatureDataUrl,
     signedAt: signatureDataUrl ? new Date().toISOString() : "",
     agreementText: signatureDataUrl ? "Score en tijd akkoord door schutter" : "",
-    createdAt: new Date().toISOString(),
-  });
+    createdAt: editingScore?.createdAt || new Date().toISOString(),
+    updatedAt: editingScore ? new Date().toISOString() : "",
+  };
+
+  if (editingScore) {
+    state.scores = state.scores.map((score) => (score.id === editingScore.id ? savedScore : score));
+  } else {
+    state.scores.push(savedScore);
+  }
   markDirty();
   const nextShooterId = scoreDraft.shooterId;
   const nextDiscipline = scoreDraft.discipline;
@@ -5661,7 +5722,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
   scoreDraft.discipline = nextDiscipline;
   clearScoreSignature();
   render();
-  showToast("Score opgeslagen");
+  showToast(editingScore ? "Score bijgewerkt" : "Score opgeslagen");
 });
 
 $("#resetScoreButton").addEventListener("click", () => {
@@ -5707,6 +5768,12 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const editButton = event.target.closest("[data-edit-score]");
+  if (editButton) {
+    loadScoreForEdit(editButton.dataset.editScore);
+    return;
+  }
+
   const signatureButton = event.target.closest("[data-view-signature]");
   if (signatureButton) {
     openSignatureDialog(signatureButton.dataset.viewSignature);
