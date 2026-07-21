@@ -2385,6 +2385,33 @@ dialog .primary-action::after {
     grid-template-columns: 1fr;
   }
 
+  #recentScores {
+    grid-template-columns: 1fr;
+  }
+
+  .score-round-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .score-round-row > strong {
+    justify-self: end;
+  }
+
+  .score-round-row small,
+  .score-round-row .score-row-actions {
+    grid-column: 1 / -1;
+  }
+
+  .score-round-row small {
+    text-align: left;
+  }
+
+  .score-row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
   #scoreSignaturePad {
     height: 260px;
   }
@@ -3574,7 +3601,17 @@ function clearScoreSignatureAfterChange() {
 
 function getScoreSignatureDataUrl() {
   const canvas = getSignatureCanvas();
-  return canvas && signaturePad.hasInk ? canvas.toDataURL("image/png") : "";
+  if (!canvas || !signaturePad.hasInk) return "";
+  const targetWidth = Math.min(900, canvas.width);
+  const targetHeight = Math.round(canvas.height * (targetWidth / canvas.width));
+  const output = document.createElement("canvas");
+  output.width = targetWidth;
+  output.height = targetHeight;
+  const context = output.getContext("2d");
+  context.fillStyle = "#0d0d0f";
+  context.fillRect(0, 0, output.width, output.height);
+  context.drawImage(canvas, 0, 0, output.width, output.height);
+  return output.toDataURL("image/jpeg", 0.82);
 }
 
 function setupSignaturePad() {
@@ -3670,8 +3707,13 @@ async function pullRemoteState({ silent = false } = {}) {
     const [remote] = await response.json();
 
     if (!remote?.data) {
-      if (state.updatedAt) await pushRemoteState({ force: true });
-      setSyncStatus("Live sync actief. Nog geen gedeelde data gevonden.");
+      if (currentRole === "trainer") {
+        if (!state.updatedAt) markDirty();
+        const pushed = await pushRemoteState({ force: true });
+        if (pushed) setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(state.updatedAt)}`);
+      } else {
+        setSyncStatus("Live sync actief. Nog geen gedeelde data gevonden.");
+      }
       return;
     }
 
@@ -3690,7 +3732,10 @@ async function pullRemoteState({ silent = false } = {}) {
       return;
     }
 
-    if (localUpdatedAt > remoteUpdatedAt) await pushRemoteState({ force: true });
+    if (localUpdatedAt > remoteUpdatedAt) {
+      const pushed = await pushRemoteState({ force: true });
+      if (!pushed) return;
+    }
     lastSyncedAt = state.updatedAt || remoteUpdatedAt;
     setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
   } catch (error) {
@@ -3701,9 +3746,12 @@ async function pullRemoteState({ silent = false } = {}) {
 }
 
 async function pushRemoteState({ force = false } = {}) {
-  if (!isSyncConfigured() || !state.updatedAt) return;
-  if (!force && state.updatedAt === lastSyncedAt) return;
-  if (currentRole !== "trainer") return;
+  if (!isSyncConfigured() || !state.updatedAt) return false;
+  if (!force && state.updatedAt === lastSyncedAt) return true;
+  if (currentRole !== "trainer") {
+    setSyncStatus("Alleen trainers kunnen wijzigingen synchroniseren.");
+    return false;
+  }
 
   try {
     const response = await fetch(
@@ -3722,8 +3770,10 @@ async function pushRemoteState({ force = false } = {}) {
     if (!response.ok) throw new Error(`Sync opslaan mislukt (${response.status})`);
     lastSyncedAt = state.updatedAt;
     setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
+    return true;
   } catch (error) {
     setSyncStatus("Synchronisatie fout bij opslaan. Data staat lokaal veilig.");
+    return false;
   }
 }
 
