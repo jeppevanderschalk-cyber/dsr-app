@@ -2227,6 +2227,11 @@ dialog .primary-action::after {
   object-fit: cover;
 }
 
+.login-logo.is-club-logo {
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
+}
+
 .login-card h2 {
   margin: 0;
 }
@@ -2693,7 +2698,7 @@ dialog .primary-action::after {
   <body>
     <div class="login-gate" id="loginGate">
       <form class="login-card" id="loginForm">
-        <img src="dsr-logo.jpeg" alt="" class="login-logo" />
+        <img src="dsr-logo.jpeg" alt="" class="login-logo" id="loginLogo" data-brand-logo />
         <h2>DSR score</h2>
         <p class="muted">Log in met je vereniging en rol.</p>
         <label>
@@ -2718,7 +2723,7 @@ dialog .primary-action::after {
     <div class="app-shell" id="appShell" hidden>
       <header class="topbar">
         <span class="app-logo" aria-hidden="true">
-          <img src="dsr-logo.jpeg" alt="" />
+          <img src="dsr-logo.jpeg" alt="" id="appLogoImage" data-brand-logo />
         </span>
         <h1 id="appClubTitle">SVBB</h1>
       </header>
@@ -3333,6 +3338,10 @@ const CLUB_OPTIONS = [
   { id: "APS-DSR", label: "APS-DSR" },
   { id: "GAST-GEBRUIKER", label: "Gast gebruiker" },
 ];
+const BRAND_LOGOS = {
+  default: "dsr-logo.jpeg",
+  internalCompetition: "logo-SVBB.png",
+};
 const AUTH_CONFIG = {
   trainerHashes: [
     "acc4000223bcdfa348e0f3524fdf5028d2944f713f122b9f57f7a86f036dacb5",
@@ -3563,6 +3572,20 @@ function getClubLabel(clubId = currentClubId) {
 
 function isInternalCompetitionClub() {
   return normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
+}
+
+function getClubLogoSrc(clubId = currentClubId) {
+  return normalizeClubCode(clubId) === "INTERNE-COMPETITIE" ? BRAND_LOGOS.internalCompetition : BRAND_LOGOS.default;
+}
+
+function updateBrandLogos(clubId = currentClubId) {
+  const isInternal = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  $$("[data-brand-logo]").forEach((logo) => {
+    logo.src = getClubLogoSrc(clubId);
+    logo.alt = isInternal ? "SV Beemte-Broekland" : "DSR";
+  });
+  $("#appLogoImage")?.closest(".app-logo")?.classList.toggle("is-club-logo", isInternal);
+  $("#loginLogo")?.classList.toggle("is-club-logo", isInternal);
 }
 
 function getSignatureCanvas() {
@@ -5950,6 +5973,7 @@ function startApp(role, clubCode = DEFAULT_CLUB_CODE) {
     sessionTrainerPassword = sessionStorage.getItem(TRAINER_SESSION_KEY) || "";
   }
   localStorage.setItem(CLUB_STORAGE_KEY, currentClubId);
+  updateBrandLogos(currentClubId);
   state = loadState();
   scoreDraft = createEmptyDraft();
   lastSyncedAt = "";
@@ -5968,6 +5992,7 @@ function showLoginGate() {
   $("#loginGate").removeAttribute("hidden");
   const preferredClub = normalizeClubCode(currentClubId || localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
   $("#loginClub").value = CLUB_OPTIONS.some((option) => option.id === preferredClub) ? preferredClub : DEFAULT_CLUB_CODE;
+  updateBrandLogos($("#loginClub").value);
   $("#loginPassword").value = "";
   $("#loginError").textContent = "";
   $("#loginPassword").focus();
@@ -5991,6 +6016,10 @@ $("#loginForm").addEventListener("submit", async (event) => {
     return;
   }
   $("#loginError").textContent = "Onjuist wachtwoord. Probeer het opnieuw.";
+});
+
+$("#loginClub").addEventListener("change", (event) => {
+  updateBrandLogos(event.target.value);
 });
 
 $("#logoutButton").addEventListener("click", () => {

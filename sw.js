@@ -1,4 +1,4 @@
-const CACHE_NAME = "dsr-score-cache-v52";
+const CACHE_NAME = "dsr-score-cache-v53";
 const ASSETS = [
   "./",
   "index.html",
@@ -6,6 +6,7 @@ const ASSETS = [
   "app.js",
   "manifest.webmanifest",
   "dsr-logo.jpeg",
+  "logo-SVBB.png",
   "apple-touch-icon.png",
   "icon-192.png",
   "icon-512.png",
