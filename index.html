@@ -3184,6 +3184,12 @@ dialog .primary-action::after {
                 <button class="secondary-action danger-action full-width" id="resetTrainingButton" type="button">Nieuwe training starten</button>
               </section>
 
+              <section class="section-block" data-trainer-only data-internal-competition-only>
+                <h3>Interne competitie reset</h3>
+                <p class="notice">Wist alle scores, rondes, hi-scores en trainingsresultaten. De ingevoerde schutters blijven staan.</p>
+                <button class="secondary-action danger-action full-width" id="resetInternalCompetitionButton" type="button">Alle scores resetten</button>
+              </section>
+
               <section class="section-block" data-trainer-only>
                 <h3>Rondetijd</h3>
                 <p class="notice">Stel een maximale tijd in als een ronde een tijdslimiet heeft. Trainers kunnen die tijd daarna met één knop invullen.</p>
@@ -5314,6 +5320,7 @@ function requireTrainer() {
 
 function applyRolePermissions() {
   const readOnly = currentRole === "shooter";
+  const internalCompetition = isInternalCompetitionClub();
   document.body.dataset.role = currentRole || "";
   const roleStatus = $("#roleStatus");
   if (roleStatus) {
@@ -5326,6 +5333,14 @@ function applyRolePermissions() {
     element.hidden = readOnly;
     element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
       control.disabled = readOnly;
+    });
+  });
+
+  $$("[data-internal-competition-only]").forEach((element) => {
+    const hidden = readOnly || !internalCompetition;
+    element.hidden = hidden;
+    element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
+      control.disabled = hidden;
     });
   });
 }
@@ -5679,6 +5694,39 @@ function resetTrainingScores() {
   showToast("Nieuwe training gestart");
 }
 
+function resetInternalCompetitionScores() {
+  if (!requireTrainer()) return;
+  if (!isInternalCompetitionClub()) {
+    showToast("Alleen beschikbaar bij Interne competitie");
+    return;
+  }
+
+  const hasScores =
+    state.scores.length ||
+    state.progressEntries.length ||
+    (state.bestScores || []).length ||
+    (state.trainingResults || []).length;
+  if (!hasScores) {
+    showToast("Geen scores om te resetten");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Alle scores van Interne competitie resetten? Schutters blijven staan, maar scores, rondes, hi-scores en trainingsresultaten worden gewist.",
+  );
+  if (!confirmed) return;
+
+  state.scores = [];
+  state.progressEntries = [];
+  state.bestScores = [];
+  state.trainingResults = [];
+  scoreDraft = createEmptyDraft();
+  clearScoreSignature();
+  markDirty();
+  render();
+  showToast("Scores gereset");
+}
+
 document.addEventListener("click", (event) => {
   const saveEntryButton = event.target.closest("#entrySaveButton");
   if (saveEntryButton) {
@@ -5816,6 +5864,7 @@ $("#beamerButton").addEventListener("click", openBeamerBoard);
 $("#beamerCloseButton").addEventListener("click", closeBeamerBoard);
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
+$("#resetInternalCompetitionButton").addEventListener("click", resetInternalCompetitionScores);
 $("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
 $("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close());
