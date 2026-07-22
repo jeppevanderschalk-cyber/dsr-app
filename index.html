@@ -2727,7 +2727,7 @@ dialog .primary-action::after {
     <div class="login-gate" id="loginGate">
       <form class="login-card" id="loginForm">
         <img src="dsr-logo.jpeg" alt="" class="login-logo" id="loginLogo" data-brand-logo />
-        <h2>DSR score</h2>
+        <h2 id="loginTitle">DSR score</h2>
         <p class="muted">Log in met je vereniging en rol.</p>
         <label>
           <span>Vereniging</span>
@@ -2761,9 +2761,9 @@ dialog .primary-action::after {
           <div class="hero-panel">
             <div class="target-rings" aria-hidden="true"><i></i><i></i><i></i></div>
             <div>
-              <p class="hero-eyebrow">Training</p>
+              <p class="hero-eyebrow" id="homeEyebrow">Training</p>
               <h2 id="home-title">Training DSR</h2>
-              <p class="muted">Training en onderlinge vergelijking binnen de vereniging.</p>
+              <p class="muted" id="homeSubtitle">Training en onderlinge vergelijking binnen de vereniging.</p>
             </div>
             <div class="metric-row">
               <div>
@@ -3054,7 +3054,7 @@ dialog .primary-action::after {
             </select>
           </div>
 
-          <p class="notice">Kies alle trainingen voor de doorlopende ranglijst, of laatste training voor alleen de huidige of laatst opgeslagen training.</p>
+          <p class="notice" id="rankingScopeNotice">Kies alle trainingen voor de doorlopende ranglijst, of laatste training voor alleen de huidige of laatst opgeslagen training.</p>
           <div class="ranking-list" id="rankingList"></div>
         </section>
 
@@ -3086,7 +3086,7 @@ dialog .primary-action::after {
 
             <section class="section-block high-score-section">
               <h3>Hi-score geschiedenis</h3>
-              <p class="notice">Opgeslagen beste scores per training. Trainers kunnen losse hi-scores verwijderen.</p>
+              <p class="notice" id="highScoreNotice">Opgeslagen beste scores per training. Trainers kunnen losse hi-scores verwijderen.</p>
               <div class="high-score-history" id="highScoreHistory"></div>
             </section>
           </section>
@@ -3094,14 +3094,14 @@ dialog .primary-action::after {
           <section class="more-panel" id="more-progress">
             <div class="section-heading">
               <div>
-                <h3>Oefenrondes</h3>
-                <p class="muted">Automatisch gevuld vanuit opgeslagen scores.</p>
+                <h3 id="progressIntroTitle">Oefenrondes</h3>
+                <p class="muted" id="progressIntroText">Automatisch gevuld vanuit opgeslagen scores.</p>
               </div>
             </div>
 
             <section class="section-block">
               <div class="section-heading">
-                <h3>Score-rondes</h3>
+                <h3 id="scoreRoundsTitle">Score-rondes</h3>
                 <button class="text-button" id="progressPdfButton" type="button">PDF downloaden</button>
               </div>
               <div class="filter-bar single-filter">
@@ -3179,14 +3179,14 @@ dialog .primary-action::after {
               </section>
 
               <section class="section-block" data-trainer-only>
-                <h3>Training</h3>
-                <p class="notice">Voegt de beste score per schutter toe aan de hi-score geschiedenis en wist de losse trainingsrondes.</p>
+                <h3 id="trainingResetTitle">Training</h3>
+                <p class="notice" id="trainingResetNotice">Voegt de beste score per schutter toe aan de hi-score geschiedenis en wist de losse trainingsrondes.</p>
                 <button class="secondary-action danger-action full-width" id="resetTrainingButton" type="button">Nieuwe training starten</button>
               </section>
 
               <section class="section-block" data-trainer-only data-internal-competition-only>
                 <h3>Interne competitie reset</h3>
-                <p class="notice">Wist alle scores, rondes, hi-scores en trainingsresultaten. De ingevoerde schutters blijven staan.</p>
+                <p class="notice">Wist alle scores, rondes, hi-scores en resultaten. De ingevoerde schutters blijven staan.</p>
                 <button class="secondary-action danger-action full-width" id="resetInternalCompetitionButton" type="button">Alle scores resetten</button>
               </section>
 
@@ -3609,6 +3609,73 @@ function isInternalCompetitionClub() {
   return normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
 }
 
+function getModeCopy(clubId = currentClubId) {
+  const isCompetition = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  return isCompetition
+    ? {
+        appName: "SVBB competitie",
+        loginTitle: "SVBB competitie",
+        eyebrow: "Competitie",
+        homeTitle: "Interne competitie",
+        homeSubtitle: "Competitie en onderlinge vergelijking binnen de vereniging.",
+        allSessions: "Alle competities",
+        latestSession: "Laatste competitie",
+        sessionSelectLabel: "Competitie selectie",
+        rankingScopeNotice:
+          "Kies alle competities voor de doorlopende ranglijst, of laatste competitie voor alleen de huidige of laatst opgeslagen competitie.",
+        savedLive: "laatste competitie live",
+        savedStored: "laatste opgeslagen competitie",
+        savedCount: "competities bewaard",
+        currentSession: "huidige competitie",
+        highScoreNotice: "Opgeslagen beste scores per competitie. Trainers kunnen losse hi-scores verwijderen.",
+        highScoreEmpty: "Nog geen hi-scores opgeslagen. Start een nieuwe competitie om de beste scores te bewaren.",
+        progressTitle: "Competitierondes",
+        progressText: "Automatisch gevuld vanuit opgeslagen scores.",
+        scoreRoundsTitle: "Score-rondes",
+        resetTitle: "Competitie",
+        resetNotice: "Voegt de beste score per schutter toe aan de hi-score geschiedenis en wist de losse competitierondes.",
+        resetButton: "Nieuwe competitie starten",
+        resetEmpty: "Geen competitiescores om te wissen",
+        resetConfirm:
+          "Nieuwe competitie starten? Per schutter wordt het competitiegemiddelde bewaard voor de ranglijst. De beste losse score blijft in de hi-score geschiedenis. Alle losse competitierondes worden gewist.",
+        resetDone: "Nieuwe competitie gestart",
+        pdfTitle: "Competitierondes",
+        pdfFilePrefix: "competitierondes",
+        donationText: "Donatie score-app - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk",
+      }
+    : {
+        appName: "DSR score",
+        loginTitle: "DSR score",
+        eyebrow: "Training",
+        homeTitle: "Training DSR",
+        homeSubtitle: "Training en onderlinge vergelijking binnen de vereniging.",
+        allSessions: "Alle trainingen",
+        latestSession: "Laatste training",
+        sessionSelectLabel: "Training selectie",
+        rankingScopeNotice:
+          "Kies alle trainingen voor de doorlopende ranglijst, of laatste training voor alleen de huidige of laatst opgeslagen training.",
+        savedLive: "laatste training live",
+        savedStored: "laatste opgeslagen training",
+        savedCount: "trainingen bewaard",
+        currentSession: "huidige training",
+        highScoreNotice: "Opgeslagen beste scores per training. Trainers kunnen losse hi-scores verwijderen.",
+        highScoreEmpty: "Nog geen hi-scores opgeslagen. Start een nieuwe training om de beste scores te bewaren.",
+        progressTitle: "Oefenrondes",
+        progressText: "Automatisch gevuld vanuit opgeslagen scores.",
+        scoreRoundsTitle: "Score-rondes",
+        resetTitle: "Training",
+        resetNotice: "Voegt de beste score per schutter toe aan de hi-score geschiedenis en wist de losse trainingsrondes.",
+        resetButton: "Nieuwe training starten",
+        resetEmpty: "Geen trainingsscores om te wissen",
+        resetConfirm:
+          "Nieuwe training starten? Per schutter wordt het trainingsgemiddelde bewaard voor de ranglijst. De beste losse score blijft in de hi-score geschiedenis. Alle losse trainingsscores worden gewist.",
+        resetDone: "Nieuwe training gestart",
+        pdfTitle: "DSR trainingsrondes",
+        pdfFilePrefix: "dsr-trainingsrondes",
+        donationText: "Donatie DSR score - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk",
+      };
+}
+
 function getClubLogoSrc(clubId = currentClubId) {
   return normalizeClubCode(clubId) === "INTERNE-COMPETITIE" ? BRAND_LOGOS.internalCompetition : BRAND_LOGOS.default;
 }
@@ -3626,6 +3693,27 @@ function updateBrandLogos(clubId = currentClubId) {
     beamerLogo.hidden = !isInternal;
     beamerLogo.src = BRAND_LOGOS.internalCompetition;
   }
+}
+
+function applyModeCopy(clubId = currentClubId) {
+  const copy = getModeCopy(clubId);
+  document.title = copy.appName;
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", copy.appName);
+  $("#loginTitle").textContent = copy.loginTitle;
+  $("#homeEyebrow").textContent = copy.eyebrow;
+  $("#home-title").textContent = copy.homeTitle;
+  $("#homeSubtitle").textContent = copy.homeSubtitle;
+  $("#rankScope").setAttribute("aria-label", copy.sessionSelectLabel);
+  $("#rankScope").querySelector('option[value="all"]').textContent = copy.allSessions;
+  $("#rankScope").querySelector('option[value="latest"]').textContent = copy.latestSession;
+  $("#rankingScopeNotice").textContent = copy.rankingScopeNotice;
+  $("#highScoreNotice").textContent = copy.highScoreNotice;
+  $("#progressIntroTitle").textContent = copy.progressTitle;
+  $("#progressIntroText").textContent = copy.progressText;
+  $("#scoreRoundsTitle").textContent = copy.scoreRoundsTitle;
+  $("#trainingResetTitle").textContent = copy.resetTitle;
+  $("#trainingResetNotice").textContent = copy.resetNotice;
+  $("#resetTrainingButton").textContent = copy.resetButton;
 }
 
 function getSignatureCanvas() {
@@ -4259,6 +4347,7 @@ function render() {
 function renderClubIdentity() {
   const title = $("#appClubTitle");
   if (title) title.textContent = getClubLabel();
+  applyModeCopy(currentClubId);
 }
 
 function renderCounters() {
@@ -4887,14 +4976,15 @@ function renderRankingItems(items, compact) {
 }
 
 function formatRankingMeta(item) {
+  const copy = getModeCopy();
   const saved =
     item.rankingScope === "latest-current"
-      ? "laatste training live"
+      ? copy.savedLive
       : item.rankingScope === "latest-stored"
-        ? "laatste opgeslagen training"
+        ? copy.savedStored
         : item.savedTrainingCount
-          ? `${item.savedTrainingCount} trainingen bewaard`
-          : "huidige training";
+          ? `${item.savedTrainingCount} ${copy.savedCount}`
+          : copy.currentSession;
   const current = item.currentEntries ? ` · nu ${item.currentEntries} rondes` : "";
   return `${item.discipline} · ${item.shooter.level} · ${saved}${current} · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten`;
 }
@@ -4940,7 +5030,7 @@ function renderHighScoreHistory() {
     .sort((a, b) => String(b.bestSavedAt || b.createdAt).localeCompare(String(a.bestSavedAt || a.createdAt)));
 
   if (!scores.length) {
-    history.innerHTML = `<div class="empty">Nog geen hi-scores opgeslagen. Start een nieuwe training om de beste scores te bewaren.</div>`;
+    history.innerHTML = `<div class="empty">${getModeCopy().highScoreEmpty}</div>`;
     return;
   }
 
@@ -5490,6 +5580,7 @@ function pdfText(value) {
 }
 
 function createProgressPdf(data) {
+  const copy = getModeCopy();
   const pageWidth = 842;
   const pageHeight = 595;
   const margin = 36;
@@ -5516,7 +5607,7 @@ function createProgressPdf(data) {
     cmd("0.96 0.77 0.09 rg");
     rect(0, pageHeight - 76, pageWidth, 76, true);
     cmd("0.05 0.05 0.055 rg");
-    text("DSR trainingsrondes", margin, pageHeight - 36, 22, "F2");
+    text(copy.pdfTitle, margin, pageHeight - 36, 22, "F2");
     text(`Discipline: ${data.discipline}`, margin, pageHeight - 58, 10, "F2");
     text(
       new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(data.generatedAt),
@@ -5622,7 +5713,7 @@ function downloadProgressPdf() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `dsr-trainingsrondes-${new Date().toISOString().slice(0, 10)}.pdf`;
+  link.download = `${getModeCopy().pdfFilePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`;
   link.click();
   URL.revokeObjectURL(url);
   showToast("PDF gedownload");
@@ -5676,12 +5767,13 @@ function updateStoredTrainingResults() {
 
 function resetTrainingScores() {
   if (!requireTrainer()) return;
+  const copy = getModeCopy();
   if (!state.scores.length && !state.progressEntries.length) {
-    showToast("Geen trainingsscores om te wissen");
+    showToast(copy.resetEmpty);
     return;
   }
 
-  const confirmed = window.confirm("Nieuwe training starten? Per schutter wordt het trainingsgemiddelde bewaard voor de ranglijst. De beste losse score blijft in de hi-score geschiedenis. Alle losse trainingsscores worden gewist.");
+  const confirmed = window.confirm(copy.resetConfirm);
   if (!confirmed) return;
 
   updateStoredBestScores();
@@ -5691,7 +5783,7 @@ function resetTrainingScores() {
   scoreDraft = createEmptyDraft();
   markDirty();
   render();
-  showToast("Nieuwe training gestart");
+  showToast(copy.resetDone);
 }
 
 function resetInternalCompetitionScores() {
@@ -5712,7 +5804,7 @@ function resetInternalCompetitionScores() {
   }
 
   const confirmed = window.confirm(
-    "Alle scores van Interne competitie resetten? Schutters blijven staan, maar scores, rondes, hi-scores en trainingsresultaten worden gewist.",
+    "Alle scores van Interne competitie resetten? Schutters blijven staan, maar scores, rondes, hi-scores en resultaten worden gewist.",
   );
   if (!confirmed) return;
 
@@ -6076,6 +6168,7 @@ function showLoginGate() {
   const preferredClub = normalizeClubCode(currentClubId || localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
   $("#loginClub").value = CLUB_OPTIONS.some((option) => option.id === preferredClub) ? preferredClub : DEFAULT_CLUB_CODE;
   updateBrandLogos($("#loginClub").value);
+  applyModeCopy($("#loginClub").value);
   $("#loginPassword").value = "";
   $("#loginError").textContent = "";
   $("#loginPassword").focus();
@@ -6103,6 +6196,7 @@ $("#loginForm").addEventListener("submit", async (event) => {
 
 $("#loginClub").addEventListener("change", (event) => {
   updateBrandLogos(event.target.value);
+  applyModeCopy(event.target.value);
 });
 
 $("#logoutButton").addEventListener("click", () => {
@@ -6122,7 +6216,7 @@ window.addEventListener("focus", refreshWhenVisible);
 window.addEventListener("online", refreshWhenVisible);
 
 $("#copyIbanButton").addEventListener("click", async () => {
-  const donationText = "Donatie DSR score - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk";
+  const donationText = getModeCopy().donationText;
   try {
     await navigator.clipboard.writeText(donationText);
     showToast("IBAN gekopieerd");
