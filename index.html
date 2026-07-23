@@ -3167,7 +3167,7 @@ dialog .primary-action::after {
                 <small id="longCourseSummary" class="score-max-summary" hidden></small>
               </div>
               <label id="scorePenaltyPointsField">
-                <span>Strafpunten</span>
+                <span>Strafpunten (optioneel · 0 = geen)</span>
                 <input id="scorePenaltyPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
                 <div class="internal-point-stepper penalty-stepper" aria-label="Strafpunten snel invoeren">
                   <button type="button" data-internal-step="penaltyPoints" data-step-value="-10">-10</button>
@@ -5273,9 +5273,11 @@ function renderScores() {
   $("#scoreMaxPoints").textContent = formatNumber(internalStage.maxPoints, 0);
   $("#scoreRawPoints").max = internalStage.maxPoints;
   $("#scoreRawPoints").readOnly = internalMode && precisionStage;
-  $("#scoreTime").required = internalMode && !precisionStage;
-  $("#scoreRawPoints").required = internalMode;
-  $("#scorePenaltyPoints").required = internalMode && !precisionStage;
+  // Geen HTML5 `required`: de score-invoer gaat via de knoppen en strafpunten
+  // is meestal 0. De echte controle (geldige tijd, maximum punten) gebeurt in JS.
+  $("#scoreTime").required = false;
+  $("#scoreRawPoints").required = false;
+  $("#scorePenaltyPoints").required = false;
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
   $("#longCourseSummary").textContent = `Invoer: ${formatLongCourseHitsCompact()} · totaal ${formatNumber(getLongCourseHitsTotal(), 0)}`;
 
