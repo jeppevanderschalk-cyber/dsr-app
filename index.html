@@ -6052,6 +6052,7 @@ function renderInternalScoreProgress() {
               <strong>${escapeHtml(item.shooter.name)}</strong>
               <small>${item.status} · ${item.completedStages}/${item.totalStages} onderdelen · eindscore ${formatNumber(item.overallScore, 2)}</small>
             </div>
+            <button class="mini-action" type="button" data-scorecard="${item.shooter.id}">Scorekaart</button>
           </header>
           <div class="score-round-list">
             ${item.stageResults
@@ -7327,6 +7328,233 @@ function downloadProgressPdf() {
   showToast("PDF gedownload");
 }
 
+// --- Getekende scorekaart (PDF met ingesloten handtekening) ---
+
+function pdfBytesFromString(str) {
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xff;
+  return bytes;
+}
+
+function concatBytes(chunks) {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  });
+  return out;
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = String(dataUrl).split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function jpegDimensions(bytes) {
+  let offset = 2;
+  while (offset < bytes.length - 8) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = bytes[offset + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: (bytes[offset + 5] << 8) | bytes[offset + 6], width: (bytes[offset + 7] << 8) | bytes[offset + 8] };
+    }
+    offset += 2 + ((bytes[offset + 2] << 8) | bytes[offset + 3]);
+  }
+  return { width: 900, height: 300 };
+}
+
+function pdfSafe(value) {
+  return pdfText(
+    String(value ?? "")
+      .replace(/·/g, "-")
+      .replace(/÷/g, "/")
+      .replace(/×/g, "x")
+      .replace(/→/g, "->")
+      .replace(/—/g, "-")
+      .replace(/[’‘]/g, "'"),
+  );
+}
+
+function createScorecardPdf(data) {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 40;
+  const lines = [];
+  const cmd = (value) => lines.push(value);
+  const color = (r, g, b) => cmd(`${r} ${g} ${b} rg`);
+  const rect = (x, y, w, h, fill = true) => cmd(`${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${fill ? "f" : "S"}`);
+  const text = (value, x, y, size = 11, font = "F1") => cmd(`BT /${font} ${size} Tf ${x.toFixed(2)} ${y.toFixed(2)} Td (${pdfSafe(value)}) Tj ET`);
+
+  color(0.05, 0.05, 0.055);
+  rect(0, 0, pageWidth, pageHeight);
+  color(0.96, 0.77, 0.09);
+  rect(0, pageHeight - 92, pageWidth, 92);
+  color(0.05, 0.05, 0.055);
+  text(data.title, margin, pageHeight - 48, 22, "F2");
+  text(data.club, margin, pageHeight - 74, 12, "F2");
+  text(data.generatedText, pageWidth - margin - 190, pageHeight - 74, 10, "F2");
+
+  let y = pageHeight - 92 - 42;
+  color(0.96, 0.96, 0.96);
+  text(data.shooterName, margin, y, 20, "F2");
+  y -= 22;
+  color(0.62, 0.63, 0.66);
+  text(data.shooterMeta, margin, y, 10, "F1");
+  y -= 34;
+
+  color(0.11, 0.11, 0.13);
+  rect(margin, y - 30, pageWidth - margin * 2, 42);
+  color(0.96, 0.77, 0.09);
+  text("Eindscore", margin + 14, y - 4, 10, "F2");
+  color(0.96, 0.96, 0.96);
+  text(data.endScoreText, margin + 120, y - 6, 14, "F2");
+  y -= 58;
+
+  color(0.96, 0.96, 0.96);
+  text("Onderdelen", margin, y, 12, "F2");
+  y -= 22;
+  data.stages.forEach((stage) => {
+    color(0.1, 0.1, 0.12);
+    rect(margin, y - 36, pageWidth - margin * 2, 44);
+    color(0.96, 0.96, 0.96);
+    text(stage.label, margin + 14, y - 6, 11, "F2");
+    color(0.96, 0.77, 0.09);
+    text(`${formatNumber(stage.percentage, 2)}%`, pageWidth - margin - 74, y - 6, 12, "F2");
+    color(0.62, 0.63, 0.66);
+    text(stage.detail, margin + 14, y - 24, 8.5, "F1");
+    y -= 54;
+  });
+
+  y -= 8;
+  color(0.96, 0.96, 0.96);
+  text("Handtekeningen voor akkoord", margin, y, 12, "F2");
+  y -= 16;
+
+  const images = [];
+  data.stages.forEach((stage) => {
+    if (!stage.signature || !stage.signature.startsWith("data:image/jpeg")) {
+      color(0.62, 0.63, 0.66);
+      y -= 18;
+      text(`${stage.label} - ${stage.signature ? "getekend" : "geen handtekening"}`, margin, y, 9, "F1");
+      return;
+    }
+    const bytes = dataUrlToBytes(stage.signature);
+    const dim = jpegDimensions(bytes);
+    const drawW = 220;
+    const drawH = Math.max(44, Math.min(150, Math.round(drawW * (dim.height / dim.width || 0.33))));
+    const imageIndex = images.length + 1;
+    images.push({ name: `Im${imageIndex}`, bytes, width: dim.width, height: dim.height });
+    y -= drawH + 26;
+    color(0.62, 0.63, 0.66);
+    text(`${stage.label} - getekend ${stage.signedText}`, margin, y + drawH + 8, 9, "F1");
+    cmd("q");
+    cmd(`${drawW} 0 0 ${drawH} ${margin.toFixed(2)} ${y.toFixed(2)} cm /Im${imageIndex} Do`);
+    cmd("Q");
+  });
+
+  color(0.5, 0.5, 0.53);
+  text(data.footer, margin, margin, 8, "F1");
+
+  const objects = [];
+  const addObject = (bytes) => {
+    objects.push(bytes);
+    return objects.length;
+  };
+  const fontRegular = addObject(pdfBytesFromString("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"));
+  const fontBold = addObject(pdfBytesFromString("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>"));
+  const imageIds = images.map((image) =>
+    addObject(
+      concatBytes([
+        pdfBytesFromString(
+          `<< /Type /XObject /Subtype /Image /Width ${image.width} /Height ${image.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${image.bytes.length} >>\nstream\n`,
+        ),
+        image.bytes,
+        pdfBytesFromString("\nendstream"),
+      ]),
+    ),
+  );
+  const contentBytes = pdfBytesFromString(lines.join("\n"));
+  const contentId = addObject(
+    concatBytes([pdfBytesFromString(`<< /Length ${contentBytes.length} >>\nstream\n`), contentBytes, pdfBytesFromString("\nendstream")]),
+  );
+  const xobjectDict = images.map((image, index) => `/${image.name} ${imageIds[index]} 0 R`).join(" ");
+  const pageId = objects.length + 1;
+  const pagesId = objects.length + 2;
+  addObject(
+    pdfBytesFromString(
+      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >>${images.length ? ` /XObject << ${xobjectDict} >>` : ""} >> /Contents ${contentId} 0 R >>`,
+    ),
+  );
+  addObject(pdfBytesFromString(`<< /Type /Pages /Kids [${pageId} 0 R] /Count 1 >>`));
+  const catalogId = addObject(pdfBytesFromString(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`));
+
+  const parts = [pdfBytesFromString("%PDF-1.4\n")];
+  let offset = parts[0].length;
+  const offsets = [];
+  objects.forEach((body, index) => {
+    offsets.push(offset);
+    const header = pdfBytesFromString(`${index + 1} 0 obj\n`);
+    const footer = pdfBytesFromString("\nendobj\n");
+    parts.push(header, body, footer);
+    offset += header.length + body.length + footer.length;
+  });
+  const xrefStart = offset;
+  let xref = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.forEach((value) => {
+    xref += `${String(value).padStart(10, "0")} 00000 n \n`;
+  });
+  xref += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  parts.push(pdfBytesFromString(xref));
+  return new Blob([concatBytes(parts)], { type: "application/pdf" });
+}
+
+function downloadInternalScorecardPdf(shooterId) {
+  const item = getInternalCompetitionRanking({ completeOnly: false }).find((entry) => entry.shooter.id === shooterId);
+  if (!item || !item.completedStages) {
+    showToast("Nog geen onderdelen om te exporteren");
+    return;
+  }
+  const stages = item.stageResults
+    .filter((result) => result.completed)
+    .map((result) => ({
+      label: result.stage.label,
+      percentage: result.percentage,
+      detail: formatInternalStageResult(result),
+      signature: result.score?.signatureDataUrl || "",
+      signedText: result.score?.signedAt
+        ? formatDateTime(result.score.signedAt)
+        : result.score?.createdAt
+          ? formatDateTime(result.score.createdAt)
+          : "-",
+    }));
+  const data = {
+    title: "Getekende scorekaart",
+    club: getClubLabel(),
+    generatedText: new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium", timeStyle: "short" }).format(new Date()),
+    shooterName: item.shooter.name,
+    shooterMeta: `${getShooterLevelLabel(item.shooter)} · ${item.completedStages}/${item.totalStages} onderdelen · status ${item.status}`,
+    endScoreText: `${formatNumber(item.overallScore, 2)} / 100  (kort ${formatNumber(item.precisionContribution, 1)}/40 · lang ${formatNumber(item.dynamicContribution, 1)}/60)`,
+    stages,
+    footer: `Formule: korte baan = netto / ${getInternalStageMaxPoints("stage-short")} x 40 · lange baan = (precisie x 70% + snelheid x 30%) x 60% · optic x 0,7`,
+  };
+  const blob = createScorecardPdf(data);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `scorekaart-${(item.shooter.name || "schutter").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Scorekaart gedownload");
+}
+
 function updateStoredBestScores() {
   const bestByShooter = new Map();
   state.scores.forEach((score) => {
@@ -7797,6 +8025,12 @@ document.addEventListener("click", (event) => {
   markDirty();
   render();
   showToast("Schutter verwijderd");
+});
+
+document.addEventListener("click", (event) => {
+  const scorecardButton = event.target.closest("[data-scorecard]");
+  if (!scorecardButton) return;
+  downloadInternalScorecardPdf(scorecardButton.dataset.scorecard);
 });
 
 document.addEventListener("click", (event) => {
