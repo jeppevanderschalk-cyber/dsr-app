@@ -1433,6 +1433,48 @@ select:focus {
   box-shadow: var(--shadow-card);
 }
 
+.timer-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 12px;
+  align-items: end;
+}
+
+.timer-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--tile);
+}
+
+.timer-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.timer-toggle strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.timer-toggle small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.timer-toggle input {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
 .timer-face {
   display: grid;
   justify-items: center;
@@ -3430,6 +3472,20 @@ dialog .primary-action::after {
               <select id="timerShooter"></select>
             </label>
 
+            <div class="timer-settings">
+              <label class="timer-toggle">
+                <span>
+                  <strong>Willekeurige start</strong>
+                  <small>Starttoon klinkt 1,5–4 sec na Start (IPSC)</small>
+                </span>
+                <input id="timerRandomStart" type="checkbox" />
+              </label>
+              <label>
+                <span>Par-tijd (sec)</span>
+                <input id="timerPar" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Geen" />
+              </label>
+            </div>
+
             <div class="timer-face">
               <small id="timerStatus">Klaar</small>
               <strong id="timerDisplay">0,00</strong>
@@ -3909,6 +3965,8 @@ const defaultData = {
   internalStageMaxPoints: {},
   pointLabels: {},
   changeLog: [],
+  timerRandomStart: true,
+  timerPar: "",
   scores: [],
   bestScores: [],
   trainingResults: [],
@@ -4093,6 +4151,8 @@ function mergeData(base, saved) {
     .filter((penalty) => penalty.id !== "pen-late" && penalty.name !== "Late start")
     .map((penalty) => (penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty));
   const maxRoundTime = Number(saved.maxRoundTime) > 0 ? String(saved.maxRoundTime) : "";
+  const timerRandomStart = saved.timerRandomStart !== false;
+  const timerPar = Number(saved.timerPar) > 0 ? String(saved.timerPar) : "";
   const internalStageMaxPoints = normalizeInternalStageMaxPoints(saved.internalStageMaxPoints);
   const changeLog = Array.isArray(saved.changeLog)
     ? saved.changeLog
@@ -4127,6 +4187,8 @@ function mergeData(base, saved) {
     points,
     penalties,
     maxRoundTime,
+    timerRandomStart,
+    timerPar,
     internalStageMaxPoints,
     pointLabels,
     changeLog,
@@ -4694,6 +4756,10 @@ function createShotTimerState() {
     stream: null,
     animationId: 0,
     lastTriggerAt: 0,
+    armed: false,
+    startDelayTimer: 0,
+    parTimer: 0,
+    parTime: 0,
   };
 }
 
@@ -5646,6 +5712,14 @@ function renderTimer() {
   $("#timerStartButton").disabled = shotTimer.running || !shotTimer.shooterId;
   $("#timerStopButton").disabled = !shotTimer.running;
   $("#timerApplyButton").disabled = shotTimer.running || !lastShot || !shotTimer.shooterId;
+  const randomStartEl = $("#timerRandomStart");
+  if (randomStartEl && document.activeElement !== randomStartEl && !shotTimer.running) {
+    randomStartEl.checked = state.timerRandomStart !== false;
+  }
+  const parEl = $("#timerPar");
+  if (parEl && document.activeElement !== parEl && !shotTimer.running) {
+    parEl.value = state.timerPar || "";
+  }
   $("#timerShotList").innerHTML = shotTimer.shots.length
     ? shotTimer.shots
         .map(
@@ -5686,28 +5760,79 @@ async function startShotTimer() {
     source.connect(analyser);
     if (audioContext.state === "suspended") await audioContext.resume();
 
+    const useRandomStart = state.timerRandomStart !== false;
+    const parTime = Math.max(0, parseDecimal(state.timerPar) || 0);
+    const delayMs = useRandomStart ? 1500 + Math.random() * 2500 : 300;
+
     shotTimer = {
       ...shotTimer,
       running: true,
-      startTime: performance.now(),
+      armed: true,
+      startTime: 0,
       elapsed: 0,
       shots: [],
       peak: 0,
-      status: "Luistert",
+      status: useRandomStart ? "Standby…" : "Klaarzetten…",
       audioContext,
       analyser,
       source,
       stream,
-      lastTriggerAt: performance.now() + 1250,
+      lastTriggerAt: 0,
+      parTime,
     };
     renderTimer();
-    playStartBeep(audioContext);
-    listenForShots();
+
+    shotTimer.startDelayTimer = window.setTimeout(() => {
+      if (!shotTimer.running) return;
+      const startedAt = performance.now();
+      shotTimer.armed = false;
+      shotTimer.startTime = startedAt;
+      shotTimer.lastTriggerAt = startedAt + 320; // negeer de starttoon zelf
+      shotTimer.status = "Luistert";
+      playStartBeep(audioContext);
+      if (parTime > 0) {
+        shotTimer.parTimer = window.setTimeout(() => {
+          if (!shotTimer.running) return;
+          playParBeep(audioContext);
+          shotTimer.status = `Par ${formatNumber(parTime, 2)} sec`;
+          if ("vibrate" in navigator) navigator.vibrate([220, 60, 220]);
+          renderTimer();
+        }, parTime * 1000);
+      }
+      renderTimer();
+      listenForShots();
+    }, delayMs);
   } catch {
     shotTimer.status = "Microfoon niet beschikbaar";
     renderTimer();
     showToast("Microfoon kon niet worden gestart");
   }
+}
+
+function playParBeep(audioContext) {
+  const start = audioContext.currentTime;
+  const stop = start + 0.5;
+  const master = audioContext.createGain();
+  master.gain.setValueAtTime(0.0001, start);
+  master.gain.exponentialRampToValueAtTime(1.6, start + 0.016);
+  master.gain.setValueAtTime(1.6, start + 0.34);
+  master.gain.exponentialRampToValueAtTime(0.0001, stop);
+  master.connect(audioContext.destination);
+
+  [
+    { type: "square", frequency: 1650, gain: 0.9 },
+    { type: "sine", frequency: 1100, gain: 0.5 },
+  ].forEach((tone) => {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = tone.type;
+    oscillator.frequency.setValueAtTime(tone.frequency, start);
+    gain.gain.setValueAtTime(tone.gain, start);
+    oscillator.connect(gain);
+    gain.connect(master);
+    oscillator.start(start);
+    oscillator.stop(stop);
+  });
 }
 
 function playStartBeep(audioContext) {
@@ -5775,6 +5900,11 @@ function listenForShots() {
 
 async function stopShotTimer({ keepShots = true, silent = false } = {}) {
   if (shotTimer.animationId) cancelAnimationFrame(shotTimer.animationId);
+  if (shotTimer.startDelayTimer) clearTimeout(shotTimer.startDelayTimer);
+  if (shotTimer.parTimer) clearTimeout(shotTimer.parTimer);
+  shotTimer.startDelayTimer = 0;
+  shotTimer.parTimer = 0;
+  shotTimer.armed = false;
   shotTimer.stream?.getTracks().forEach((track) => track.stop());
   if (shotTimer.audioContext?.state !== "closed") {
     await shotTimer.audioContext?.close().catch(() => {});
@@ -7591,6 +7721,22 @@ $("#timerStartButton").addEventListener("click", startShotTimer);
 $("#timerStopButton").addEventListener("click", () => stopShotTimer());
 $("#timerResetButton").addEventListener("click", resetShotTimer);
 $("#timerApplyButton").addEventListener("click", applyTimerToScoreForm);
+$("#timerRandomStart").addEventListener("change", (event) => {
+  if (!requireTrainer()) {
+    event.target.checked = state.timerRandomStart !== false;
+    return;
+  }
+  state.timerRandomStart = event.target.checked;
+  markDirty();
+  saveState();
+});
+$("#timerPar").addEventListener("input", (event) => {
+  if (!isTrainer()) return;
+  const value = parseDecimal(event.target.value);
+  state.timerPar = value > 0 ? String(value) : "";
+  markDirty();
+  saveState();
+});
 $("#clearSignatureButton").addEventListener("click", clearScoreSignature);
 
 $("#maxTimeButton").addEventListener("click", () => {
