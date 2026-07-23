@@ -3588,13 +3588,13 @@ const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
-const masterCardMaxShots = 40;
+const masterCardMaxShots = 10;
 const INTERNAL_COMPETITION_CONFIG = {
   competitionId: "internal-competition-v1",
   precisionWeight: 40,
   dynamicWeight: 60,
   stages: [
-    { id: "stage-short", label: "Korte baan - kaart 1 en 2 samen", scoringType: "precision", maxPoints: 400 },
+    { id: "stage-short", label: "Korte baan - stage 1 en 2 samen", scoringType: "precision", maxPoints: 100 },
     { id: "stage-3", label: "Kermis-schietsterren", scoringType: "hitfactor", maxPoints: 500, weight: 25 },
     { id: "stage-4", label: "Ballonnen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
     { id: "stage-5", label: "Cactussen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
@@ -4334,7 +4334,7 @@ function updateMasterCardScore(value) {
   if (stage.scoringType !== "precision") return;
   const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits : [];
   if (hits.length >= masterCardMaxShots) {
-    showToast("Maximaal 40 schoten voor kaart 1 en 2 samen");
+    showToast("Maximaal 10 schoten voor stage 1 en 2 samen");
     return;
   }
   const nextHits = [...hits, value];
@@ -4363,10 +4363,11 @@ function clearMasterCardScore() {
 function renderMasterCardSummary(calc) {
   const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits : [];
   const total = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
+  const maxPoints = getInternalStage(scoreDraft.stageId).maxPoints;
   const contribution = `${formatNumber(calc.precisionContribution, 2)} / ${formatNumber(getPrecisionStageWeight(), 0)}`;
   if (!hits.length) {
     return total
-      ? `Handmatig totaal: ${formatNumber(total, 0)} / 400 · korte baan ${contribution}`
+      ? `Handmatig totaal: ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`
       : `Nog geen ringen geteld · korte baan ${contribution}`;
   }
 
@@ -4377,7 +4378,7 @@ function renderMasterCardSummary(calc) {
     })
     .filter(Boolean)
     .join(" · ");
-  return `${hits.length}/${masterCardMaxShots} schoten · ${counts} · totaal ${formatNumber(total, 0)} / 400 · korte baan ${contribution}`;
+  return `${hits.length}/${masterCardMaxShots} schoten · ${counts} · totaal ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`;
 }
 
 function getScoreStatusMeta(status) {
@@ -4417,7 +4418,8 @@ function calculateScore(input) {
 function calculateInternalCompetitionScore(input) {
   const stage = getInternalStage(input.stageId);
   const status = scoreStatusOptions[input.status] ? input.status : "normal";
-  const rawPoints = Math.max(0, parseDecimal(input.rawPoints) || 0);
+  const inputRawPoints = Math.max(0, parseDecimal(input.rawPoints) || 0);
+  const rawPoints = stage.scoringType === "precision" ? Math.min(stage.maxPoints, inputRawPoints) : inputRawPoints;
   const penaltyPoints = stage.scoringType === "hitfactor" ? Math.max(0, parseDecimal(input.penaltyPoints) || 0) : 0;
   const time = stage.scoringType === "hitfactor" ? Math.max(0, parseDecimal(input.time) || 0) : 0;
   const blocksScore = getScoreStatusMeta(status).blocksScore;
@@ -4537,15 +4539,16 @@ function getInternalCompetitionRanking(filters = {}) {
       const key = `${score.shooterId}:${canonicalStageId}`;
       const current = scoresByShooterStage.get(key);
       if (canonicalStageId === "stage-short" && current && score.stageId !== "stage-short") {
-        const combinedNet = Math.min(400, (current.net || 0) + (score.net || 0));
+        const shortStage = getInternalStage("stage-short");
+        const combinedNet = Math.min(shortStage.maxPoints, (current.net || 0) + (score.net || 0));
         scoresByShooterStage.set(key, {
           ...current,
           id: current.id,
           stageId: "stage-short",
           rawPoints: combinedNet,
-          maxPoints: 400,
+          maxPoints: shortStage.maxPoints,
           net: combinedNet,
-          percentage: (combinedNet / 400) * 100,
+          percentage: (combinedNet / shortStage.maxPoints) * 100,
           createdAt: String(score.createdAt).localeCompare(String(current.createdAt)) > 0 ? score.createdAt : current.createdAt,
           updatedAt: String(score.updatedAt || score.createdAt).localeCompare(String(current.updatedAt || current.createdAt)) > 0 ? score.updatedAt || score.createdAt : current.updatedAt,
         });
@@ -6593,16 +6596,17 @@ $("#scoreForm").addEventListener("input", (event) => {
     }
   }
   if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
-  if (event.target.id === "scoreStage") {
-    scoreDraft.stageId = event.target.value;
-    const stage = getInternalStage(scoreDraft.stageId);
-    const rawPoints = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
-    scoreDraft.rawPoints = String(Math.min(stage.maxPoints, rawPoints));
-    if (stage.scoringType === "precision") {
-      scoreDraft.time = "";
-      scoreDraft.penaltyPoints = "";
+    if (event.target.id === "scoreStage") {
+      scoreDraft.stageId = event.target.value;
+      const stage = getInternalStage(scoreDraft.stageId);
+      const rawPoints = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
+      scoreDraft.rawPoints = String(Math.min(stage.maxPoints, rawPoints));
+      if (stage.scoringType === "precision") {
+        scoreDraft.time = "";
+        scoreDraft.penaltyPoints = "";
+        scoreDraft.cardHits = [];
+      }
     }
-  }
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
   if (event.target.id === "scoreRawPoints") scoreDraft.rawPoints = event.target.value;
