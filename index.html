@@ -46,6 +46,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   min-height: 100%;
   background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
@@ -753,6 +757,39 @@ small {
 
 .rank-score small {
   display: none;
+}
+
+.stage-breakdown {
+  margin-top: 10px;
+}
+
+.stage-breakdown summary {
+  width: fit-content;
+  color: var(--yellow);
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.stage-breakdown div {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.stage-breakdown span,
+.stage-breakdown strong {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.stage-breakdown span {
+  color: var(--ink);
+  font-weight: 900;
 }
 
 .rank-progress {
@@ -2863,7 +2900,7 @@ dialog .primary-action::after {
                 <span>Schutter</span>
                 <select id="scoreShooter"></select>
               </label>
-              <label>
+              <label id="scoreDisciplineField">
                 <span>Discipline</span>
                 <select id="scoreDiscipline">
                   <option value="Standaard">Standaard</option>
@@ -2871,19 +2908,38 @@ dialog .primary-action::after {
                   <option value="Duo-Duo">Duo-Duo</option>
                 </select>
               </label>
+              <label id="scoreStageField" hidden>
+                <span>Stage</span>
+                <select id="scoreStage"></select>
+              </label>
+            </div>
+
+            <div class="field-grid internal-score-grid" id="internalScoreFields" hidden>
+              <label>
+                <span id="scoreRawPointsLabel">Behaalde punten</span>
+                <input id="scoreRawPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+              </label>
+              <label>
+                <span>Maximale punten</span>
+                <input id="scoreMaxPoints" type="number" readonly />
+              </label>
+              <label id="scorePenaltyPointsField">
+                <span>Strafpunten</span>
+                <input id="scorePenaltyPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+              </label>
             </div>
 
             <div class="counter-grid" id="counterGrid"></div>
 
             <div class="field-grid">
-              <label>
+              <label id="scoreTimeField">
                 <span>Tijd</span>
                 <div class="time-input-row">
                   <input id="scoreTime" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0,00" />
                   <button class="mini-action max-time-button" id="maxTimeButton" type="button" disabled>Maximale tijd</button>
                 </div>
               </label>
-              <label>
+              <label id="scoreFlexField">
                 <span>Flexpunten</span>
                 <input id="scoreFlexPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
               </label>
@@ -2907,19 +2963,19 @@ dialog .primary-action::after {
             <section class="calc-panel" aria-label="Live berekening">
               <div class="target-rings dark-rings" aria-hidden="true"><i></i><i></i><i></i></div>
               <div>
-                <small>Trefferpunten</small>
+                <small id="calcHitsLabel">Trefferpunten</small>
                 <strong id="calcHits">0</strong>
               </div>
               <div>
-                <small>Strafpunten</small>
+                <small id="calcPenaltiesLabel">Strafpunten</small>
                 <strong id="calcPenalties">0</strong>
               </div>
               <div>
-                <small>Netto score</small>
+                <small id="calcNetLabel">Netto score</small>
                 <strong id="calcNet">0</strong>
               </div>
               <div>
-                <small>Hitfactor</small>
+                <small id="calcHitfactorLabel">Hitfactor</small>
                 <strong id="calcHitfactor">0.000</strong>
               </div>
             </section>
@@ -3431,6 +3487,20 @@ const counters = [
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
+const INTERNAL_COMPETITION_CONFIG = {
+  competitionId: "internal-competition-v1",
+  precisionWeight: 40,
+  dynamicWeight: 60,
+  stages: [
+    { id: "stage-1", label: "Korte baan - meesterkaart 1", scoringType: "precision", maxPoints: 200 },
+    { id: "stage-2", label: "Korte baan - meesterkaart 2", scoringType: "precision", maxPoints: 200 },
+    { id: "stage-3", label: "Kermis-schietsterren", scoringType: "hitfactor", maxPoints: 500, weight: 25 },
+    { id: "stage-4", label: "Ballonnen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
+    { id: "stage-5", label: "Cactussen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
+    { id: "stage-6", label: "Blikjes", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
+    { id: "stage-7", label: "Kaarten en ballon", scoringType: "hitfactor", maxPoints: 500, weight: 30 },
+  ],
+};
 const liveSyncIntervalMs = 5000;
 const scoreStatusOptions = {
   normal: { label: "Normaal", detail: "Score telt mee", blocksScore: false, reshootAvailable: false },
@@ -3505,6 +3575,14 @@ function mergeData(base, saved) {
         reshootAvailable: Boolean(score.reshootAvailable),
         round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
         discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+        competitionId: score.competitionId || (score.stageId ? INTERNAL_COMPETITION_CONFIG.competitionId : ""),
+        stageId: score.stageId || "",
+        scoringType: score.scoringType || "",
+        inputMode: score.inputMode || "",
+        rawPoints: Math.max(0, Number(score.rawPoints) || 0),
+        maxPoints: Math.max(0, Number(score.maxPoints) || 0),
+        percentage: Number(score.percentage) || 0,
+        legacy: Boolean(score.legacy || (normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE" && !score.stageId)),
         signatureDataUrl: typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
         signedAt: score.signedAt || "",
         agreementText: score.agreementText || "",
@@ -3618,11 +3696,11 @@ function getModeCopy(clubId = currentClubId) {
         eyebrow: "Competitie",
         homeTitle: "Interne competitie",
         homeSubtitle: "Competitie en onderlinge vergelijking binnen de vereniging.",
-        allSessions: "Alle competities",
-        latestSession: "Laatste competitie",
-        sessionSelectLabel: "Competitie selectie",
+        allSessions: "Alle schutters",
+        latestSession: "Alleen complete scores",
+        sessionSelectLabel: "Volledigheid filter",
         rankingScopeNotice:
-          "Kies alle competities voor de doorlopende ranglijst, of laatste competitie voor alleen de huidige of laatst opgeslagen competitie.",
+          "De interne competitie gebruikt een vaste eindscore: korte baan telt 40%, lange baan telt 60%. Ontbrekende stages tellen voorlopig als 0.",
         savedLive: "laatste competitie live",
         savedStored: "laatste opgeslagen competitie",
         savedCount: "competities bewaard",
@@ -3714,6 +3792,8 @@ function applyModeCopy(clubId = currentClubId) {
   $("#trainingResetTitle").textContent = copy.resetTitle;
   $("#trainingResetNotice").textContent = copy.resetNotice;
   $("#resetTrainingButton").textContent = copy.resetButton;
+  $("#rankDiscipline").hidden = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  $("#rankSort").hidden = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
 }
 
 function getSignatureCanvas() {
@@ -3996,6 +4076,9 @@ function createEmptyDraft() {
     discipline: defaultDiscipline,
     time: "",
     flexPoints: "",
+    stageId: INTERNAL_COMPETITION_CONFIG.stages[0].id,
+    rawPoints: "",
+    penaltyPoints: "",
     notes: "",
     status: "normal",
     editScoreId: "",
@@ -4066,6 +4149,27 @@ function getNextScoreRound(shooterId, excludeScoreId = "") {
   return progressRounds.find((round) => !usedRounds.has(round)) || progressRounds.at(-1) + 1;
 }
 
+function getInternalStage(stageId = scoreDraft.stageId) {
+  return INTERNAL_COMPETITION_CONFIG.stages.find((stage) => stage.id === stageId) || INTERNAL_COMPETITION_CONFIG.stages[0];
+}
+
+function isPrecisionStage(stageId = scoreDraft.stageId) {
+  return getInternalStage(stageId).scoringType === "precision";
+}
+
+function isDynamicStage(stageId = scoreDraft.stageId) {
+  return getInternalStage(stageId).scoringType === "hitfactor";
+}
+
+function getInternalCompetitionScores() {
+  return state.scores.filter(
+    (score) =>
+      score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId &&
+      score.stageId &&
+      !score.legacy,
+  );
+}
+
 function getScoreRoundEntries(discipline = "all") {
   const groupedIndex = new Map();
   return state.scores
@@ -4132,6 +4236,38 @@ function calculateScore(input) {
   const hitfactor = time > 0 ? net / time : 0;
 
   return { hitPoints, penaltyPoints, net, time: time || 0, hitfactor, flexPoints, status };
+}
+
+function calculateInternalCompetitionScore(input) {
+  const stage = getInternalStage(input.stageId);
+  const status = scoreStatusOptions[input.status] ? input.status : "normal";
+  const rawPoints = Math.max(0, parseDecimal(input.rawPoints) || 0);
+  const penaltyPoints = stage.scoringType === "hitfactor" ? Math.max(0, parseDecimal(input.penaltyPoints) || 0) : 0;
+  const time = stage.scoringType === "hitfactor" ? Math.max(0, parseDecimal(input.time) || 0) : 0;
+  const blocksScore = getScoreStatusMeta(status).blocksScore;
+  const net = blocksScore ? 0 : Math.max(0, rawPoints - penaltyPoints);
+  const hitfactor = stage.scoringType === "hitfactor" && time > 0 ? net / time : 0;
+  const percentage = stage.maxPoints > 0 ? (net / stage.maxPoints) * 100 : 0;
+  const precisionContribution =
+    stage.scoringType === "precision" ? (Math.min(100, percentage) / 100) * (INTERNAL_COMPETITION_CONFIG.precisionWeight / 2) : 0;
+
+  return {
+    competitionId: INTERNAL_COMPETITION_CONFIG.competitionId,
+    stageId: stage.id,
+    scoringType: stage.scoringType,
+    inputMode: "direct",
+    rawPoints,
+    maxPoints: stage.maxPoints,
+    penaltyPoints,
+    hitPoints: rawPoints,
+    net,
+    time,
+    hitfactor,
+    percentage: Math.min(100, percentage),
+    precisionContribution,
+    flexPoints: 0,
+    status,
+  };
 }
 
 function getShooter(id) {
@@ -4207,6 +4343,121 @@ function getCurrentTrainingRanking(filters = {}) {
   });
 
   return Array.from(grouped.values());
+}
+
+function getInternalCompetitionRanking(filters = {}) {
+  const completeOnly = Boolean(filters.completeOnly);
+  const level = filters.level || "all";
+  const activeShooters = state.shooters.filter((shooter) => shooter.active || getInternalCompetitionScores().some((score) => score.shooterId === shooter.id));
+  const scores = getInternalCompetitionScores();
+  const scoresByShooterStage = new Map();
+  const dynamicBestByStage = new Map();
+
+  scores
+    .slice()
+    .sort((a, b) => String(a.updatedAt || a.createdAt).localeCompare(String(b.updatedAt || b.createdAt)))
+    .forEach((score) => {
+      scoresByShooterStage.set(`${score.shooterId}:${score.stageId}`, score);
+    });
+
+  INTERNAL_COMPETITION_CONFIG.stages
+    .filter((stage) => stage.scoringType === "hitfactor")
+    .forEach((stage) => {
+      let best = 0;
+      scoresByShooterStage.forEach((score) => {
+        if (score.stageId !== stage.id || getScoreStatusMeta(score.status).blocksScore) return;
+        best = Math.max(best, Number(score.hitfactor) || 0);
+      });
+      dynamicBestByStage.set(stage.id, best);
+    });
+
+  const items = activeShooters
+    .filter((shooter) => level === "all" || shooter.level === level)
+    .map((shooter) => {
+      let precisionRaw = 0;
+      let precisionMaximum = 0;
+      let precisionContribution = 0;
+      let dynamicContribution = 0;
+      let completedStages = 0;
+      let totalDynamicTime = 0;
+      let hasDq = false;
+      const stageResults = INTERNAL_COMPETITION_CONFIG.stages.map((stage) => {
+        const score = scoresByShooterStage.get(`${shooter.id}:${stage.id}`);
+        const isCompleted = Boolean(score);
+        if (isCompleted) completedStages += 1;
+        if (score?.status === "dq") hasDq = true;
+
+        if (stage.scoringType === "precision") {
+          precisionMaximum += stage.maxPoints;
+          precisionRaw += score?.net || 0;
+          const stagePercentage = score ? Math.min(100, ((score.net || 0) / stage.maxPoints) * 100) : 0;
+          const contribution = (stagePercentage / 100) * (INTERNAL_COMPETITION_CONFIG.precisionWeight / 2);
+          precisionContribution += contribution;
+          return {
+            stage,
+            score,
+            completed: isCompleted,
+            points: score?.net || 0,
+            time: 0,
+            hitfactor: 0,
+            percentage: stagePercentage,
+            contribution,
+          };
+        }
+
+        const bestHitfactor = dynamicBestByStage.get(stage.id) || 0;
+        const hitfactor = score?.hitfactor || 0;
+        const stagePercentage = bestHitfactor > 0 ? (hitfactor / bestHitfactor) * 100 : 0;
+        const contribution = (Math.min(100, stagePercentage) / 100) * INTERNAL_COMPETITION_CONFIG.dynamicWeight * (stage.weight / 100);
+        dynamicContribution += contribution;
+        totalDynamicTime += score?.time || 0;
+        return {
+          stage,
+          score,
+          completed: isCompleted,
+          points: score?.net || 0,
+          time: score?.time || 0,
+          hitfactor,
+          percentage: Math.min(100, stagePercentage),
+          contribution,
+        };
+      });
+
+      const precisionPercentage = precisionMaximum > 0 ? (precisionRaw / precisionMaximum) * 100 : 0;
+      const dynamicPercentage = INTERNAL_COMPETITION_CONFIG.dynamicWeight > 0 ? (dynamicContribution / INTERNAL_COMPETITION_CONFIG.dynamicWeight) * 100 : 0;
+      const overallScore = hasDq ? 0 : Math.min(100, precisionContribution + dynamicContribution);
+
+      return {
+        shooter,
+        discipline: "Interne competitie",
+        precisionRaw,
+        precisionMaximum,
+        precisionPercentage: Math.min(100, precisionPercentage),
+        precisionContribution,
+        dynamicPercentage,
+        dynamicContribution,
+        overallScore,
+        hitfactor: overallScore,
+        points: precisionRaw + stageResults.reduce((sum, result) => sum + (result.stage.scoringType === "hitfactor" ? result.points : 0), 0),
+        time: totalDynamicTime,
+        entries: completedStages,
+        completedStages,
+        totalStages: INTERNAL_COMPETITION_CONFIG.stages.length,
+        totalDynamicTime,
+        status: hasDq ? "DQ" : completedStages < INTERNAL_COMPETITION_CONFIG.stages.length ? "Voorlopig" : "Compleet",
+        stageResults,
+      };
+    })
+    .filter((item) => !completeOnly || item.completedStages === item.totalStages);
+
+  return items.sort((a, b) => {
+    if (a.status === "DQ" && b.status !== "DQ") return 1;
+    if (b.status === "DQ" && a.status !== "DQ") return -1;
+    if (b.overallScore !== a.overallScore) return b.overallScore - a.overallScore;
+    if (b.precisionContribution !== a.precisionContribution) return b.precisionContribution - a.precisionContribution;
+    if (b.dynamicContribution !== a.dynamicContribution) return b.dynamicContribution - a.dynamicContribution;
+    return a.totalDynamicTime - b.totalDynamicTime;
+  });
 }
 
 function getTrainingResultDisciplineLabel(discipline) {
@@ -4381,9 +4632,13 @@ function renderSelects() {
   const disciplineOptionsHtml = disciplineOptions
     .map((discipline) => `<option value="${discipline}">${discipline}</option>`)
     .join("");
+  const stageOptionsHtml = INTERNAL_COMPETITION_CONFIG.stages
+    .map((stage, index) => `<option value="${stage.id}">${index + 1}. ${stage.label}</option>`)
+    .join("");
 
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
+  $("#scoreStage").innerHTML = stageOptionsHtml;
   $("#timerShooter").innerHTML = shooterOptions;
   $("#progressDisciplineFilter").innerHTML = [
     `<option value="all">Alle disciplines</option>`,
@@ -4400,12 +4655,19 @@ function renderSelects() {
   if (!disciplineOptions.includes(scoreDraft.discipline)) {
     scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
   }
+  if (!INTERNAL_COMPETITION_CONFIG.stages.some((stage) => stage.id === scoreDraft.stageId)) {
+    scoreDraft.stageId = INTERNAL_COMPETITION_CONFIG.stages[0].id;
+  }
 
   $("#scoreShooter").value = scoreDraft.shooterId;
   $("#scoreDiscipline").value = scoreDraft.discipline;
+  $("#scoreStage").value = scoreDraft.stageId;
   $("#scoreTime").value = scoreDraft.time;
   $("#maxTimeButton").disabled = !(Number(state.maxRoundTime) > 0);
   $("#scoreFlexPoints").value = scoreDraft.flexPoints;
+  $("#scoreRawPoints").value = scoreDraft.rawPoints;
+  $("#scorePenaltyPoints").value = scoreDraft.penaltyPoints;
+  $("#scoreMaxPoints").value = getInternalStage(scoreDraft.stageId).maxPoints;
   $("#scoreNotes").value = scoreDraft.notes;
   shotTimer.shooterId = activeShooters.some((shooter) => shooter.id === selectedTimerShooter)
     ? selectedTimerShooter
@@ -4422,7 +4684,10 @@ function renderSelects() {
 function renderHome() {
   $("#homeParticipants").textContent = state.shooters.filter((shooter) => shooter.active).length;
   $("#homeScores").textContent = state.scores.length;
-  $("#homeRanking").innerHTML = renderRankingItems(getRanking({ discipline: "all", level: "all" }).sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3), true);
+  const topItems = isInternalCompetitionClub()
+    ? getInternalCompetitionRanking({ completeOnly: false }).slice(0, 3)
+    : getRanking({ discipline: "all", level: "all" }).sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3);
+  $("#homeRanking").innerHTML = renderRankingItems(topItems, true);
 }
 
 function renderCompetition() {
@@ -4436,13 +4701,54 @@ function renderCompetition() {
 }
 
 function renderScores() {
-  const calc = calculateScore(scoreDraft);
+  const internalMode = isInternalCompetitionClub();
+  const internalStage = getInternalStage(scoreDraft.stageId);
+  const precisionStage = internalMode && internalStage.scoringType === "precision";
+  const calc = internalMode ? calculateInternalCompetitionScore(scoreDraft) : calculateScore(scoreDraft);
   const statusMeta = getScoreStatusMeta(calc.status);
   const isEditing = Boolean(scoreDraft.editScoreId);
-  $("#calcHits").textContent = formatNumber(calc.hitPoints, 0);
-  $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
-  $("#calcNet").textContent = formatNumber(calc.net, 0);
-  $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+  $("#scoreDisciplineField").hidden = internalMode;
+  $("#scoreStageField").hidden = !internalMode;
+  $("#internalScoreFields").hidden = !internalMode;
+  $("#scorePenaltyPointsField").hidden = !internalMode || precisionStage;
+  $("#counterGrid").hidden = internalMode;
+  $("#scoreFlexField").hidden = internalMode;
+  $("#scoreTimeField").hidden = internalMode && precisionStage;
+  $("#scoreRawPointsLabel").textContent = precisionStage ? "MK-punten" : "Behaalde punten";
+  $("#scoreMaxPoints").value = internalStage.maxPoints;
+  $("#scoreRawPoints").max = internalStage.maxPoints;
+  $("#scoreTime").required = internalMode && !precisionStage;
+  $("#scoreRawPoints").required = internalMode;
+  $("#scorePenaltyPoints").required = internalMode && !precisionStage;
+
+  if (internalMode && precisionStage) {
+    $("#calcHitsLabel").textContent = "Behaalde punten";
+    $("#calcPenaltiesLabel").textContent = "Maximum";
+    $("#calcNetLabel").textContent = "Percentage";
+    $("#calcHitfactorLabel").textContent = "Korte bijdrage";
+    $("#calcHits").textContent = formatNumber(calc.rawPoints, 0);
+    $("#calcPenalties").textContent = formatNumber(calc.maxPoints, 0);
+    $("#calcNet").textContent = `${formatNumber(calc.percentage, 2)}%`;
+    $("#calcHitfactor").textContent = formatNumber(calc.precisionContribution, 2);
+  } else if (internalMode) {
+    $("#calcHitsLabel").textContent = "Punten";
+    $("#calcPenaltiesLabel").textContent = "Strafpunten";
+    $("#calcNetLabel").textContent = "Netto";
+    $("#calcHitfactorLabel").textContent = "Hitfactor";
+    $("#calcHits").textContent = formatNumber(calc.rawPoints, 0);
+    $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
+    $("#calcNet").textContent = formatNumber(calc.net, 0);
+    $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+  } else {
+    $("#calcHitsLabel").textContent = "Trefferpunten";
+    $("#calcPenaltiesLabel").textContent = "Strafpunten";
+    $("#calcNetLabel").textContent = "Netto score";
+    $("#calcHitfactorLabel").textContent = "Hitfactor";
+    $("#calcHits").textContent = formatNumber(calc.hitPoints, 0);
+    $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
+    $("#calcNet").textContent = formatNumber(calc.net, 0);
+    $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+  }
   $$(".status-button[data-score-status]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.scoreStatus === calc.status);
   });
@@ -4669,7 +4975,10 @@ function loadScoreForEdit(scoreId) {
     scoreDraft[counter.key] = Math.max(0, Number(score[counter.key]) || 0);
   });
   scoreDraft.shooterId = score.shooterId || "";
-  scoreDraft.discipline = getScoreDiscipline(score);
+  scoreDraft.discipline = score.stageId ? defaultDiscipline : getScoreDiscipline(score);
+  scoreDraft.stageId = score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id;
+  scoreDraft.rawPoints = score.stageId ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
+  scoreDraft.penaltyPoints = score.stageId ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
   scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
@@ -4682,6 +4991,7 @@ function loadScoreForEdit(scoreId) {
 }
 
 function renderScoreProgress() {
+  if (isInternalCompetitionClub()) return renderInternalScoreProgress();
   if (!state.scores.length) return `<div class="empty">Nog geen scores ingevoerd.</div>`;
 
   const groups = state.shooters
@@ -4740,7 +5050,66 @@ function renderScoreProgress() {
     .join("");
 }
 
+function renderInternalScoreProgress() {
+  const ranking = getInternalCompetitionRanking({ completeOnly: false });
+  if (!ranking.length) return `<div class="empty">Nog geen stagescores ingevoerd.</div>`;
+
+  return ranking
+    .filter((item) => item.completedStages > 0)
+    .map(
+      (item) => `
+        <article class="score-progress-card">
+          <header>
+            <div>
+              <strong>${item.shooter.name}</strong>
+              <small>${item.status} · ${item.completedStages}/${item.totalStages} stages · eindscore ${formatNumber(item.overallScore, 2)}</small>
+            </div>
+          </header>
+          <div class="score-round-list">
+            ${item.stageResults
+              .filter((result) => result.completed)
+              .map(
+                (result, index) => `
+                  <div class="score-round-row">
+                    <span>${index + 1}. ${result.stage.label}</span>
+                    <strong>${formatNumber(result.percentage, 2)}%</strong>
+                    <small>${formatInternalStageResult(result)}</small>
+                    <div class="score-row-actions">
+                      <button class="mini-action" type="button" data-edit-score="${result.score.id}" data-trainer-only>Wijzig</button>
+                      ${
+                        result.score.signatureDataUrl
+                          ? `<button class="mini-action" type="button" data-view-signature="${result.score.id}">Handtekening</button>`
+                          : ""
+                      }
+                      <button class="delete-button compact-delete" type="button" data-delete-score-round="${result.score.id}" aria-label="Stage verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+                    </div>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function formatInternalStageResult(result) {
+  const status = result.score?.status && result.score.status !== "normal" ? ` · ${getScoreStatusMeta(result.score.status).label}` : "";
+  if (result.stage.scoringType === "precision") {
+    return `${formatNumber(result.points, 0)}/${formatNumber(result.stage.maxPoints, 0)} punten · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
+  }
+  return `${formatNumber(result.points, 0)} punten · ${formatNumber(result.time, 2)} sec · HF ${formatNumber(result.hitfactor, 3)} · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
+}
+
 function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
+  if (score.stageId) {
+    const stage = getInternalStage(score.stageId);
+    const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
+    const time = stage.scoringType === "hitfactor" ? ` · ${formatNumber(score.time, 2)} sec · HF ${formatNumber(score.hitfactor, 3)}` : "";
+    const agreement = score.signatureDataUrl ? " · akkoord getekend" : "";
+    return `${stage.label} · ${formatNumber(score.net, 0)}/${formatNumber(score.maxPoints || stage.maxPoints, 0)} punten${time}${status}${agreement}`;
+  }
   const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
   const flex = Number(score.flexPoints) > 0 ? ` · flex +${formatNumber(score.flexPoints, 0)}` : "";
   const agreement = score.signatureDataUrl ? " · akkoord getekend" : "";
@@ -4769,6 +5138,10 @@ function renderRanking() {
   const level = $("#rankLevel").value || "all";
   const scope = $("#rankScope").value || "all";
   const sort = $("#rankSort").value || "hitfactor";
+  if (isInternalCompetitionClub()) {
+    $("#rankingList").innerHTML = renderRankingItems(getInternalCompetitionRanking({ level, completeOnly: scope === "latest" }), false);
+    return;
+  }
   let items = scope === "latest" ? getLatestTrainingRanking({ discipline, level }) : getRanking({ discipline, level });
 
   items.sort((a, b) => {
@@ -4781,6 +5154,7 @@ function renderRanking() {
 }
 
 function getSortedRankingItems(filters = {}) {
+  if (isInternalCompetitionClub()) return getInternalCompetitionRanking({ ...filters, completeOnly: false });
   return getRanking(filters).sort((a, b) => b.hitfactor - a.hitfactor);
 }
 
@@ -4791,7 +5165,9 @@ function getLatestShooterScore(shooterId) {
 }
 
 function getBeamerRows() {
-  const rankingItems = getSortedRankingItems({ discipline: "all", level: "all" });
+  const rankingItems = isInternalCompetitionClub()
+    ? getInternalCompetitionRanking({ completeOnly: false })
+    : getSortedRankingItems({ discipline: "all", level: "all" });
   const rankByShooter = new Map(rankingItems.map((item, index) => [item.shooter.id, { ...item, position: index + 1 }]));
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
 
@@ -4802,7 +5178,12 @@ function getBeamerRows() {
       return {
         shooter,
         position: item?.position || 0,
-        average: item?.hitfactor || 0,
+        average: isInternalCompetitionClub() ? item?.overallScore || 0 : item?.hitfactor || 0,
+        precisionContribution: item?.precisionContribution || 0,
+        dynamicContribution: item?.dynamicContribution || 0,
+        completedStages: item?.completedStages || 0,
+        totalStages: item?.totalStages || INTERNAL_COMPETITION_CONFIG.stages.length,
+        status: item?.status || "Voorlopig",
         entries: item?.entries || 0,
         savedTrainingCount: item?.savedTrainingCount || 0,
         currentEntries: item?.currentEntries || 0,
@@ -4869,14 +5250,15 @@ function renderBeamerBoard() {
   table.classList.toggle("is-ultra-dense", rows.length > 18);
   table.classList.toggle("is-split", rows.length > 24);
   table.classList.toggle("is-mega", rows.length > 42);
+  const internalMode = isInternalCompetitionClub();
 
   const renderBeamerHeader = () => `
     <div class="beamer-row beamer-head">
       <span>#</span>
       <span>Schutter</span>
-      <span>Gem.</span>
-      <span>Score / tijd</span>
-      <span>Laatste HF</span>
+      <span>${internalMode ? "Eindscore" : "Gem."}</span>
+      <span>${internalMode ? "Kort / Lang" : "Score / tijd"}</span>
+      <span>${internalMode ? "Stages" : "Laatste HF"}</span>
     </div>
   `;
   const renderBeamerRows = (sourceRows) =>
@@ -4890,13 +5272,15 @@ function renderBeamerBoard() {
             ? `${formatNumber(row.points, 0)} pt · ${formatNumber(row.time, 2)} s`
             : "—";
         const latestText = latest ? formatNumber(latest.hitfactor, 3) : "—";
+        const internalScoreText = `${formatNumber(row.precisionContribution, 1)} / ${formatNumber(row.dynamicContribution, 1)}`;
+        const internalStageText = `${row.completedStages}/${row.totalStages} · ${row.status}`;
         return `
           <div class="beamer-row${podiumClass}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
             <strong>${row.shooter.name}</strong>
-            <span class="beamer-score">${row.position ? `${formatNumber(row.average, 1)}%` : "—"}</span>
-            <span>${scoreTimeText}</span>
-            <span>${latestText}</span>
+            <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
+            <span>${internalMode ? internalScoreText : scoreTimeText}</span>
+            <span>${internalMode ? internalStageText : latestText}</span>
           </div>
         `;
       })
@@ -4946,6 +5330,7 @@ async function closeBeamerBoard() {
 
 function renderRankingItems(items, compact) {
   if (!items.length) return `<div class="empty">Nog geen klassement beschikbaar.</div>`;
+  if (isInternalCompetitionClub()) return renderInternalRankingItems(items, compact);
 
   const maxHitfactor = Math.max(...items.map((item) => item.hitfactor), 1);
 
@@ -4972,6 +5357,48 @@ function renderRankingItems(items, compact) {
       `;
       },
     )
+    .join("");
+}
+
+function renderInternalRankingItems(items, compact) {
+  const maxScore = Math.max(...items.map((item) => item.overallScore), 1);
+  return items
+    .map((item, index) => {
+      const progress = Math.min(100, Math.max(0, (item.overallScore / maxScore) * 100));
+      const leaderClass = index === 0 ? " is-leader" : "";
+      const podiumClass = index < 3 ? ` podium-${index + 1}` : "";
+      return `
+        <article class="${compact ? "list-item" : "rank-item internal-rank-item"}${leaderClass}${podiumClass}">
+          <span class="rank-number">${item.status === "DQ" ? "DQ" : index + 1}</span>
+          <div class="rank-main">
+            <strong>${item.shooter.name}</strong>
+            <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)} · ${item.completedStages}/${item.totalStages} stages · ${item.status}</small>
+            ${
+              compact
+                ? ""
+                : `<details class="stage-breakdown">
+                    <summary>Uitsplitsing</summary>
+                    ${item.stageResults
+                      .map(
+                        (result) => `
+                          <div>
+                            <span>${result.stage.label}</span>
+                            <strong>${result.completed ? formatInternalStageResult(result) : "Nog niet ingevuld"}</strong>
+                          </div>
+                        `,
+                      )
+                      .join("")}
+                  </details>`
+            }
+          </div>
+          <div class="rank-score">
+            <strong>${formatNumber(item.overallScore, 2)}</strong>
+            <span class="rank-progress" aria-hidden="true"><i style="width: ${progress}%"></i></span>
+            <small>Eindscore</small>
+          </div>
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -5497,6 +5924,37 @@ function addDemoScores() {
 }
 
 function exportCsv() {
+  if (isInternalCompetitionClub()) {
+    const ranking = getInternalCompetitionRanking({ completeOnly: false });
+    const stageHeaders = INTERNAL_COMPETITION_CONFIG.stages.map((stage, index) => `${index + 1}. ${stage.label}`);
+    const rows = [
+      ["Positie", "Schutter", "Niveau", "Kort", "Lang", "Eindscore", "Status", "Voltooid", ...stageHeaders],
+      ...ranking.map((item, index) => [
+        item.status === "DQ" ? "DQ" : index + 1,
+        item.shooter.name,
+        item.shooter.level,
+        item.precisionContribution.toFixed(2),
+        item.dynamicContribution.toFixed(2),
+        item.overallScore.toFixed(2),
+        item.status,
+        `${item.completedStages}/${item.totalStages}`,
+        ...item.stageResults.map((result) =>
+          result.completed
+            ? `${formatNumber(result.points, 0)} pt${result.stage.scoringType === "hitfactor" ? `; ${formatNumber(result.time, 2)} sec; HF ${formatNumber(result.hitfactor, 3)}` : ""}; ${formatNumber(result.percentage, 2)}%`
+            : "",
+        ),
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `interne-competitie-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
   const scoreRows = getScoreRoundEntries("all");
   const rows = [
     ["Schutter", "Discipline", "Niveau", "Ronde", "Alpha", "Charlie", "Delta", "Flexpunten", "Miss", "No Shoot", "Procedure", "Tijd", "Score", "Hitfactor", "Status"],
@@ -5528,6 +5986,32 @@ function exportCsv() {
 }
 
 function getProgressPdfData() {
+  if (isInternalCompetitionClub()) {
+    const ranking = getInternalCompetitionRanking({ completeOnly: false });
+    const columns = [...INTERNAL_COMPETITION_CONFIG.stages.map((stage, index) => String(index + 1)), "Eind"];
+    return {
+      discipline: "Interne competitie",
+      generatedAt: new Date(),
+      rounds: columns,
+      rows: ranking
+        .filter((item) => item.completedStages > 0)
+        .map((item, index) => ({
+          name: `${item.status === "DQ" ? "DQ" : index + 1}. ${item.shooter.name}`.slice(0, 30),
+          level: item.shooter.level,
+          values: [
+            ...item.stageResults.map((result) => ({
+              text: result.completed ? formatNumber(result.percentage, 1) : "",
+              isBest: false,
+            })),
+            {
+              text: formatNumber(item.overallScore, 2),
+              isBest: index === 0 && item.status !== "DQ",
+            },
+          ],
+        })),
+    };
+  }
+
   const discipline = $("#progressDisciplineFilter").value || "all";
   const entries = getScoreRoundEntries(discipline);
   const scoreByShooterRound = new Map();
@@ -5737,6 +6221,31 @@ function updateStoredBestScores() {
 }
 
 function createTrainingResultSnapshots() {
+  if (isInternalCompetitionClub()) {
+    const savedAt = new Date().toISOString();
+    return getInternalCompetitionRanking({ completeOnly: false })
+      .filter((item) => item.completedStages > 0)
+      .map((item) => ({
+        id: createId("competition"),
+        resultType: "internal-competition",
+        shooterId: item.shooter.id,
+        discipline: "Interne competitie",
+        hitfactor: item.overallScore,
+        overallScore: item.overallScore,
+        precisionContribution: item.precisionContribution,
+        dynamicContribution: item.dynamicContribution,
+        precisionRaw: item.precisionRaw,
+        precisionMaximum: item.precisionMaximum,
+        dynamicPercentage: item.dynamicPercentage,
+        entries: item.completedStages,
+        totalStages: item.totalStages,
+        points: item.points,
+        time: item.totalDynamicTime,
+        status: item.status,
+        savedAt,
+      }));
+  }
+
   const savedAt = new Date().toISOString();
   const scopes = ["all", ...disciplineOptions];
   return scopes.flatMap((discipline) =>
@@ -5851,24 +6360,115 @@ document.addEventListener("click", (event) => {
 });
 
 $("#scoreForm").addEventListener("input", (event) => {
-  if (["scoreShooter", "scoreDiscipline", "scoreTime", "scoreFlexPoints"].includes(event.target.id)) {
+  if (["scoreShooter", "scoreDiscipline", "scoreStage", "scoreTime", "scoreFlexPoints", "scoreRawPoints", "scorePenaltyPoints"].includes(event.target.id)) {
     clearScoreSignatureAfterChange();
   }
   if (event.target.id === "scoreShooter") {
     scoreDraft.shooterId = event.target.value;
-    scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
-    $("#scoreDiscipline").value = scoreDraft.discipline;
+    if (!isInternalCompetitionClub()) {
+      scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
+      $("#scoreDiscipline").value = scoreDraft.discipline;
+    }
   }
   if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
+  if (event.target.id === "scoreStage") scoreDraft.stageId = event.target.value;
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
+  if (event.target.id === "scoreRawPoints") scoreDraft.rawPoints = event.target.value;
+  if (event.target.id === "scorePenaltyPoints") scoreDraft.penaltyPoints = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
+});
+
+$("#scoreForm").addEventListener("change", (event) => {
+  if (!["scoreShooter", "scoreDiscipline", "scoreStage"].includes(event.target.id)) return;
+  event.target.dispatchEvent(new Event("input", { bubbles: true }));
 });
 
 $("#scoreForm").addEventListener("submit", (event) => {
   event.preventDefault();
   if (!requireTrainer()) return;
+  if (isInternalCompetitionClub()) {
+    const stage = getInternalStage(scoreDraft.stageId);
+    const calc = calculateInternalCompetitionScore(scoreDraft);
+    const statusMeta = getScoreStatusMeta(calc.status);
+    if (!scoreDraft.shooterId || !stage) {
+      showToast("Kies een schutter en stage");
+      return;
+    }
+    if (!statusMeta.blocksScore && calc.rawPoints > stage.maxPoints) {
+      showToast(`Maximaal ${stage.maxPoints} punten voor deze stage`);
+      return;
+    }
+    if (!statusMeta.blocksScore && stage.scoringType === "hitfactor" && calc.time <= 0) {
+      showToast("Vul een geldige tijd in voor deze stage");
+      return;
+    }
+    const signatureDataUrl = getScoreSignatureDataUrl();
+    if (!signatureDataUrl) {
+      showToast("Laat de schutter eerst tekenen voor akkoord");
+      return;
+    }
+
+    const existingScore =
+      (scoreDraft.editScoreId && state.scores.find((item) => item.id === scoreDraft.editScoreId)) ||
+      state.scores.find(
+        (item) =>
+          item.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId &&
+          item.shooterId === scoreDraft.shooterId &&
+          item.stageId === stage.id,
+      );
+    const savedScore = {
+      id: existingScore?.id || createId("score"),
+      competitionId: INTERNAL_COMPETITION_CONFIG.competitionId,
+      shooterId: scoreDraft.shooterId,
+      stageId: stage.id,
+      scoringType: stage.scoringType,
+      inputMode: "direct",
+      discipline: "Interne competitie",
+      rawPoints: calc.rawPoints,
+      maxPoints: calc.maxPoints,
+      penaltyPoints: calc.penaltyPoints,
+      net: calc.net,
+      time: calc.time,
+      hitfactor: calc.hitfactor,
+      percentage: calc.percentage,
+      hitPoints: calc.hitPoints,
+      flexPoints: 0,
+      alpha: 0,
+      charlie: 0,
+      delta: 0,
+      miss: 0,
+      noshoot: 0,
+      procedure: 0,
+      round: INTERNAL_COMPETITION_CONFIG.stages.findIndex((item) => item.id === stage.id) + 1,
+      status: calc.status,
+      reshootAvailable: statusMeta.reshootAvailable,
+      notes: scoreDraft.notes || "",
+      signatureDataUrl,
+      signedAt: new Date().toISOString(),
+      agreementText: "Score en tijd akkoord door schutter",
+      createdAt: existingScore?.createdAt || new Date().toISOString(),
+      updatedAt: existingScore ? new Date().toISOString() : "",
+    };
+
+    if (existingScore) {
+      state.scores = state.scores.map((score) => (score.id === existingScore.id ? savedScore : score));
+    } else {
+      state.scores.push(savedScore);
+    }
+    markDirty();
+    const nextShooterId = scoreDraft.shooterId;
+    const nextStageId = scoreDraft.stageId;
+    scoreDraft = createEmptyDraft();
+    scoreDraft.shooterId = nextShooterId;
+    scoreDraft.stageId = nextStageId;
+    clearScoreSignature();
+    render();
+    showToast(existingScore ? "Stagescore bijgewerkt" : "Stagescore opgeslagen");
+    return;
+  }
+
   const calc = calculateScore(scoreDraft);
   const requiresTime = !getScoreStatusMeta(calc.status).blocksScore;
   if (!scoreDraft.shooterId || (requiresTime && calc.time <= 0)) {
