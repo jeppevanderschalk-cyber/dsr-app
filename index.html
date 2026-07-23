@@ -1469,10 +1469,59 @@ select:focus {
   line-height: 1.25;
 }
 
-.timer-toggle input {
-  width: 26px;
-  height: 26px;
+/* Herbruikbare schuifknop (switch) i.p.v. standaard vinkje */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
   flex-shrink: 0;
+  width: 52px;
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.switch:focus {
+  box-shadow: none;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #f4f4f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: transform 160ms ease;
+}
+
+.switch:checked {
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  border-color: rgba(245, 197, 24, 0.75);
+}
+
+.switch:checked::after {
+  transform: translateX(22px);
+  background: #101013;
+}
+
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
 }
 
 .timer-face {
@@ -2414,10 +2463,17 @@ canvas {
   background: var(--tile);
 }
 
-.toggle input {
+.toggle input:not(.switch) {
   width: 1.2rem;
   min-height: 1.2rem;
   accent-color: var(--yellow);
+}
+
+.toggle:has(.switch) {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
 }
 
 .dialog-toggle-row {
@@ -2445,7 +2501,7 @@ canvas {
   font-weight: 900;
 }
 
-.score-optic-toggle input {
+.score-optic-toggle input:not(.switch) {
   width: 1.25rem;
   min-height: 1.25rem;
   accent-color: var(--yellow);
@@ -3309,7 +3365,7 @@ dialog .primary-action::after {
                 <select id="scoreShooter"></select>
                 <span class="score-optic-toggle">
                   <span>Optic schutter</span>
-                  <input id="scoreShooterOptic" type="checkbox" />
+                  <input id="scoreShooterOptic" class="switch" type="checkbox" />
                 </span>
               </label>
               <label id="scoreDisciplineField">
@@ -3478,7 +3534,7 @@ dialog .primary-action::after {
                   <strong>Willekeurige start</strong>
                   <small>Starttoon klinkt 1,5–4 sec na Start (IPSC)</small>
                 </span>
-                <input id="timerRandomStart" type="checkbox" />
+                <input id="timerRandomStart" class="switch" type="checkbox" />
               </label>
               <label>
                 <span>Par-tijd (sec)</span>
@@ -3858,7 +3914,7 @@ dialog .primary-action::after {
         <label class="dialog-toggle-row">
           <span>Optic schutter</span>
           <label class="toggle" title="Optic schutter">
-            <input id="entryOptic" type="checkbox" />
+            <input id="entryOptic" class="switch" type="checkbox" />
           </label>
         </label>
         <label>
@@ -6505,7 +6561,7 @@ function renderProfiles() {
             <small>${getShooterLevelLabel(shooter)} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
           <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only>
-            <input type="checkbox" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${escapeHtml(shooter.name)} optic schutter" />
+            <input type="checkbox" class="switch" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${escapeHtml(shooter.name)} optic schutter" />
           </label>
           <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${escapeHtml(shooter.name)} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
         </article>
@@ -6686,7 +6742,7 @@ function renderSettings() {
             <input type="number" step="1" value="${penalty.value}" data-penalty-value />
           </label>
           <label class="toggle" title="Actief">
-            <input type="checkbox" ${penalty.active ? "checked" : ""} data-penalty-active aria-label="${escapeHtml(penalty.name)} actief" />
+            <input type="checkbox" class="switch" ${penalty.active ? "checked" : ""} data-penalty-active aria-label="${escapeHtml(penalty.name)} actief" />
           </label>
         </div>
       `,
