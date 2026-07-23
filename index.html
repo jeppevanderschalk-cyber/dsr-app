@@ -2263,6 +2263,58 @@ canvas {
   align-items: end;
 }
 
+.change-log {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.change-log-row {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--tile);
+}
+
+.change-log-row[data-action="delete"] {
+  border-color: rgba(255, 107, 93, 0.4);
+}
+
+.change-log-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.change-log-head strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.change-log-head span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.change-log-row small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.change-log-diff {
+  color: var(--yellow) !important;
+}
+
 .penalty-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px 52px;
@@ -3607,6 +3659,15 @@ dialog .primary-action::after {
                 Instellingen opslaan
               </button>
 
+              <section class="section-block" data-trainer-only>
+                <div class="section-heading">
+                  <h3>Wijzigingslogboek</h3>
+                  <button class="text-button" id="clearChangeLogButton" type="button">Wissen</button>
+                </div>
+                <p class="notice">Legt vast wie welke score wanneer wijzigde of verwijderde (oud → nieuw).</p>
+                <div class="change-log" id="changeLogList"></div>
+              </section>
+
               <section class="section-block">
                 <h3>Synchronisatie</h3>
                 <article class="sync-card" id="syncStatus">Lokale opslag actief</article>
@@ -3809,6 +3870,7 @@ const defaultData = {
   maxRoundTime: "",
   internalStageMaxPoints: {},
   pointLabels: {},
+  changeLog: [],
   scores: [],
   bestScores: [],
   trainingResults: [],
@@ -3992,6 +4054,21 @@ function mergeData(base, saved) {
     .map((penalty) => (penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty));
   const maxRoundTime = Number(saved.maxRoundTime) > 0 ? String(saved.maxRoundTime) : "";
   const internalStageMaxPoints = normalizeInternalStageMaxPoints(saved.internalStageMaxPoints);
+  const changeLog = Array.isArray(saved.changeLog)
+    ? saved.changeLog
+        .filter((entry) => entry && entry.at)
+        .map((entry) => ({
+          id: entry.id || createId("log"),
+          at: entry.at,
+          who: entry.who || entry.role || "Trainer",
+          club: entry.club || "",
+          action: entry.action || "edit",
+          shooter: entry.shooter || "",
+          context: entry.context || "",
+          changes: Array.isArray(entry.changes) ? entry.changes.map(String) : [],
+        }))
+        .slice(-300)
+    : [];
   const pointLabels = Object.fromEntries(
     Object.keys(DEFAULT_POINT_LABELS)
       .map((key) => {
@@ -4012,6 +4089,7 @@ function mergeData(base, saved) {
     maxRoundTime,
     internalStageMaxPoints,
     pointLabels,
+    changeLog,
     shooters,
     scores,
     bestScores,
@@ -4498,6 +4576,50 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function logChange({ action, shooter, context, changes }) {
+  const entry = {
+    id: createId("log"),
+    at: new Date().toISOString(),
+    who: currentRole === "trainer" ? "Trainer" : currentRole === "shooter" ? "Schutter" : "Onbekend",
+    club: getClubLabel(),
+    action,
+    shooter: shooter || "",
+    context: context || "",
+    changes: Array.isArray(changes) ? changes.filter(Boolean).map(String) : [],
+  };
+  state.changeLog = [...(Array.isArray(state.changeLog) ? state.changeLog : []), entry].slice(-300);
+}
+
+// Beschrijft welke velden van een score wijzigden (oud -> nieuw), voor het logboek.
+function describeScoreChanges(oldScore, newScore) {
+  const changes = [];
+  const numberFields = [
+    { key: "net", label: "netto", dec: 0 },
+    { key: "rawPoints", label: "punten", dec: 0 },
+    { key: "penaltyPoints", label: "strafpunten", dec: 0 },
+    { key: "time", label: "tijd", dec: 2 },
+    { key: "flexPoints", label: "flexpunten", dec: 0 },
+  ];
+  numberFields.forEach(({ key, label, dec }) => {
+    const before = Number(oldScore?.[key]) || 0;
+    const after = Number(newScore?.[key]) || 0;
+    if (Math.abs(before - after) > 0.0001) {
+      changes.push(`${label} ${formatNumber(before, dec)} → ${formatNumber(after, dec)}`);
+    }
+  });
+  const beforeStatus = getScoreStatusMeta(oldScore?.status).label;
+  const afterStatus = getScoreStatusMeta(newScore?.status).label;
+  if (beforeStatus !== afterStatus) changes.push(`status ${beforeStatus} → ${afterStatus}`);
+  return changes;
+}
+
+function scoreLogContext(score, shooter = getShooter(score?.shooterId)) {
+  if (score?.stageId) return getInternalStage(score.stageId).label;
+  const discipline = getScoreDiscipline(score, shooter);
+  const round = Number(score?.round) || Number(score?.displayRound);
+  return round ? `${discipline} · ronde ${round}` : discipline;
 }
 
 function createEmptyDraft() {
@@ -6318,6 +6440,7 @@ function renderSettings() {
     )
     .join("");
 
+  renderChangeLog();
   $("#penaltySettings").innerHTML = state.penalties
     .map(
       (penalty) => `
@@ -6334,6 +6457,34 @@ function renderSettings() {
             <input type="checkbox" ${penalty.active ? "checked" : ""} data-penalty-active aria-label="${escapeHtml(penalty.name)} actief" />
           </label>
         </div>
+      `,
+    )
+    .join("");
+}
+
+function changeLogActionLabel(action) {
+  return { edit: "Gewijzigd", delete: "Verwijderd", reshoot: "Re-shoot" }[action] || "Wijziging";
+}
+
+function renderChangeLog() {
+  const list = $("#changeLogList");
+  if (!list) return;
+  const entries = (Array.isArray(state.changeLog) ? state.changeLog : []).slice(-40).reverse();
+  if (!entries.length) {
+    list.innerHTML = `<div class="empty">Nog geen wijzigingen vastgelegd.</div>`;
+    return;
+  }
+  list.innerHTML = entries
+    .map(
+      (entry) => `
+        <article class="change-log-row" data-action="${escapeHtml(entry.action)}">
+          <div class="change-log-head">
+            <strong>${changeLogActionLabel(entry.action)} · ${escapeHtml(entry.shooter || "onbekende schutter")}</strong>
+            <span>${escapeHtml(formatDateTime(entry.at))}</span>
+          </div>
+          <small>${escapeHtml(entry.context || "")}${entry.context ? " · " : ""}${escapeHtml(entry.who || "")}</small>
+          ${entry.changes.length ? `<small class="change-log-diff">${entry.changes.map((change) => escapeHtml(change)).join(" · ")}</small>` : ""}
+        </article>
       `,
     )
     .join("");
@@ -7238,6 +7389,15 @@ $("#scoreForm").addEventListener("submit", (event) => {
     };
 
     if (existingScore) {
+      const changes = describeScoreChanges(existingScore, savedScore);
+      if (changes.length) {
+        logChange({
+          action: "edit",
+          shooter: getShooter(savedScore.shooterId)?.name,
+          context: scoreLogContext(savedScore),
+          changes,
+        });
+      }
       state.scores = state.scores.map((score) => (score.id === existingScore.id ? savedScore : score));
     } else {
       state.scores.push(savedScore);
@@ -7292,6 +7452,15 @@ $("#scoreForm").addEventListener("submit", (event) => {
   };
 
   if (editingScore) {
+    const changes = describeScoreChanges(editingScore, savedScore);
+    if (changes.length) {
+      logChange({
+        action: "edit",
+        shooter: getShooter(savedScore.shooterId)?.name,
+        context: scoreLogContext(savedScore),
+        changes,
+      });
+    }
     state.scores = state.scores.map((score) => (score.id === editingScore.id ? savedScore : score));
   } else {
     state.scores.push(savedScore);
@@ -7394,6 +7563,12 @@ document.addEventListener("click", (event) => {
   const confirmed = window.confirm(`Ronde van ${shooter?.name || "deze schutter"} verwijderen?`);
   if (!confirmed) return;
 
+  logChange({
+    action: "delete",
+    shooter: shooter?.name,
+    context: scoreLogContext(score, shooter),
+    changes: [`verwijderd · netto ${formatNumber(Number(score.net) || 0, 0)}${score.time ? ` · ${formatNumber(Number(score.time), 2)} sec` : ""}`],
+  });
   state.scores = state.scores.filter((item) => item.id !== score.id);
   markDirty();
   render();
@@ -7507,6 +7682,19 @@ $("#settingsForm").addEventListener("submit", (event) => {
   markDirty();
   render();
   showToast("Instellingen opgeslagen");
+});
+
+$("#clearChangeLogButton").addEventListener("click", () => {
+  if (!requireTrainer()) return;
+  if (!(Array.isArray(state.changeLog) && state.changeLog.length)) {
+    showToast("Logboek is al leeg");
+    return;
+  }
+  if (!window.confirm("Wijzigingslogboek volledig wissen? Dit kan niet ongedaan gemaakt worden.")) return;
+  state.changeLog = [];
+  markDirty();
+  render();
+  showToast("Logboek gewist");
 });
 
 $("#addPenaltyButton").addEventListener("click", () => {
