@@ -1055,6 +1055,35 @@ select:focus {
   gap: 10px;
 }
 
+.internal-point-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.internal-point-stepper button {
+  min-height: 54px;
+  border: 1px solid rgba(245, 197, 24, 0.34);
+  border-radius: 16px;
+  background: #2b2c32;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+  touch-action: manipulation;
+}
+
+.internal-point-stepper button[data-step-value^="+"] {
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
+}
+
+.penalty-stepper button[data-step-value^="+"] {
+  border-color: rgba(255, 107, 93, 0.45);
+  background: rgba(255, 107, 93, 0.2);
+  color: #fff;
+}
+
 .signature-panel[hidden] {
   display: none;
 }
@@ -2918,6 +2947,14 @@ dialog .primary-action::after {
               <label>
                 <span id="scoreRawPointsLabel">Behaalde punten</span>
                 <input id="scoreRawPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+                <div class="internal-point-stepper" aria-label="Punten snel invoeren">
+                  <button type="button" data-internal-step="rawPoints" data-step-value="-10">-10</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="-5">-5</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="-1">-1</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="+1">+1</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="+5">+5</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="+10">+10</button>
+                </div>
               </label>
               <label>
                 <span>Maximale punten</span>
@@ -2926,6 +2963,14 @@ dialog .primary-action::after {
               <label id="scorePenaltyPointsField">
                 <span>Strafpunten</span>
                 <input id="scorePenaltyPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
+                <div class="internal-point-stepper penalty-stepper" aria-label="Strafpunten snel invoeren">
+                  <button type="button" data-internal-step="penaltyPoints" data-step-value="-10">-10</button>
+                  <button type="button" data-internal-step="penaltyPoints" data-step-value="-5">-5</button>
+                  <button type="button" data-internal-step="penaltyPoints" data-step-value="-1">-1</button>
+                  <button type="button" data-internal-step="penaltyPoints" data-step-value="+1">+1</button>
+                  <button type="button" data-internal-step="penaltyPoints" data-step-value="+5">+5</button>
+                  <button type="button" data-internal-step="penaltyPoints" data-step-value="+10">+10</button>
+                </div>
               </label>
             </div>
 
@@ -3492,8 +3537,7 @@ const INTERNAL_COMPETITION_CONFIG = {
   precisionWeight: 40,
   dynamicWeight: 60,
   stages: [
-    { id: "stage-1", label: "Korte baan - meesterkaart 1", scoringType: "precision", maxPoints: 200 },
-    { id: "stage-2", label: "Korte baan - meesterkaart 2", scoringType: "precision", maxPoints: 200 },
+    { id: "stage-short", label: "Korte baan - kaart 1 en 2 samen", scoringType: "precision", maxPoints: 400 },
     { id: "stage-3", label: "Kermis-schietsterren", scoringType: "hitfactor", maxPoints: 500, weight: 25 },
     { id: "stage-4", label: "Ballonnen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
     { id: "stage-5", label: "Cactussen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
@@ -3542,6 +3586,7 @@ document.addEventListener(
   (event) => {
     if (!event.target.closest("button")) return;
     if (event.target.closest("[data-step]")) return;
+    if (event.target.closest("[data-internal-step]")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
@@ -4150,7 +4195,8 @@ function getNextScoreRound(shooterId, excludeScoreId = "") {
 }
 
 function getInternalStage(stageId = scoreDraft.stageId) {
-  return INTERNAL_COMPETITION_CONFIG.stages.find((stage) => stage.id === stageId) || INTERNAL_COMPETITION_CONFIG.stages[0];
+  const canonicalStageId = getCanonicalInternalStageId(stageId);
+  return INTERNAL_COMPETITION_CONFIG.stages.find((stage) => stage.id === canonicalStageId) || INTERNAL_COMPETITION_CONFIG.stages[0];
 }
 
 function isPrecisionStage(stageId = scoreDraft.stageId) {
@@ -4161,6 +4207,11 @@ function isDynamicStage(stageId = scoreDraft.stageId) {
   return getInternalStage(stageId).scoringType === "hitfactor";
 }
 
+function getPrecisionStageWeight() {
+  const count = INTERNAL_COMPETITION_CONFIG.stages.filter((stage) => stage.scoringType === "precision").length || 1;
+  return INTERNAL_COMPETITION_CONFIG.precisionWeight / count;
+}
+
 function getInternalCompetitionScores() {
   return state.scores.filter(
     (score) =>
@@ -4168,6 +4219,10 @@ function getInternalCompetitionScores() {
       score.stageId &&
       !score.legacy,
   );
+}
+
+function getCanonicalInternalStageId(stageId) {
+  return stageId === "stage-1" || stageId === "stage-2" ? "stage-short" : stageId;
 }
 
 function getScoreRoundEntries(discipline = "all") {
@@ -4200,6 +4255,16 @@ function triggerHapticFeedback() {
 function updateStepperValue(stepButton, key) {
   const output = stepButton.closest("[data-counter]")?.querySelector("output");
   if (output) output.textContent = scoreDraft[key];
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function updateInternalScoreValue(key, delta) {
+  const stage = getInternalStage(scoreDraft.stageId);
+  const current = Math.max(0, parseDecimal(scoreDraft[key]) || 0);
+  const max = key === "rawPoints" ? stage.maxPoints : Number.POSITIVE_INFINITY;
+  const next = Math.min(max, Math.max(0, current + delta));
+  scoreDraft[key] = String(next);
   clearScoreSignatureAfterChange();
   renderScores();
 }
@@ -4249,7 +4314,7 @@ function calculateInternalCompetitionScore(input) {
   const hitfactor = stage.scoringType === "hitfactor" && time > 0 ? net / time : 0;
   const percentage = stage.maxPoints > 0 ? (net / stage.maxPoints) * 100 : 0;
   const precisionContribution =
-    stage.scoringType === "precision" ? (Math.min(100, percentage) / 100) * (INTERNAL_COMPETITION_CONFIG.precisionWeight / 2) : 0;
+    stage.scoringType === "precision" ? (Math.min(100, percentage) / 100) * getPrecisionStageWeight() : 0;
 
   return {
     competitionId: INTERNAL_COMPETITION_CONFIG.competitionId,
@@ -4357,7 +4422,25 @@ function getInternalCompetitionRanking(filters = {}) {
     .slice()
     .sort((a, b) => String(a.updatedAt || a.createdAt).localeCompare(String(b.updatedAt || b.createdAt)))
     .forEach((score) => {
-      scoresByShooterStage.set(`${score.shooterId}:${score.stageId}`, score);
+      const canonicalStageId = getCanonicalInternalStageId(score.stageId);
+      const key = `${score.shooterId}:${canonicalStageId}`;
+      const current = scoresByShooterStage.get(key);
+      if (canonicalStageId === "stage-short" && current && score.stageId !== "stage-short") {
+        const combinedNet = Math.min(400, (current.net || 0) + (score.net || 0));
+        scoresByShooterStage.set(key, {
+          ...current,
+          id: current.id,
+          stageId: "stage-short",
+          rawPoints: combinedNet,
+          maxPoints: 400,
+          net: combinedNet,
+          percentage: (combinedNet / 400) * 100,
+          createdAt: String(score.createdAt).localeCompare(String(current.createdAt)) > 0 ? score.createdAt : current.createdAt,
+          updatedAt: String(score.updatedAt || score.createdAt).localeCompare(String(current.updatedAt || current.createdAt)) > 0 ? score.updatedAt || score.createdAt : current.updatedAt,
+        });
+        return;
+      }
+      scoresByShooterStage.set(key, { ...score, stageId: canonicalStageId });
     });
 
   INTERNAL_COMPETITION_CONFIG.stages
@@ -4391,7 +4474,7 @@ function getInternalCompetitionRanking(filters = {}) {
           precisionMaximum += stage.maxPoints;
           precisionRaw += score?.net || 0;
           const stagePercentage = score ? Math.min(100, ((score.net || 0) / stage.maxPoints) * 100) : 0;
-          const contribution = (stagePercentage / 100) * (INTERNAL_COMPETITION_CONFIG.precisionWeight / 2);
+          const contribution = (stagePercentage / 100) * getPrecisionStageWeight();
           precisionContribution += contribution;
           return {
             stage,
@@ -4633,7 +4716,7 @@ function renderSelects() {
     .map((discipline) => `<option value="${discipline}">${discipline}</option>`)
     .join("");
   const stageOptionsHtml = INTERNAL_COMPETITION_CONFIG.stages
-    .map((stage, index) => `<option value="${stage.id}">${index + 1}. ${stage.label}</option>`)
+    .map((stage) => `<option value="${stage.id}">${stage.label}</option>`)
     .join("");
 
   $("#scoreShooter").innerHTML = shooterOptions;
@@ -4714,7 +4797,7 @@ function renderScores() {
   $("#counterGrid").hidden = internalMode;
   $("#scoreFlexField").hidden = internalMode;
   $("#scoreTimeField").hidden = internalMode && precisionStage;
-  $("#scoreRawPointsLabel").textContent = precisionStage ? "MK-punten" : "Behaalde punten";
+  $("#scoreRawPointsLabel").textContent = precisionStage ? "Totaal kaart 1 + 2" : "Behaalde punten";
   $("#scoreMaxPoints").value = internalStage.maxPoints;
   $("#scoreRawPoints").max = internalStage.maxPoints;
   $("#scoreTime").required = internalMode && !precisionStage;
@@ -6342,16 +6425,23 @@ document.addEventListener("click", (event) => {
   const goButton = event.target.closest("[data-go]");
   if (goButton) setView(goButton.dataset.go);
 
-  const stepButton = event.target.closest("[data-step]");
-  if (stepButton) {
+	  const stepButton = event.target.closest("[data-step]");
+	  if (stepButton) {
+	    if (!requireTrainer()) return;
+	    triggerHapticFeedback();
+	    const key = stepButton.closest("[data-counter]").dataset.counter;
+	    scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
+	    updateStepperValue(stepButton, key);
+	  }
+
+  const internalStepButton = event.target.closest("[data-internal-step]");
+  if (internalStepButton) {
     if (!requireTrainer()) return;
     triggerHapticFeedback();
-    const key = stepButton.closest("[data-counter]").dataset.counter;
-    scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
-    updateStepperValue(stepButton, key);
+    updateInternalScoreValue(internalStepButton.dataset.internalStep, Number(internalStepButton.dataset.stepValue));
   }
 
-  const statusButton = event.target.closest("[data-score-status]");
+	  const statusButton = event.target.closest("[data-score-status]");
   if (statusButton) {
     if (!requireTrainer()) return;
     setScoreStatus(statusButton.dataset.scoreStatus);
@@ -6371,7 +6461,16 @@ $("#scoreForm").addEventListener("input", (event) => {
     }
   }
   if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
-  if (event.target.id === "scoreStage") scoreDraft.stageId = event.target.value;
+  if (event.target.id === "scoreStage") {
+    scoreDraft.stageId = event.target.value;
+    const stage = getInternalStage(scoreDraft.stageId);
+    const rawPoints = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
+    scoreDraft.rawPoints = String(Math.min(stage.maxPoints, rawPoints));
+    if (stage.scoringType === "precision") {
+      scoreDraft.time = "";
+      scoreDraft.penaltyPoints = "";
+    }
+  }
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
   if (event.target.id === "scoreRawPoints") scoreDraft.rawPoints = event.target.value;
