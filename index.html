@@ -1062,6 +1062,11 @@ select:focus {
   margin-top: 10px;
 }
 
+.internal-point-stepper[hidden],
+.master-card-summary[hidden] {
+  display: none;
+}
+
 .internal-point-stepper button {
   min-height: 54px;
   border: 1px solid rgba(245, 197, 24, 0.34);
@@ -1082,6 +1087,45 @@ select:focus {
   border-color: rgba(255, 107, 93, 0.45);
   background: rgba(255, 107, 93, 0.2);
   color: #fff;
+}
+
+.master-card-stepper {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.master-card-stepper button {
+  min-height: 58px;
+}
+
+.master-card-stepper button[data-master-card-score] {
+  background: #111215;
+  color: var(--yellow-hi);
+  font-size: 1.2rem;
+}
+
+.master-card-stepper button[data-master-card-score="10"] {
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
+}
+
+.master-card-stepper button[data-master-card-score="0"] {
+  border-color: rgba(255, 107, 93, 0.45);
+  color: #ff867a;
+}
+
+.master-card-stepper button[data-master-card-action] {
+  grid-column: span 2;
+  min-height: 48px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.master-card-summary {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .signature-panel[hidden] {
@@ -2947,7 +2991,18 @@ dialog .primary-action::after {
               <label>
                 <span id="scoreRawPointsLabel">Behaalde punten</span>
                 <input id="scoreRawPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
-                <div class="internal-point-stepper" aria-label="Punten snel invoeren">
+                <div id="masterCardStepper" class="internal-point-stepper master-card-stepper" aria-label="Meesterkaart telling" hidden>
+                  <button type="button" data-master-card-score="0">Mis</button>
+                  <button type="button" data-master-card-score="6">6</button>
+                  <button type="button" data-master-card-score="7">7</button>
+                  <button type="button" data-master-card-score="8">8</button>
+                  <button type="button" data-master-card-score="9">9</button>
+                  <button type="button" data-master-card-score="10">10</button>
+                  <button type="button" data-master-card-action="undo">Laatste terug</button>
+                  <button type="button" data-master-card-action="clear">Kaart wissen</button>
+                </div>
+                <small id="masterCardSummary" class="master-card-summary" hidden></small>
+                <div id="internalPointStepper" class="internal-point-stepper" aria-label="Punten snel invoeren">
                   <button type="button" data-internal-step="rawPoints" data-step-value="-10">-10</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="-5">-5</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="-1">-1</button>
@@ -3532,6 +3587,8 @@ const counters = [
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
+const masterCardValues = [0, 6, 7, 8, 9, 10];
+const masterCardMaxShots = 40;
 const INTERNAL_COMPETITION_CONFIG = {
   competitionId: "internal-competition-v1",
   precisionWeight: 40,
@@ -3587,6 +3644,7 @@ document.addEventListener(
     if (!event.target.closest("button")) return;
     if (event.target.closest("[data-step]")) return;
     if (event.target.closest("[data-internal-step]")) return;
+    if (event.target.closest("[data-master-card-score], [data-master-card-action]")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
@@ -3627,6 +3685,7 @@ function mergeData(base, saved) {
         rawPoints: Math.max(0, Number(score.rawPoints) || 0),
         maxPoints: Math.max(0, Number(score.maxPoints) || 0),
         percentage: Number(score.percentage) || 0,
+        cardHits: Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [],
         legacy: Boolean(score.legacy || (normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE" && !score.stageId)),
         signatureDataUrl: typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
         signedAt: score.signedAt || "",
@@ -4124,6 +4183,7 @@ function createEmptyDraft() {
     stageId: INTERNAL_COMPETITION_CONFIG.stages[0].id,
     rawPoints: "",
     penaltyPoints: "",
+    cardHits: [],
     notes: "",
     status: "normal",
     editScoreId: "",
@@ -4267,6 +4327,57 @@ function updateInternalScoreValue(key, delta) {
   scoreDraft[key] = String(next);
   clearScoreSignatureAfterChange();
   renderScores();
+}
+
+function updateMasterCardScore(value) {
+  const stage = getInternalStage(scoreDraft.stageId);
+  if (stage.scoringType !== "precision") return;
+  const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits : [];
+  if (hits.length >= masterCardMaxShots) {
+    showToast("Maximaal 40 schoten voor kaart 1 en 2 samen");
+    return;
+  }
+  const nextHits = [...hits, value];
+  const total = nextHits.reduce((sum, hit) => sum + hit, 0);
+  scoreDraft.cardHits = nextHits;
+  scoreDraft.rawPoints = String(Math.min(stage.maxPoints, total));
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function undoMasterCardScore() {
+  const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits.slice(0, -1) : [];
+  scoreDraft.cardHits = hits;
+  scoreDraft.rawPoints = String(hits.reduce((sum, hit) => sum + hit, 0));
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function clearMasterCardScore() {
+  scoreDraft.cardHits = [];
+  scoreDraft.rawPoints = "";
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function renderMasterCardSummary(calc) {
+  const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits : [];
+  const total = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
+  const contribution = `${formatNumber(calc.precisionContribution, 2)} / ${formatNumber(getPrecisionStageWeight(), 0)}`;
+  if (!hits.length) {
+    return total
+      ? `Handmatig totaal: ${formatNumber(total, 0)} / 400 · korte baan ${contribution}`
+      : `Nog geen ringen geteld · korte baan ${contribution}`;
+  }
+
+  const counts = masterCardValues
+    .map((value) => {
+      const count = hits.filter((hit) => hit === value).length;
+      return count ? `${value === 0 ? "mis" : value}: ${count}x` : "";
+    })
+    .filter(Boolean)
+    .join(" · ");
+  return `${hits.length}/${masterCardMaxShots} schoten · ${counts} · totaal ${formatNumber(total, 0)} / 400 · korte baan ${contribution}`;
 }
 
 function getScoreStatusMeta(status) {
@@ -4794,15 +4905,20 @@ function renderScores() {
   $("#scoreStageField").hidden = !internalMode;
   $("#internalScoreFields").hidden = !internalMode;
   $("#scorePenaltyPointsField").hidden = !internalMode || precisionStage;
+  $("#masterCardStepper").hidden = !internalMode || !precisionStage;
+  $("#masterCardSummary").hidden = !internalMode || !precisionStage;
+  $("#internalPointStepper").hidden = !internalMode || precisionStage;
   $("#counterGrid").hidden = internalMode;
   $("#scoreFlexField").hidden = internalMode;
   $("#scoreTimeField").hidden = internalMode && precisionStage;
   $("#scoreRawPointsLabel").textContent = precisionStage ? "Totaal kaart 1 + 2" : "Behaalde punten";
   $("#scoreMaxPoints").value = internalStage.maxPoints;
   $("#scoreRawPoints").max = internalStage.maxPoints;
+  $("#scoreRawPoints").readOnly = internalMode && precisionStage;
   $("#scoreTime").required = internalMode && !precisionStage;
   $("#scoreRawPoints").required = internalMode;
   $("#scorePenaltyPoints").required = internalMode && !precisionStage;
+  $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
 
   if (internalMode && precisionStage) {
     $("#calcHitsLabel").textContent = "Behaalde punten";
@@ -5062,6 +5178,7 @@ function loadScoreForEdit(scoreId) {
   scoreDraft.stageId = score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id;
   scoreDraft.rawPoints = score.stageId ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
   scoreDraft.penaltyPoints = score.stageId ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
+  scoreDraft.cardHits = Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
   scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
@@ -6441,6 +6558,21 @@ document.addEventListener("click", (event) => {
     updateInternalScoreValue(internalStepButton.dataset.internalStep, Number(internalStepButton.dataset.stepValue));
   }
 
+  const masterCardScoreButton = event.target.closest("[data-master-card-score]");
+  if (masterCardScoreButton) {
+    if (!requireTrainer()) return;
+    triggerHapticFeedback();
+    updateMasterCardScore(Number(masterCardScoreButton.dataset.masterCardScore));
+  }
+
+  const masterCardActionButton = event.target.closest("[data-master-card-action]");
+  if (masterCardActionButton) {
+    if (!requireTrainer()) return;
+    triggerHapticFeedback();
+    if (masterCardActionButton.dataset.masterCardAction === "undo") undoMasterCardScore();
+    if (masterCardActionButton.dataset.masterCardAction === "clear") clearMasterCardScore();
+  }
+
 	  const statusButton = event.target.closest("[data-score-status]");
   if (statusButton) {
     if (!requireTrainer()) return;
@@ -6532,6 +6664,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
       time: calc.time,
       hitfactor: calc.hitfactor,
       percentage: calc.percentage,
+      cardHits: stage.scoringType === "precision" ? [...(scoreDraft.cardHits || [])] : [],
       hitPoints: calc.hitPoints,
       flexPoints: 0,
       alpha: 0,
