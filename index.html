@@ -1830,7 +1830,7 @@ select:focus {
 
 .beamer-shell {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: clamp(8px, 1.15vw, 16px);
   width: min(100%, 1780px);
   height: 100%;
@@ -1890,6 +1890,44 @@ select:focus {
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.beamer-formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(8px, 0.9vw, 14px);
+  padding: clamp(10px, 1.2vw, 18px) clamp(14px, 1.5vw, 24px);
+  border: 1px solid rgba(245, 197, 24, 0.28);
+  border-radius: 16px;
+  background: rgba(245, 197, 24, 0.08);
+}
+
+.beamer-formula[hidden] {
+  display: none;
+}
+
+.beamer-formula > strong {
+  color: var(--yellow);
+  font-size: clamp(0.95rem, 1.35vw, 1.55rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.beamer-formula > span {
+  padding: clamp(5px, 0.6vw, 9px) clamp(10px, 1vw, 16px);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: clamp(0.85rem, 1.2vw, 1.42rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.beamer-formula > span b {
+  color: var(--yellow);
+  font-weight: 900;
 }
 
 .beamer-table {
@@ -3671,6 +3709,7 @@ dialog .primary-action::after {
         </header>
 
         <div class="beamer-summary" id="beamerSummary"></div>
+        <div class="beamer-formula" id="beamerFormula" hidden></div>
         <div class="beamer-table" id="beamerTable"></div>
       </div>
     </section>
@@ -5803,6 +5842,20 @@ function renderBeamerBoard() {
   table.classList.toggle("is-split", rows.length > 24);
   table.classList.toggle("is-mega", rows.length > 42);
   const internalMode = isInternalCompetitionClub();
+
+  const formula = $("#beamerFormula");
+  if (formula) {
+    formula.hidden = !internalMode;
+    if (internalMode) {
+      formula.innerHTML = `
+        <strong>Zo telt de eindscore</strong>
+        <span><b>Korte baan 40%</b> = netto ÷ 100 × 40</span>
+        <span><b>Lange baan 60%</b> = (precisie × 70% + snelheid × 30%) × 60%</span>
+        <span>precisie = netto ÷ max · snelheid = snelste tijd ÷ eigen tijd</span>
+        <span>Optic-schutter: eindscore × 0,7</span>
+      `;
+    }
+  }
 
   const renderBeamerHeader = () => `
     <div class="beamer-row beamer-head">
