@@ -2179,6 +2179,21 @@ canvas {
   gap: 16px;
 }
 
+.score-optic-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 82px;
+  padding: 0 2px;
+}
+
+.score-optic-toggle > span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
 .profile-optic-toggle {
   flex: 0 0 auto;
 }
@@ -2984,6 +2999,12 @@ dialog .primary-action::after {
                 <span>Schutter</span>
                 <select id="scoreShooter"></select>
               </label>
+              <div class="score-optic-toggle">
+                <span>Optic schutter</span>
+                <label class="toggle" title="Optic schutter">
+                  <input id="scoreShooterOptic" type="checkbox" />
+                </label>
+              </div>
               <label id="scoreDisciplineField">
                 <span>Discipline</span>
                 <select id="scoreDiscipline">
@@ -4200,6 +4221,14 @@ function getShooterLevelLabel(shooter) {
   return `${normalizeLevel(shooter?.level)}${shooter?.optic ? " · Optic -30%" : ""}`;
 }
 
+function syncScoreOpticToggle() {
+  const opticInput = $("#scoreShooterOptic");
+  if (!opticInput) return;
+  const shooter = getShooter(scoreDraft.shooterId);
+  opticInput.checked = Boolean(shooter?.optic);
+  opticInput.disabled = !shooter;
+}
+
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -4935,6 +4964,7 @@ function renderSelects() {
   }
 
   $("#scoreShooter").value = scoreDraft.shooterId;
+  syncScoreOpticToggle();
   $("#scoreDiscipline").value = scoreDraft.discipline;
   $("#scoreStage").value = scoreDraft.stageId;
   $("#scoreTime").value = scoreDraft.time;
@@ -6679,6 +6709,7 @@ $("#scoreForm").addEventListener("input", (event) => {
   }
   if (event.target.id === "scoreShooter") {
     scoreDraft.shooterId = event.target.value;
+    syncScoreOpticToggle();
     if (!isInternalCompetitionClub()) {
       scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
       $("#scoreDiscipline").value = scoreDraft.discipline;
@@ -6951,6 +6982,23 @@ document.addEventListener("change", (event) => {
   const shooter = getShooter(opticInput.dataset.shooterOptic);
   if (!shooter) return;
   shooter.optic = opticInput.checked;
+  markDirty();
+  render();
+  showToast(shooter.optic ? "Optic aftrek actief" : "Optic aftrek uit");
+});
+
+$("#scoreShooterOptic").addEventListener("change", (event) => {
+  if (!requireTrainer()) {
+    event.target.checked = !event.target.checked;
+    return;
+  }
+  const shooter = getShooter(scoreDraft.shooterId);
+  if (!shooter) {
+    event.target.checked = false;
+    showToast("Kies eerst een schutter");
+    return;
+  }
+  shooter.optic = event.target.checked;
   markDirty();
   render();
   showToast(shooter.optic ? "Optic aftrek actief" : "Optic aftrek uit");
