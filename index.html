@@ -2172,6 +2172,17 @@ canvas {
   accent-color: var(--yellow);
 }
 
+.dialog-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-optic-toggle {
+  flex: 0 0 auto;
+}
+
 .bottom-nav {
   position: fixed;
   left: 50%;
@@ -3196,8 +3207,8 @@ dialog .primary-action::after {
               <option value="all">Alle niveaus</option>
               <option value="Beginner">Beginner</option>
               <option value="Gevorderd">Gevorderd</option>
-              <option value="Wedstrijdschutter">Wedstrijdschutter</option>
-              <option value="Open">Open</option>
+              <option value="EPP wedstrijd">EPP wedstrijd</option>
+              <option value="IPSC/DSR wedstrijd schutter">IPSC/DSR wedstrijd schutter</option>
             </select>
             <select id="rankScope" aria-label="Training selectie">
               <option value="all">Alle trainingen</option>
@@ -3465,9 +3476,15 @@ dialog .primary-action::after {
           <select id="entryMeta">
             <option value="Beginner">Beginner</option>
             <option value="Gevorderd">Gevorderd</option>
-            <option value="Wedstrijdschutter">Wedstrijdschutter</option>
-            <option value="Open" selected>Open</option>
+            <option value="EPP wedstrijd">EPP wedstrijd</option>
+            <option value="IPSC/DSR wedstrijd schutter">IPSC/DSR wedstrijd schutter</option>
           </select>
+        </label>
+        <label class="dialog-toggle-row">
+          <span>Optic schutter</span>
+          <label class="toggle" title="Optic schutter">
+            <input id="entryOptic" type="checkbox" />
+          </label>
         </label>
         <label>
           <span>Discipline</span>
@@ -3586,6 +3603,9 @@ const counters = [
 
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
+const defaultLevel = "Beginner";
+const levelOptions = ["Beginner", "Gevorderd", "EPP wedstrijd", "IPSC/DSR wedstrijd schutter"];
+const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
 const masterCardMaxShots = 10;
@@ -3663,7 +3683,9 @@ function mergeData(base, saved) {
   const shooters = Array.isArray(saved.shooters)
     ? saved.shooters.map((shooter) => ({
         ...shooter,
+        level: normalizeLevel(shooter.level),
         discipline: normalizeDiscipline(shooter.discipline),
+        optic: Boolean(shooter.optic),
       }))
     : base.shooters;
   const scores = Array.isArray(saved.scores)
@@ -4165,6 +4187,19 @@ function normalizeDiscipline(discipline) {
   return disciplineOptions.includes(discipline) ? discipline : defaultDiscipline;
 }
 
+function normalizeLevel(level) {
+  if (level === "Wedstrijdschutter" || level === "Open") return "IPSC/DSR wedstrijd schutter";
+  return levelOptions.includes(level) ? level : defaultLevel;
+}
+
+function getShooterScoreMultiplier(shooter) {
+  return shooter?.optic ? opticScoreMultiplier : 1;
+}
+
+function getShooterLevelLabel(shooter) {
+  return `${normalizeLevel(shooter?.level)}${shooter?.optic ? " · Optic -30%" : ""}`;
+}
+
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -4483,12 +4518,15 @@ function getScoreDiscipline(score, shooter = getShooter(score.shooterId)) {
 }
 
 function scoreToRankingItem(score, shooter, disciplineLabel) {
+  const multiplier = getShooterScoreMultiplier(shooter);
   return {
     shooter,
     discipline: disciplineLabel,
     points: score.net || 0,
     time: score.time || 0,
-    hitfactor: score.hitfactor || 0,
+    rawHitfactor: score.hitfactor || 0,
+    hitfactor: (score.hitfactor || 0) * multiplier,
+    opticPenalty: shooter?.optic ? 30 : 0,
     entries: 1,
     penalties: Math.abs(score.penaltyPoints || 0),
     alpha: score.alpha || 0,
@@ -4546,7 +4584,15 @@ function getCurrentTrainingRanking(filters = {}) {
     grouped.set(score.shooterId, current);
   });
 
-  return Array.from(grouped.values());
+  return Array.from(grouped.values()).map((item) => {
+    const multiplier = getShooterScoreMultiplier(item.shooter);
+    return {
+      ...item,
+      rawHitfactor: item.hitfactor,
+      hitfactor: item.hitfactor * multiplier,
+      opticPenalty: item.shooter.optic ? 30 : 0,
+    };
+  });
 }
 
 function getInternalCompetitionRanking(filters = {}) {
@@ -4641,7 +4687,9 @@ function getInternalCompetitionRanking(filters = {}) {
 
       const precisionPercentage = precisionMaximum > 0 ? (precisionRaw / precisionMaximum) * 100 : 0;
       const dynamicPercentage = INTERNAL_COMPETITION_CONFIG.dynamicWeight > 0 ? (dynamicContribution / INTERNAL_COMPETITION_CONFIG.dynamicWeight) * 100 : 0;
-      const overallScore = hasDq ? 0 : Math.min(100, precisionContribution + dynamicContribution);
+      const baseOverallScore = hasDq ? 0 : Math.min(100, precisionContribution + dynamicContribution);
+      const scoreMultiplier = getShooterScoreMultiplier(shooter);
+      const overallScore = baseOverallScore * scoreMultiplier;
 
       return {
         shooter,
@@ -4652,8 +4700,10 @@ function getInternalCompetitionRanking(filters = {}) {
         precisionContribution,
         dynamicPercentage,
         dynamicContribution,
+        baseOverallScore,
         overallScore,
         hitfactor: overallScore,
+        opticPenalty: shooter.optic ? 30 : 0,
         points: precisionRaw + stageResults.reduce((sum, result) => sum + (result.stage.scoringType === "hitfactor" ? result.points : 0), 0),
         time: totalDynamicTime,
         entries: completedStages,
@@ -4681,12 +4731,16 @@ function getTrainingResultDisciplineLabel(discipline) {
 }
 
 function trainingResultToRankingItem(result, shooter, savedTrainingCount = 0) {
+  const multiplier = getShooterScoreMultiplier(shooter);
+  const rawHitfactor = result.hitfactor || 0;
   return {
     shooter,
     discipline: getTrainingResultDisciplineLabel(result.discipline || "all"),
     points: result.points || 0,
     time: result.time || 0,
-    hitfactor: result.hitfactor || 0,
+    rawHitfactor,
+    hitfactor: rawHitfactor * multiplier,
+    opticPenalty: shooter?.optic ? 30 : 0,
     entries: result.entries || 0,
     penalties: result.penalties || 0,
     alpha: result.alpha || 0,
@@ -4842,16 +4896,21 @@ function renderSelects() {
   const selectedProgressFilter = $("#progressDisciplineFilter").value;
   const selectedDashboardShooter = $("#dashboardShooterFilter").value;
   const selectedTimerShooter = $("#timerShooter")?.value || shotTimer.shooterId;
+  const selectedRankLevel = $("#rankLevel").value || "all";
   const shooterOptions = activeShooters.length
     ? activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`).join("")
     : `<option value="">Geen schutters</option>`;
   const disciplineOptionsHtml = disciplineOptions
     .map((discipline) => `<option value="${discipline}">${discipline}</option>`)
     .join("");
+  const levelOptionsHtml = levelOptions
+    .map((level) => `<option value="${level}">${level}</option>`)
+    .join("");
   const stageOptionsHtml = INTERNAL_COMPETITION_CONFIG.stages
     .map((stage) => `<option value="${stage.id}">${stage.label}</option>`)
     .join("");
 
+  $("#rankLevel").innerHTML = `<option value="all">Alle niveaus</option>${levelOptionsHtml}`;
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
   $("#scoreStage").innerHTML = stageOptionsHtml;
@@ -4891,6 +4950,7 @@ function renderSelects() {
   $("#timerShooter").value = shotTimer.shooterId;
   $("#progressDisciplineFilter").value =
     selectedProgressFilter === "all" || disciplineOptions.includes(selectedProgressFilter) ? selectedProgressFilter || "all" : "all";
+  $("#rankLevel").value = selectedRankLevel === "all" || levelOptions.includes(selectedRankLevel) ? selectedRankLevel : "all";
   $("#dashboardShooterFilter").value =
     selectedDashboardShooter === "all" || activeShooters.some((shooter) => shooter.id === selectedDashboardShooter)
       ? selectedDashboardShooter || "all"
@@ -4912,7 +4972,7 @@ function renderCompetition() {
 
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
   $("#participantChips").innerHTML = activeShooters.length
-    ? activeShooters.map((shooter) => `<span class="chip">${shooter.name}</span>`).join("")
+    ? activeShooters.map((shooter) => `<span class="chip">${shooter.name}${shooter.optic ? " · Optic" : ""}</span>`).join("")
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
 }
 
@@ -5236,7 +5296,7 @@ function renderScoreProgress() {
           <header>
             <div>
               <strong>${shooter.name}</strong>
-              <small>${shooter.level} · ${scores.length} scores</small>
+              <small>${getShooterLevelLabel(shooter)} · ${scores.length} scores</small>
             </div>
           </header>
           <div class="score-round-list">
@@ -5424,18 +5484,17 @@ function getBeamerRows() {
 }
 
 function getBeamerLevelGroups(rows) {
-  const levelOrder = ["Beginner", "Gevorderd", "Wedstrijdschutter", "Open"];
   const grouped = new Map();
   rows.forEach((row) => {
-    const level = row.shooter.level || "Open";
+    const level = normalizeLevel(row.shooter.level);
     if (!grouped.has(level)) grouped.set(level, []);
     grouped.get(level).push(row);
   });
 
   return Array.from(grouped.entries())
     .sort(([levelA], [levelB]) => {
-      const indexA = levelOrder.includes(levelA) ? levelOrder.indexOf(levelA) : levelOrder.length;
-      const indexB = levelOrder.includes(levelB) ? levelOrder.indexOf(levelB) : levelOrder.length;
+      const indexA = levelOptions.includes(levelA) ? levelOptions.indexOf(levelA) : levelOptions.length;
+      const indexB = levelOptions.includes(levelB) ? levelOptions.indexOf(levelB) : levelOptions.length;
       if (indexA !== indexB) return indexA - indexB;
       return levelA.localeCompare(levelB, "nl");
     })
@@ -5499,7 +5558,7 @@ function renderBeamerBoard() {
         return `
           <div class="beamer-row${podiumClass}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
-            <strong>${row.shooter.name}</strong>
+            <strong>${row.shooter.name}${row.shooter.optic ? " · Optic" : ""}</strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
             <span>${internalMode ? internalScoreText : scoreTimeText}</span>
             <span>${internalMode ? internalStageText : latestText}</span>
@@ -5594,7 +5653,7 @@ function renderInternalRankingItems(items, compact) {
           <span class="rank-number">${item.status === "DQ" ? "DQ" : index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
-            <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)} · ${item.completedStages}/${item.totalStages} onderdelen · ${item.status}</small>
+            <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)}${item.opticPenalty ? ` · Optic -${item.opticPenalty}% van ${formatNumber(item.baseOverallScore, 2)}` : ""} · ${item.completedStages}/${item.totalStages} onderdelen · ${item.status}</small>
             ${
               compact
                 ? ""
@@ -5635,7 +5694,7 @@ function formatRankingMeta(item) {
           ? `${item.savedTrainingCount} ${copy.savedCount}`
           : copy.currentSession;
   const current = item.currentEntries ? ` · nu ${item.currentEntries} rondes` : "";
-  return `${item.discipline} · ${item.shooter.level} · ${saved}${current} · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten`;
+  return `${item.discipline} · ${getShooterLevelLabel(item.shooter)} · ${saved}${current} · beste HF ${formatNumber(item.bestHitfactor, 3)} · totaal ${formatNumber(item.points, 0)} punten`;
 }
 
 function renderProfiles() {
@@ -5658,8 +5717,11 @@ function renderProfiles() {
           <span class="profile-avatar">${shooter.name.slice(0, 1).toUpperCase()}</span>
           <div class="profile-meta">
             <strong>${shooter.name}</strong>
-            <small>${shooter.level} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
+            <small>${getShooterLevelLabel(shooter)} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
+          <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only>
+            <input type="checkbox" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${shooter.name} optic schutter" />
+          </label>
           <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
         </article>
       `;
@@ -5697,7 +5759,7 @@ function renderHighScoreHistory() {
           <header>
             <div>
               <strong>${shooter.name}</strong>
-              <small>${shooter.level} · ${shooterScores.length} hi-scores</small>
+              <small>${getShooterLevelLabel(shooter)} · ${shooterScores.length} hi-scores</small>
             </div>
           </header>
           <div class="high-score-list">
@@ -6088,7 +6150,8 @@ function openEntryDialog() {
   if (!requireTrainer()) return;
   $("#entryTitle").textContent = "Schutter toevoegen";
   $("#entryName").value = "";
-  $("#entryMeta").value = "Open";
+  $("#entryMeta").value = defaultLevel;
+  $("#entryOptic").checked = false;
   $("#entryDiscipline").value = defaultDiscipline;
   $("#entryMetaLabel span").textContent = "Niveau";
   $("#entryDialog").showModal();
@@ -6098,8 +6161,9 @@ function openEntryDialog() {
 function saveEntryDialog() {
   if (!requireTrainer()) return;
   const name = $("#entryName").value.trim();
-  const meta = $("#entryMeta").value.trim();
+  const meta = normalizeLevel($("#entryMeta").value.trim());
   const discipline = normalizeDiscipline($("#entryDiscipline").value);
+  const optic = $("#entryOptic").checked;
   if (!name) {
     $("#entryName").focus();
     showToast("Vul eerst een naam in");
@@ -6109,8 +6173,9 @@ function saveEntryDialog() {
   state.shooters.push({
     id: createId("shooter"),
     name,
-    level: meta || "Open",
+    level: meta || defaultLevel,
     discipline,
+    optic,
     active: true,
   });
   markDirty();
@@ -6154,7 +6219,7 @@ function exportCsv() {
       ...ranking.map((item, index) => [
         item.status === "DQ" ? "DQ" : index + 1,
         item.shooter.name,
-        item.shooter.level,
+        getShooterLevelLabel(item.shooter),
         item.precisionContribution.toFixed(2),
         item.dynamicContribution.toFixed(2),
         item.overallScore.toFixed(2),
@@ -6187,7 +6252,7 @@ function exportCsv() {
     ...scoreRows.map((score) => [
       getShooter(score.shooterId)?.name || "",
       score.displayDiscipline,
-      getShooter(score.shooterId)?.level || "",
+      getShooterLevelLabel(getShooter(score.shooterId)),
       Number(score.displayRound) || "",
       score.alpha,
       score.charlie,
@@ -6223,7 +6288,7 @@ function getProgressPdfData() {
         .filter((item) => item.completedStages > 0)
         .map((item, index) => ({
           name: `${item.status === "DQ" ? "DQ" : index + 1}. ${item.shooter.name}`.slice(0, 30),
-          level: item.shooter.level,
+          level: getShooterLevelLabel(item.shooter),
           values: [
             ...item.stageResults.map((result) => ({
               text: result.completed ? formatNumber(result.percentage, 1) : "",
@@ -6269,7 +6334,7 @@ function getProgressPdfData() {
             }
           : { text: "", isBest: false };
       });
-      return { name: shooter.name, level: shooter.level, values };
+      return { name: shooter.name, level: getShooterLevelLabel(shooter), values };
     })
     .filter((row) => row.values.some((value) => value.text));
 
@@ -6456,8 +6521,9 @@ function createTrainingResultSnapshots() {
         resultType: "internal-competition",
         shooterId: item.shooter.id,
         discipline: "Interne competitie",
-        hitfactor: item.overallScore,
-        overallScore: item.overallScore,
+        hitfactor: item.baseOverallScore ?? item.overallScore,
+        overallScore: item.baseOverallScore ?? item.overallScore,
+        adjustedOverallScore: item.overallScore,
         precisionContribution: item.precisionContribution,
         dynamicContribution: item.dynamicContribution,
         precisionRaw: item.precisionRaw,
@@ -6479,7 +6545,7 @@ function createTrainingResultSnapshots() {
       id: createId("training"),
       shooterId: item.shooter.id,
       discipline,
-      hitfactor: item.hitfactor || 0,
+      hitfactor: item.rawHitfactor || item.hitfactor || 0,
       entries: item.entries || 0,
       points: item.points || 0,
       time: item.time || 0,
@@ -6872,6 +6938,22 @@ document.addEventListener("click", (event) => {
   markDirty();
   render();
   showToast("Ronde verwijderd");
+});
+
+document.addEventListener("change", (event) => {
+  const opticInput = event.target.closest("[data-shooter-optic]");
+  if (!opticInput) return;
+  if (!requireTrainer()) {
+    opticInput.checked = !opticInput.checked;
+    return;
+  }
+
+  const shooter = getShooter(opticInput.dataset.shooterOptic);
+  if (!shooter) return;
+  shooter.optic = opticInput.checked;
+  markDirty();
+  render();
+  showToast(shooter.optic ? "Optic aftrek actief" : "Optic aftrek uit");
 });
 
 document.addEventListener("click", (event) => {
