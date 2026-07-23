@@ -4529,7 +4529,7 @@ function getInternalCompetitionRanking(filters = {}) {
   const activeShooters = state.shooters.filter((shooter) => shooter.active || getInternalCompetitionScores().some((score) => score.shooterId === shooter.id));
   const scores = getInternalCompetitionScores();
   const scoresByShooterStage = new Map();
-  const dynamicBestByStage = new Map();
+  const dynamicFastestTimeByStage = new Map();
 
   scores
     .slice()
@@ -4560,12 +4560,13 @@ function getInternalCompetitionRanking(filters = {}) {
   INTERNAL_COMPETITION_CONFIG.stages
     .filter((stage) => stage.scoringType === "hitfactor")
     .forEach((stage) => {
-      let best = 0;
+      let fastestTime = Number.POSITIVE_INFINITY;
       scoresByShooterStage.forEach((score) => {
         if (score.stageId !== stage.id || getScoreStatusMeta(score.status).blocksScore) return;
-        best = Math.max(best, Number(score.hitfactor) || 0);
+        const time = Number(score.time) || 0;
+        if (time > 0) fastestTime = Math.min(fastestTime, time);
       });
-      dynamicBestByStage.set(stage.id, best);
+      dynamicFastestTimeByStage.set(stage.id, Number.isFinite(fastestTime) ? fastestTime : 0);
     });
 
   const items = activeShooters
@@ -4602,9 +4603,11 @@ function getInternalCompetitionRanking(filters = {}) {
           };
         }
 
-        const bestHitfactor = dynamicBestByStage.get(stage.id) || 0;
         const hitfactor = score?.hitfactor || 0;
-        const stagePercentage = bestHitfactor > 0 ? (hitfactor / bestHitfactor) * 100 : 0;
+        const precisionPercentage = score ? Math.min(100, ((score.net || 0) / stage.maxPoints) * 100) : 0;
+        const fastestTime = dynamicFastestTimeByStage.get(stage.id) || 0;
+        const speedPercentage = score?.time > 0 && fastestTime > 0 ? Math.min(100, (fastestTime / score.time) * 100) : 0;
+        const stagePercentage = score ? precisionPercentage * 0.7 + speedPercentage * 0.3 : 0;
         const contribution = (Math.min(100, stagePercentage) / 100) * INTERNAL_COMPETITION_CONFIG.dynamicWeight * (stage.weight / 100);
         dynamicContribution += contribution;
         totalDynamicTime += score?.time || 0;
@@ -4615,6 +4618,8 @@ function getInternalCompetitionRanking(filters = {}) {
           points: score?.net || 0,
           time: score?.time || 0,
           hitfactor,
+          precisionPercentage,
+          speedPercentage,
           percentage: Math.min(100, stagePercentage),
           contribution,
         };
@@ -5302,7 +5307,7 @@ function formatInternalStageResult(result) {
   if (result.stage.scoringType === "precision") {
     return `${formatNumber(result.points, 0)}/${formatNumber(result.stage.maxPoints, 0)} punten · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
   }
-  return `${formatNumber(result.points, 0)} punten · ${formatNumber(result.time, 2)} sec · HF ${formatNumber(result.hitfactor, 3)} · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
+  return `${formatNumber(result.points, 0)} punten · ${formatNumber(result.time, 2)} sec · precisie ${formatNumber(result.precisionPercentage, 1)}% · snelheid ${formatNumber(result.speedPercentage, 1)}% · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
 }
 
 function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
@@ -6143,7 +6148,11 @@ function exportCsv() {
         `${item.completedStages}/${item.totalStages}`,
         ...item.stageResults.map((result) =>
           result.completed
-            ? `${formatNumber(result.points, 0)} pt${result.stage.scoringType === "hitfactor" ? `; ${formatNumber(result.time, 2)} sec; HF ${formatNumber(result.hitfactor, 3)}` : ""}; ${formatNumber(result.percentage, 2)}%`
+            ? `${formatNumber(result.points, 0)} pt${
+                result.stage.scoringType === "hitfactor"
+                  ? `; ${formatNumber(result.time, 2)} sec; precisie ${formatNumber(result.precisionPercentage, 2)}%; snelheid ${formatNumber(result.speedPercentage, 2)}%`
+                  : ""
+              }; ${formatNumber(result.percentage, 2)}%`
             : "",
         ),
       ]),
