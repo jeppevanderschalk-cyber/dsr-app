@@ -1830,7 +1830,7 @@ select:focus {
 
 .beamer-shell {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: clamp(8px, 1.15vw, 16px);
   width: min(100%, 1780px);
   height: 100%;
@@ -1936,6 +1936,43 @@ select:focus {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   background: rgba(12, 12, 14, 0.88);
+}
+
+.beamer-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 1.2vw, 18px);
+  padding-top: clamp(6px, 0.8vw, 12px);
+}
+
+.beamer-pager[hidden] {
+  display: none;
+}
+
+.beamer-pager-label {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(0.85rem, 1.1vw, 1.3rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.beamer-pager-dots {
+  display: flex;
+  gap: clamp(6px, 0.7vw, 12px);
+}
+
+.beamer-pager-dots i {
+  width: clamp(9px, 0.8vw, 14px);
+  height: clamp(9px, 0.8vw, 14px);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.beamer-pager-dots i.is-active {
+  background: var(--yellow);
+  box-shadow: 0 0 12px rgba(245, 197, 24, 0.6);
 }
 
 .beamer-row {
@@ -3813,6 +3850,7 @@ dialog .primary-action::after {
         <div class="beamer-summary" id="beamerSummary"></div>
         <div class="beamer-formula" id="beamerFormula" hidden></div>
         <div class="beamer-table" id="beamerTable"></div>
+        <div class="beamer-pager" id="beamerPager" hidden></div>
       </div>
     </section>
 
@@ -3939,6 +3977,8 @@ let syncStatus = "Lokale opslag actief. Cloud-sync is nog niet gekoppeld.";
 let currentRole = "";
 let sessionTrainerPassword = ""; // alleen in memory, nooit opgeslagen
 let shotTimer = createShotTimerState();
+let beamerPaging = { index: 0, timer: 0 };
+const BEAMER_PAGE_INTERVAL_MS = 9000;
 let signaturePad = {
   initialized: false,
   drawing: false,
@@ -6052,6 +6092,60 @@ function splitBeamerGroups(groups) {
   return columns;
 }
 
+// Verdeel de niveaugroepen over pagina's die op een leesbare grootte passen,
+// zodat de tekst niet krimpt bij veel schutters. Grote groepen worden gesplitst
+// en krijgen "(vervolg)" op de volgende pagina.
+function buildBeamerPages(groups, rowsPerPage) {
+  const pages = [];
+  let current = [];
+  let used = 0;
+  const flush = () => {
+    if (current.length) pages.push(current);
+    current = [];
+    used = 0;
+  };
+  groups.forEach((group) => {
+    let remaining = group.rows.slice();
+    let continued = false;
+    while (remaining.length) {
+      if (rowsPerPage - used < 2 && current.length) flush();
+      const capacity = Math.max(1, rowsPerPage - used - 1);
+      const take = remaining.slice(0, capacity);
+      remaining = remaining.slice(take.length);
+      current.push({ level: group.level, total: group.rows.length, rows: take, continued });
+      used += take.length + 1;
+      continued = true;
+    }
+  });
+  flush();
+  return pages.length ? pages : [[]];
+}
+
+function getBeamerRowsPerPage() {
+  const height = window.innerHeight || 800;
+  return Math.max(6, Math.floor((height - 300) / 62));
+}
+
+function stopBeamerAutoPaging() {
+  if (beamerPaging.timer) {
+    clearInterval(beamerPaging.timer);
+    beamerPaging.timer = 0;
+  }
+}
+
+function startBeamerAutoPaging() {
+  stopBeamerAutoPaging();
+  beamerPaging.timer = window.setInterval(() => {
+    const overlay = $("#beamerOverlay");
+    if (!overlay || overlay.hidden) {
+      stopBeamerAutoPaging();
+      return;
+    }
+    beamerPaging.index += 1;
+    renderBeamerBoard();
+  }, BEAMER_PAGE_INTERVAL_MS);
+}
+
 function renderBeamerBoard() {
   const overlay = $("#beamerOverlay");
   if (!overlay || overlay.hidden) return;
@@ -6064,10 +6158,14 @@ function renderBeamerBoard() {
   $("#beamerSummary").innerHTML = `
     <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
-  table.classList.toggle("is-dense", rows.length > 12);
-  table.classList.toggle("is-ultra-dense", rows.length > 18);
-  table.classList.toggle("is-split", rows.length > 24);
-  table.classList.toggle("is-mega", rows.length > 42);
+  const rowsPerPage = getBeamerRowsPerPage();
+  const pages = buildBeamerPages(groups, rowsPerPage);
+  if (beamerPaging.index >= pages.length) beamerPaging.index = 0;
+  if (beamerPaging.index < 0) beamerPaging.index = pages.length - 1;
+  const activePage = pages[beamerPaging.index] || [];
+  // Alleen licht verdichten binnen één pagina; geen extreme verkleining meer.
+  table.classList.toggle("is-dense", rowsPerPage <= 9);
+  table.classList.remove("is-ultra-dense", "is-split", "is-mega");
   const internalMode = isInternalCompetitionClub();
 
   const formula = $("#beamerFormula");
@@ -6122,8 +6220,8 @@ function renderBeamerBoard() {
   const renderBeamerGroup = (group) => `
     <section class="beamer-level-group">
       <div class="beamer-level-title">
-        <strong>${group.level}</strong>
-        <span>${group.rows.length} schutters</span>
+        <strong>${group.level}${group.continued ? " (vervolg)" : ""}</strong>
+        <span>${group.total ?? group.rows.length} schutters</span>
       </div>
       ${renderBeamerHeader()}
       ${renderBeamerRows(group.rows)}
@@ -6131,34 +6229,37 @@ function renderBeamerBoard() {
   `;
 
   table.innerHTML = rows.length
-    ? rows.length > 24
-      ? `
-        <div class="beamer-columns">
-          ${splitBeamerGroups(groups)
-            .map(
-              (columnGroups) => `
-                <div class="beamer-column">
-                  ${columnGroups.map(renderBeamerGroup).join("")}
-                </div>
-              `,
-            )
-            .join("")}
-        </div>
-      `
-      : groups.map(renderBeamerGroup).join("")
+    ? activePage.map(renderBeamerGroup).join("")
     : `<div class="empty">Nog geen actieve deelnemers.</div>`;
+
+  const pager = $("#beamerPager");
+  if (pager) {
+    const multi = pages.length > 1;
+    pager.hidden = !multi;
+    if (multi) {
+      pager.innerHTML = `
+        <span class="beamer-pager-label">Pagina ${beamerPaging.index + 1} / ${pages.length}</span>
+        <span class="beamer-pager-dots" aria-hidden="true">${pages
+          .map((_, index) => `<i class="${index === beamerPaging.index ? "is-active" : ""}"></i>`)
+          .join("")}</span>
+      `;
+    }
+  }
 }
 
 async function openBeamerBoard() {
   const overlay = $("#beamerOverlay");
   overlay.hidden = false;
+  beamerPaging.index = 0;
   renderBeamerBoard();
+  startBeamerAutoPaging();
   await overlay.requestFullscreen?.().catch(() => {});
 }
 
 async function closeBeamerBoard() {
   const overlay = $("#beamerOverlay");
   overlay.hidden = true;
+  stopBeamerAutoPaging();
   if (document.fullscreenElement) await document.exitFullscreen?.().catch(() => {});
 }
 
