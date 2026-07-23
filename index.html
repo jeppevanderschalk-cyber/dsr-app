@@ -2183,14 +2183,47 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  min-height: 82px;
-  padding: 0 2px;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 197, 24, 0.22);
+  border-radius: 16px;
+  background: rgba(245, 197, 24, 0.08);
 }
 
 .score-optic-toggle > span {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.score-optic-toggle input {
+  width: 1.25rem;
+  min-height: 1.25rem;
+  accent-color: var(--yellow);
+}
+
+.score-max-card {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  min-height: 140px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(20, 21, 25, 0.82);
+}
+
+.score-max-card span {
+  color: var(--muted);
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+.score-max-card strong {
+  color: var(--ink);
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1;
   font-weight: 900;
 }
 
@@ -2998,13 +3031,11 @@ dialog .primary-action::after {
               <label>
                 <span>Schutter</span>
                 <select id="scoreShooter"></select>
-              </label>
-              <div class="score-optic-toggle">
-                <span>Optic schutter</span>
-                <label class="toggle" title="Optic schutter">
+                <span class="score-optic-toggle">
+                  <span>Optic schutter</span>
                   <input id="scoreShooterOptic" type="checkbox" />
-                </label>
-              </div>
+                </span>
+              </label>
               <label id="scoreDisciplineField">
                 <span>Discipline</span>
                 <select id="scoreDiscipline">
@@ -3043,10 +3074,10 @@ dialog .primary-action::after {
                   <button type="button" data-internal-step="rawPoints" data-step-value="+100">+100</button>
                 </div>
               </label>
-              <label>
+              <div class="score-max-card" aria-label="Maximale punten">
                 <span>Maximale punten</span>
-                <input id="scoreMaxPoints" type="number" readonly />
-              </label>
+                <strong id="scoreMaxPoints">0</strong>
+              </div>
               <label id="scorePenaltyPointsField">
                 <span>Strafpunten</span>
                 <input id="scorePenaltyPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
@@ -4972,7 +5003,7 @@ function renderSelects() {
   $("#scoreFlexPoints").value = scoreDraft.flexPoints;
   $("#scoreRawPoints").value = scoreDraft.rawPoints;
   $("#scorePenaltyPoints").value = scoreDraft.penaltyPoints;
-  $("#scoreMaxPoints").value = getInternalStage(scoreDraft.stageId).maxPoints;
+  $("#scoreMaxPoints").textContent = formatNumber(getInternalStage(scoreDraft.stageId).maxPoints, 0);
   $("#scoreNotes").value = scoreDraft.notes;
   shotTimer.shooterId = activeShooters.some((shooter) => shooter.id === selectedTimerShooter)
     ? selectedTimerShooter
@@ -5024,7 +5055,7 @@ function renderScores() {
   $("#scoreFlexField").hidden = internalMode;
   $("#scoreTimeField").hidden = internalMode && precisionStage;
   $("#scoreRawPointsLabel").textContent = precisionStage ? "Totaal kaart 1 + 2" : "Totaal score lange baan";
-  $("#scoreMaxPoints").value = internalStage.maxPoints;
+  $("#scoreMaxPoints").textContent = formatNumber(internalStage.maxPoints, 0);
   $("#scoreRawPoints").max = internalStage.maxPoints;
   $("#scoreRawPoints").readOnly = internalMode && precisionStage;
   $("#scoreTime").required = internalMode && !precisionStage;
