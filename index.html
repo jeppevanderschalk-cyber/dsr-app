@@ -2227,6 +2227,17 @@ canvas {
   font-weight: 900;
 }
 
+.score-max-summary {
+  color: var(--yellow);
+  font-size: clamp(0.78rem, 1.6vw, 0.95rem);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.score-max-summary[hidden] {
+  display: none;
+}
+
 .profile-optic-toggle {
   flex: 0 0 auto;
 }
@@ -3073,11 +3084,11 @@ dialog .primary-action::after {
                   <button type="button" data-internal-step="rawPoints" data-step-value="+50">+50</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="+100">+100</button>
                 </div>
-                <small id="longCourseSummary" class="master-card-summary" hidden></small>
               </label>
               <div class="score-max-card" aria-label="Maximale punten">
                 <span>Maximale punten</span>
                 <strong id="scoreMaxPoints">0</strong>
+                <small id="longCourseSummary" class="score-max-summary" hidden></small>
               </div>
               <label id="scorePenaltyPointsField">
                 <span>Strafpunten</span>
@@ -4286,6 +4297,11 @@ function formatLongCourseHits(hits = scoreDraft.longCourseHits) {
   return longCoursePointValues.map((pointValue) => `${pointValue} punten: ${normalized[String(pointValue)]}x`).join(" · ");
 }
 
+function formatLongCourseHitsCompact(hits = scoreDraft.longCourseHits) {
+  const normalized = normalizeLongCourseHits(hits);
+  return longCoursePointValues.map((pointValue) => `${pointValue}: ${normalized[String(pointValue)]}x`).join(" · ");
+}
+
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -5121,7 +5137,7 @@ function renderScores() {
   $("#scoreRawPoints").required = internalMode;
   $("#scorePenaltyPoints").required = internalMode && !precisionStage;
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
-  $("#longCourseSummary").textContent = `Telling: ${formatLongCourseHits()} · totaal uit knoppen ${formatNumber(getLongCourseHitsTotal(), 0)}`;
+  $("#longCourseSummary").textContent = `Invoer: ${formatLongCourseHitsCompact()} · totaal ${formatNumber(getLongCourseHitsTotal(), 0)}`;
 
   if (internalMode && precisionStage) {
     $("#calcHitsLabel").textContent = "Behaalde punten";
