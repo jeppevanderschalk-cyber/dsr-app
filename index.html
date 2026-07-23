@@ -2252,6 +2252,17 @@ canvas {
   margin-top: 14px;
 }
 
+#pointsSettings {
+  grid-template-columns: 1fr;
+}
+
+.point-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 10px;
+  align-items: end;
+}
+
 .penalty-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 78px 52px;
@@ -3575,12 +3586,13 @@ dialog .primary-action::after {
                 </label>
               </section>
 
-              <section class="section-block" data-trainer-only>
+              <section class="section-block" data-trainer-only data-non-internal-competition>
                 <h3>Puntensysteem</h3>
+                <p class="notice">Pas de waarde per trefzone aan. Je kunt ook de naam wijzigen als er tijdelijk een ander doel wordt geschoten.</p>
                 <div class="settings-grid" id="pointsSettings"></div>
               </section>
 
-              <section class="section-block" data-trainer-only>
+              <section class="section-block" data-trainer-only data-non-internal-competition>
                 <div class="section-heading">
                   <h3>Strafregels</h3>
                   <button class="text-button" id="addPenaltyButton" type="button">Regel toevoegen</button>
@@ -3796,6 +3808,7 @@ const defaultData = {
   ],
   maxRoundTime: "",
   internalStageMaxPoints: {},
+  pointLabels: {},
   scores: [],
   bestScores: [],
   trainingResults: [],
@@ -3811,6 +3824,14 @@ const counters = [
   { key: "noshoot", label: "No Shoot", kind: "penalty" },
   { key: "procedure", label: "Procedure fout", kind: "penalty" },
 ];
+
+const DEFAULT_POINT_LABELS = {
+  alpha: "Alpha",
+  charlie: "Charlie",
+  delta: "Delta",
+  miss: "Miss",
+  noshoot: "No Shoot",
+};
 
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
@@ -3971,6 +3992,16 @@ function mergeData(base, saved) {
     .map((penalty) => (penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty));
   const maxRoundTime = Number(saved.maxRoundTime) > 0 ? String(saved.maxRoundTime) : "";
   const internalStageMaxPoints = normalizeInternalStageMaxPoints(saved.internalStageMaxPoints);
+  const pointLabels = Object.fromEntries(
+    Object.keys(DEFAULT_POINT_LABELS)
+      .map((key) => {
+        const value = saved.pointLabels?.[key];
+        return typeof value === "string" && value.trim() && value.trim() !== DEFAULT_POINT_LABELS[key]
+          ? [key, value.trim().slice(0, 24)]
+          : null;
+      })
+      .filter(Boolean),
+  );
 
   return {
     ...structuredClone(base),
@@ -3980,6 +4011,7 @@ function mergeData(base, saved) {
     penalties,
     maxRoundTime,
     internalStageMaxPoints,
+    pointLabels,
     shooters,
     scores,
     bestScores,
@@ -4455,6 +4487,17 @@ function formatLongCourseHitsCompact(hits = scoreDraft.longCourseHits) {
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// Maak door gebruikers ingevoerde tekst (schutternamen, strafregels) veilig
+// voor gebruik in innerHTML en in attributen.
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function createEmptyDraft() {
@@ -5193,12 +5236,12 @@ function renderCounters() {
       (counter) => `
         <article class="counter-card" data-kind="${counter.kind}">
           <div class="counter-top">
-            <strong>${counter.label}</strong>
+            <strong>${escapeHtml(counterLabel(counter))}</strong>
           </div>
           <div class="stepper" data-counter="${counter.key}">
-            <button type="button" data-step="-1" aria-label="${counter.label} verlagen">−</button>
+            <button type="button" data-step="-1" aria-label="${escapeHtml(counterLabel(counter))} verlagen">−</button>
             <output>${scoreDraft[counter.key]}</output>
-            <button type="button" data-step="1" aria-label="${counter.label} verhogen">+</button>
+            <button type="button" data-step="1" aria-label="${escapeHtml(counterLabel(counter))} verhogen">+</button>
           </div>
         </article>
       `,
@@ -5213,7 +5256,7 @@ function renderSelects() {
   const selectedTimerShooter = $("#timerShooter")?.value || shotTimer.shooterId;
   const selectedRankLevel = $("#rankLevel").value || "all";
   const shooterOptions = activeShooters.length
-    ? activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`).join("")
+    ? activeShooters.map((shooter) => `<option value="${shooter.id}">${escapeHtml(shooter.name)}</option>`).join("")
     : `<option value="">Geen schutters</option>`;
   const disciplineOptionsHtml = disciplineOptions
     .map((discipline) => `<option value="${discipline}">${discipline}</option>`)
@@ -5236,7 +5279,7 @@ function renderSelects() {
   ].join("");
   $("#dashboardShooterFilter").innerHTML = [
     `<option value="all">Alle schutters</option>`,
-    ...activeShooters.map((shooter) => `<option value="${shooter.id}">${shooter.name}</option>`),
+    ...activeShooters.map((shooter) => `<option value="${shooter.id}">${escapeHtml(shooter.name)}</option>`),
   ].join("");
 
   if (!activeShooters.some((shooter) => shooter.id === scoreDraft.shooterId)) {
@@ -5288,7 +5331,7 @@ function renderCompetition() {
 
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
   $("#participantChips").innerHTML = activeShooters.length
-    ? activeShooters.map((shooter) => `<span class="chip">${shooter.name}${shooter.optic ? " · Optic" : ""}</span>`).join("")
+    ? activeShooters.map((shooter) => `<span class="chip">${escapeHtml(shooter.name)}${shooter.optic ? " · Optic" : ""}</span>`).join("")
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
 }
 
@@ -5666,7 +5709,7 @@ function renderScoreProgress() {
         <article class="score-progress-card">
           <header>
             <div>
-              <strong>${shooter.name}</strong>
+              <strong>${escapeHtml(shooter.name)}</strong>
               <small>${getShooterLevelLabel(shooter)} · ${scores.length} scores</small>
             </div>
           </header>
@@ -5714,7 +5757,7 @@ function renderInternalScoreProgress() {
         <article class="score-progress-card">
           <header>
             <div>
-              <strong>${item.shooter.name}</strong>
+              <strong>${escapeHtml(item.shooter.name)}</strong>
               <small>${item.status} · ${item.completedStages}/${item.totalStages} onderdelen · eindscore ${formatNumber(item.overallScore, 2)}</small>
             </div>
           </header>
@@ -5946,7 +5989,7 @@ function renderBeamerBoard() {
         return `
           <div class="beamer-row${podiumClass}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
-            <strong>${row.shooter.name}${row.shooter.optic ? " · Optic" : ""}</strong>
+            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
             <span>${internalMode ? internalScoreText : scoreTimeText}</span>
             <span>${internalMode ? internalStageText : latestText}</span>
@@ -6014,7 +6057,7 @@ function renderRankingItems(items, compact) {
         <article class="${compact ? "list-item" : "rank-item"}${leaderClass}${podiumClass}">
           <span class="rank-number">${index + 1}</span>
           <div class="rank-main">
-            <strong>${item.shooter.name}</strong>
+            <strong>${escapeHtml(item.shooter.name)}</strong>
             <small>${formatRankingMeta(item)}</small>
           </div>
           <div class="rank-score">
@@ -6040,7 +6083,7 @@ function renderInternalRankingItems(items, compact) {
         <article class="${compact ? "list-item" : "rank-item internal-rank-item"}${leaderClass}${podiumClass}">
           <span class="rank-number">${item.status === "DQ" ? "DQ" : index + 1}</span>
           <div class="rank-main">
-            <strong>${item.shooter.name}</strong>
+            <strong>${escapeHtml(item.shooter.name)}</strong>
             <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)}${item.opticPenalty ? ` · Optic -${item.opticPenalty}% van ${formatNumber(item.baseOverallScore, 2)}` : ""} · ${item.completedStages}/${item.totalStages} onderdelen · ${item.status}</small>
             ${
               compact
@@ -6102,15 +6145,15 @@ function renderProfiles() {
 
       return `
         <article class="profile-item">
-          <span class="profile-avatar">${shooter.name.slice(0, 1).toUpperCase()}</span>
+          <span class="profile-avatar">${escapeHtml(shooter.name.slice(0, 1).toUpperCase())}</span>
           <div class="profile-meta">
-            <strong>${shooter.name}</strong>
+            <strong>${escapeHtml(shooter.name)}</strong>
             <small>${getShooterLevelLabel(shooter)} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
           <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only>
-            <input type="checkbox" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${shooter.name} optic schutter" />
+            <input type="checkbox" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${escapeHtml(shooter.name)} optic schutter" />
           </label>
-          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${shooter.name} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+          <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${escapeHtml(shooter.name)} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
         </article>
       `;
     })
@@ -6146,7 +6189,7 @@ function renderHighScoreHistory() {
         <article class="high-score-card">
           <header>
             <div>
-              <strong>${shooter.name}</strong>
+              <strong>${escapeHtml(shooter.name)}</strong>
               <small>${getShooterLevelLabel(shooter)} · ${shooterScores.length} hi-scores</small>
             </div>
           </header>
@@ -6208,7 +6251,7 @@ function renderProgress() {
           });
           return `
             <tr>
-              <th>${shooter.name}</th>
+              <th>${escapeHtml(shooter.name)}</th>
               ${cells.join("")}
             </tr>
           `;
@@ -6261,10 +6304,16 @@ function renderSettings() {
   $("#pointsSettings").innerHTML = Object.entries(state.points)
     .map(
       ([key, value]) => `
-        <label>
-          <span>${labelForPoint(key)}</span>
-          <input type="number" step="1" value="${value}" data-point="${key}" />
-        </label>
+        <div class="point-row">
+          <label>
+            <span>Naam</span>
+            <input type="text" value="${escapeHtml(labelForPoint(key))}" data-point-name="${key}" placeholder="${escapeHtml(DEFAULT_POINT_LABELS[key] || key)}" />
+          </label>
+          <label>
+            <span>Punten</span>
+            <input type="number" step="1" value="${value}" data-point="${key}" />
+          </label>
+        </div>
       `,
     )
     .join("");
@@ -6275,14 +6324,14 @@ function renderSettings() {
         <div class="penalty-row" data-penalty="${penalty.id}">
           <label>
             <span>Naam</span>
-            <input type="text" value="${penalty.name}" data-penalty-name />
+            <input type="text" value="${escapeHtml(penalty.name)}" data-penalty-name />
           </label>
           <label>
             <span>Waarde</span>
             <input type="number" step="1" value="${penalty.value}" data-penalty-value />
           </label>
           <label class="toggle" title="Actief">
-            <input type="checkbox" ${penalty.active ? "checked" : ""} data-penalty-active aria-label="${penalty.name} actief" />
+            <input type="checkbox" ${penalty.active ? "checked" : ""} data-penalty-active aria-label="${escapeHtml(penalty.name)} actief" />
           </label>
         </div>
       `,
@@ -6291,13 +6340,15 @@ function renderSettings() {
 }
 
 function labelForPoint(key) {
-  return {
-    alpha: "Alpha",
-    charlie: "Charlie",
-    delta: "Delta",
-    miss: "Miss",
-    noshoot: "No Shoot",
-  }[key];
+  const custom = state?.pointLabels?.[key];
+  return (typeof custom === "string" && custom.trim()) || DEFAULT_POINT_LABELS[key] || key;
+}
+
+function counterLabel(counter) {
+  if (Object.prototype.hasOwnProperty.call(DEFAULT_POINT_LABELS, counter.key)) {
+    return labelForPoint(counter.key);
+  }
+  return counter.label;
 }
 
 function renderDashboard() {
@@ -6315,7 +6366,7 @@ function renderDashboard() {
     mostImproved
       ? shooter
         ? `Verschil tussen eerste en laatste score: ${formatSignedNumber(mostImproved.delta, 3)} hitfactor.`
-        : `Sterkste stijging: ${mostImproved.name} steeg ${formatNumber(mostImproved.delta, 3)} hitfactor.`
+        : `Sterkste stijging: ${escapeHtml(mostImproved.name)} steeg ${formatNumber(mostImproved.delta, 3)} hitfactor.`
       : "Meer scores nodig om progressie te meten.",
     weakPart ? `Meeste verlies komt door: ${weakPart}.` : "Nog te weinig data voor aandachtspunten.",
   ]
@@ -6531,6 +6582,14 @@ function applyRolePermissions() {
 
   $$("[data-internal-competition-only]").forEach((element) => {
     const hidden = readOnly || !internalCompetition;
+    element.hidden = hidden;
+    element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
+      control.disabled = hidden;
+    });
+  });
+
+  $$("[data-non-internal-competition]").forEach((element) => {
+    const hidden = readOnly || internalCompetition;
     element.hidden = hidden;
     element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
       control.disabled = hidden;
@@ -7425,6 +7484,14 @@ $("#settingsForm").addEventListener("submit", (event) => {
   $$("[data-point]").forEach((input) => {
     state.points[input.dataset.point] = Number(input.value);
   });
+  const pointLabels = { ...state.pointLabels };
+  $$("[data-point-name]").forEach((input) => {
+    const key = input.dataset.pointName;
+    const name = input.value.trim();
+    if (name && name !== DEFAULT_POINT_LABELS[key]) pointLabels[key] = name;
+    else delete pointLabels[key];
+  });
+  state.pointLabels = pointLabels;
   const maxRoundTime = parseDecimal($("#maxRoundTimeSetting").value);
   state.maxRoundTime = maxRoundTime > 0 ? maxRoundTime.toFixed(2) : "";
   state.internalStageMaxPoints = normalizeInternalStageMaxPoints({
