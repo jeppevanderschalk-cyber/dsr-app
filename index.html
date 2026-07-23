@@ -2982,7 +2982,7 @@ dialog .primary-action::after {
                 </select>
               </label>
               <label id="scoreStageField" hidden>
-                <span>Stage</span>
+                <span>Onderdeel</span>
                 <select id="scoreStage"></select>
               </label>
             </div>
@@ -3003,12 +3003,12 @@ dialog .primary-action::after {
                 </div>
                 <small id="masterCardSummary" class="master-card-summary" hidden></small>
                 <div id="internalPointStepper" class="internal-point-stepper" aria-label="Punten snel invoeren">
+                  <button type="button" data-internal-step="rawPoints" data-step-value="-100">-100</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="-50">-50</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="-10">-10</button>
-                  <button type="button" data-internal-step="rawPoints" data-step-value="-5">-5</button>
-                  <button type="button" data-internal-step="rawPoints" data-step-value="-1">-1</button>
-                  <button type="button" data-internal-step="rawPoints" data-step-value="+1">+1</button>
-                  <button type="button" data-internal-step="rawPoints" data-step-value="+5">+5</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="+10">+10</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="+50">+50</button>
+                  <button type="button" data-internal-step="rawPoints" data-step-value="+100">+100</button>
                 </div>
               </label>
               <label>
@@ -3595,11 +3595,7 @@ const INTERNAL_COMPETITION_CONFIG = {
   dynamicWeight: 60,
   stages: [
     { id: "stage-short", label: "Korte baan - stage 1 en 2 samen", scoringType: "precision", maxPoints: 100 },
-    { id: "stage-3", label: "Kermis-schietsterren", scoringType: "hitfactor", maxPoints: 500, weight: 25 },
-    { id: "stage-4", label: "Ballonnen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
-    { id: "stage-5", label: "Cactussen", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
-    { id: "stage-6", label: "Blikjes", scoringType: "hitfactor", maxPoints: 250, weight: 15 },
-    { id: "stage-7", label: "Kaarten en ballon", scoringType: "hitfactor", maxPoints: 500, weight: 30 },
+    { id: "stage-long", label: "Lange baan - stage 3 t/m 7 samen", scoringType: "hitfactor", maxPoints: 1750, weight: 100 },
   ],
 };
 const liveSyncIntervalMs = 5000;
@@ -3804,7 +3800,7 @@ function getModeCopy(clubId = currentClubId) {
         latestSession: "Alleen complete scores",
         sessionSelectLabel: "Volledigheid filter",
         rankingScopeNotice:
-          "De interne competitie gebruikt een vaste eindscore: korte baan telt 40%, lange baan telt 60%. Ontbrekende stages tellen voorlopig als 0.",
+          "De interne competitie gebruikt een vaste eindscore: korte baan telt 40%, lange baan telt 60%. Ontbrekende onderdelen tellen voorlopig als 0.",
         savedLive: "laatste competitie live",
         savedStored: "laatste opgeslagen competitie",
         savedCount: "competities bewaard",
@@ -4282,7 +4278,37 @@ function getInternalCompetitionScores() {
 }
 
 function getCanonicalInternalStageId(stageId) {
-  return stageId === "stage-1" || stageId === "stage-2" ? "stage-short" : stageId;
+  if (stageId === "stage-1" || stageId === "stage-2") return "stage-short";
+  if (["stage-3", "stage-4", "stage-5", "stage-6", "stage-7"].includes(stageId)) return "stage-long";
+  return stageId;
+}
+
+function combineInternalStageScores(current, score, canonicalStageId) {
+  const stage = getInternalStage(canonicalStageId);
+  const currentStatus = getScoreStatusMeta(current.status);
+  const nextStatus = getScoreStatusMeta(score.status);
+  const blocksScore = currentStatus.blocksScore || nextStatus.blocksScore;
+  const rawPoints = Math.min(stage.maxPoints, (Number(current.rawPoints) || Number(current.net) || 0) + (Number(score.rawPoints) || Number(score.net) || 0));
+  const penaltyPoints = (Number(current.penaltyPoints) || 0) + (Number(score.penaltyPoints) || 0);
+  const net = blocksScore ? 0 : Math.min(stage.maxPoints, Math.max(0, (Number(current.net) || 0) + (Number(score.net) || 0)));
+  const time = stage.scoringType === "hitfactor" ? (Number(current.time) || 0) + (Number(score.time) || 0) : 0;
+  const hitfactor = stage.scoringType === "hitfactor" && time > 0 ? net / time : 0;
+  const updatedAt = String(score.updatedAt || score.createdAt).localeCompare(String(current.updatedAt || current.createdAt)) > 0 ? score.updatedAt || score.createdAt : current.updatedAt;
+  return {
+    ...current,
+    id: current.id,
+    stageId: canonicalStageId,
+    scoringType: stage.scoringType,
+    rawPoints,
+    maxPoints: stage.maxPoints,
+    penaltyPoints,
+    net,
+    time,
+    hitfactor,
+    percentage: stage.maxPoints > 0 ? Math.min(100, (net / stage.maxPoints) * 100) : 0,
+    status: current.status === "dq" || score.status === "dq" ? "dq" : current.status === "ended" || score.status === "ended" ? "ended" : "normal",
+    updatedAt,
+  };
 }
 
 function getScoreRoundEntries(discipline = "all") {
@@ -4538,23 +4564,11 @@ function getInternalCompetitionRanking(filters = {}) {
       const canonicalStageId = getCanonicalInternalStageId(score.stageId);
       const key = `${score.shooterId}:${canonicalStageId}`;
       const current = scoresByShooterStage.get(key);
-      if (canonicalStageId === "stage-short" && current && score.stageId !== "stage-short") {
-        const shortStage = getInternalStage("stage-short");
-        const combinedNet = Math.min(shortStage.maxPoints, (current.net || 0) + (score.net || 0));
-        scoresByShooterStage.set(key, {
-          ...current,
-          id: current.id,
-          stageId: "stage-short",
-          rawPoints: combinedNet,
-          maxPoints: shortStage.maxPoints,
-          net: combinedNet,
-          percentage: (combinedNet / shortStage.maxPoints) * 100,
-          createdAt: String(score.createdAt).localeCompare(String(current.createdAt)) > 0 ? score.createdAt : current.createdAt,
-          updatedAt: String(score.updatedAt || score.createdAt).localeCompare(String(current.updatedAt || current.createdAt)) > 0 ? score.updatedAt || score.createdAt : current.updatedAt,
-        });
+      if (current && score.stageId !== canonicalStageId) {
+        scoresByShooterStage.set(key, combineInternalStageScores(current, score, canonicalStageId));
         return;
       }
-      scoresByShooterStage.set(key, { ...score, stageId: canonicalStageId });
+      scoresByShooterStage.set(key, { ...score, stageId: canonicalStageId, maxPoints: getInternalStage(canonicalStageId).maxPoints });
     });
 
   INTERNAL_COMPETITION_CONFIG.stages
@@ -4919,7 +4933,7 @@ function renderScores() {
   $("#counterGrid").hidden = internalMode;
   $("#scoreFlexField").hidden = internalMode;
   $("#scoreTimeField").hidden = internalMode && precisionStage;
-  $("#scoreRawPointsLabel").textContent = precisionStage ? "Totaal kaart 1 + 2" : "Behaalde punten";
+  $("#scoreRawPointsLabel").textContent = precisionStage ? "Totaal kaart 1 + 2" : "Totaal score lange baan";
   $("#scoreMaxPoints").value = internalStage.maxPoints;
   $("#scoreRawPoints").max = internalStage.maxPoints;
   $("#scoreRawPoints").readOnly = internalMode && precisionStage;
@@ -5183,7 +5197,7 @@ function loadScoreForEdit(scoreId) {
   });
   scoreDraft.shooterId = score.shooterId || "";
   scoreDraft.discipline = score.stageId ? defaultDiscipline : getScoreDiscipline(score);
-  scoreDraft.stageId = score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id;
+  scoreDraft.stageId = getCanonicalInternalStageId(score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id);
   scoreDraft.rawPoints = score.stageId ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
   scoreDraft.penaltyPoints = score.stageId ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
   scoreDraft.cardHits = Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
@@ -5260,7 +5274,7 @@ function renderScoreProgress() {
 
 function renderInternalScoreProgress() {
   const ranking = getInternalCompetitionRanking({ completeOnly: false });
-  if (!ranking.length) return `<div class="empty">Nog geen stagescores ingevoerd.</div>`;
+  if (!ranking.length) return `<div class="empty">Nog geen scores ingevoerd.</div>`;
 
   return ranking
     .filter((item) => item.completedStages > 0)
@@ -5270,7 +5284,7 @@ function renderInternalScoreProgress() {
           <header>
             <div>
               <strong>${item.shooter.name}</strong>
-              <small>${item.status} · ${item.completedStages}/${item.totalStages} stages · eindscore ${formatNumber(item.overallScore, 2)}</small>
+              <small>${item.status} · ${item.completedStages}/${item.totalStages} onderdelen · eindscore ${formatNumber(item.overallScore, 2)}</small>
             </div>
           </header>
           <div class="score-round-list">
@@ -5289,7 +5303,7 @@ function renderInternalScoreProgress() {
                           ? `<button class="mini-action" type="button" data-view-signature="${result.score.id}">Handtekening</button>`
                           : ""
                       }
-                      <button class="delete-button compact-delete" type="button" data-delete-score-round="${result.score.id}" aria-label="Stage verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+                      <button class="delete-button compact-delete" type="button" data-delete-score-round="${result.score.id}" aria-label="Onderdeel verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
                     </div>
                   </div>
                 `,
@@ -5466,7 +5480,7 @@ function renderBeamerBoard() {
       <span>Schutter</span>
       <span>${internalMode ? "Eindscore" : "Gem."}</span>
       <span>${internalMode ? "Kort / Lang" : "Score / tijd"}</span>
-      <span>${internalMode ? "Stages" : "Laatste HF"}</span>
+      <span>${internalMode ? "Onderdelen" : "Laatste HF"}</span>
     </div>
   `;
   const renderBeamerRows = (sourceRows) =>
@@ -5580,7 +5594,7 @@ function renderInternalRankingItems(items, compact) {
           <span class="rank-number">${item.status === "DQ" ? "DQ" : index + 1}</span>
           <div class="rank-main">
             <strong>${item.shooter.name}</strong>
-            <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)} · ${item.completedStages}/${item.totalStages} stages · ${item.status}</small>
+            <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)} · ${item.completedStages}/${item.totalStages} onderdelen · ${item.status}</small>
             ${
               compact
                 ? ""
@@ -6637,15 +6651,15 @@ $("#scoreForm").addEventListener("submit", (event) => {
     const calc = calculateInternalCompetitionScore(scoreDraft);
     const statusMeta = getScoreStatusMeta(calc.status);
     if (!scoreDraft.shooterId || !stage) {
-      showToast("Kies een schutter en stage");
+      showToast("Kies een schutter en onderdeel");
       return;
     }
     if (!statusMeta.blocksScore && calc.rawPoints > stage.maxPoints) {
-      showToast(`Maximaal ${stage.maxPoints} punten voor deze stage`);
+      showToast(`Maximaal ${stage.maxPoints} punten voor dit onderdeel`);
       return;
     }
     if (!statusMeta.blocksScore && stage.scoringType === "hitfactor" && calc.time <= 0) {
-      showToast("Vul een geldige tijd in voor deze stage");
+      showToast("Vul een geldige totaaltijd in voor de lange baan");
       return;
     }
     const signatureDataUrl = getScoreSignatureDataUrl();
@@ -6710,7 +6724,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
     scoreDraft.stageId = nextStageId;
     clearScoreSignature();
     render();
-    showToast(existingScore ? "Stagescore bijgewerkt" : "Stagescore opgeslagen");
+    showToast(existingScore ? "Score bijgewerkt" : "Score opgeslagen");
     return;
   }
 
