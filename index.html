@@ -1355,6 +1355,74 @@ select:focus {
   text-shadow: 0 0 30px rgba(245, 197, 24, 0.4);
 }
 
+.internal-help {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(245, 197, 24, 0.34);
+  border-radius: 14px;
+  background: rgba(245, 197, 24, 0.1);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.internal-help[hidden] {
+  display: none;
+}
+
+.calc-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.calc-note[hidden] {
+  display: none;
+}
+
+/* Compacte, wedstrijd-relevante feedback voor de interne competitie */
+.score-form.is-internal .calc-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 14px;
+  gap: 8px;
+}
+
+.score-form.is-internal .calc-panel > div:not(.target-rings) {
+  min-height: 64px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+}
+
+.score-form.is-internal .calc-panel > div:not(.target-rings):last-child {
+  grid-column: auto;
+  min-height: 64px;
+  display: flex;
+  place-items: unset;
+  background: rgba(245, 197, 24, 0.12);
+  border-color: rgba(245, 197, 24, 0.4);
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.score-form.is-internal .calc-panel > div:not(.target-rings):last-child strong {
+  font-size: 1.6rem;
+  text-shadow: none;
+}
+
+.signature-panel.is-signed {
+  border-color: rgba(120, 220, 150, 0.6);
+}
+
+.signature-panel.is-signed .signature-heading small {
+  color: #7fdca0;
+}
+
 .timer-panel {
   display: grid;
   gap: 18px;
@@ -2214,6 +2282,10 @@ canvas {
   background: rgba(20, 21, 25, 0.82);
 }
 
+.score-max-card[hidden] {
+  display: none;
+}
+
 .score-max-card span {
   color: var(--muted);
   font-size: 0.96rem;
@@ -2752,13 +2824,15 @@ dialog .primary-action::after {
   }
 
   .score-form > .field-grid,
-  .score-form > .counter-grid {
+  .score-form > .counter-grid,
+  .score-form > .internal-help {
     grid-column: 1;
   }
 
   .score-form > .field-grid:nth-of-type(3),
   .score-form > .score-status-actions,
   .score-form > .calc-panel,
+  .score-form > .calc-note,
   .score-form > .signature-panel,
   .score-form > .primary-action {
     grid-column: 2;
@@ -3061,6 +3135,8 @@ dialog .primary-action::after {
               </label>
             </div>
 
+            <p class="internal-help" id="internalHelpText" hidden></p>
+
             <div class="field-grid internal-score-grid" id="internalScoreFields" hidden>
               <label>
                 <span id="scoreRawPointsLabel">Behaalde punten</span>
@@ -3085,7 +3161,7 @@ dialog .primary-action::after {
                   <button type="button" data-internal-step="rawPoints" data-step-value="+100">+100</button>
                 </div>
               </label>
-              <div class="score-max-card" aria-label="Maximale punten">
+              <div class="score-max-card" id="scoreMaxCard" aria-label="Maximale punten">
                 <span>Maximale punten</span>
                 <strong id="scoreMaxPoints">0</strong>
                 <small id="longCourseSummary" class="score-max-summary" hidden></small>
@@ -3124,17 +3200,6 @@ dialog .primary-action::after {
               </label>
             </div>
 
-            <div class="score-status-actions" aria-label="Score status">
-              <button class="status-button danger" type="button" data-score-status="dq">
-                <span>DQ</span>
-                <small>Diskwalificatie - einde wedstrijd voor schutter en direct van terrein vereniging</small>
-              </button>
-              <button class="status-button warning" type="button" data-score-status="ended">
-                <span>Einde wedstrijd</span>
-                <small>0 punten voor deze ronde · later opnieuw mogelijk</small>
-              </button>
-            </div>
-
             <section class="calc-panel" aria-label="Live berekening">
               <div class="target-rings dark-rings" aria-hidden="true"><i></i><i></i><i></i></div>
               <div>
@@ -3155,11 +3220,24 @@ dialog .primary-action::after {
               </div>
             </section>
 
+            <p class="calc-note" id="internalFeedbackNote" hidden></p>
+
+            <div class="score-status-actions" aria-label="Score status">
+              <button class="status-button danger" type="button" data-score-status="dq">
+                <span>DQ</span>
+                <small>Diskwalificatie - einde wedstrijd voor schutter en direct van terrein vereniging</small>
+              </button>
+              <button class="status-button warning" type="button" data-score-status="ended">
+                <span>Einde wedstrijd</span>
+                <small>0 punten voor deze ronde · later opnieuw mogelijk</small>
+              </button>
+            </div>
+
             <section class="signature-panel" id="scoreSignaturePanel" hidden>
               <div class="signature-heading">
                 <div>
                   <strong>Akkoord schutter</strong>
-                  <small>Laat de schutter tekenen voor akkoord van score en tijd.</small>
+                  <small id="signatureStatusText">Verplicht: laat de schutter hier tekenen voor akkoord van score en tijd.</small>
                 </div>
                 <button class="mini-action" id="clearSignatureButton" type="button">Wissen</button>
               </div>
@@ -4026,6 +4104,7 @@ function clearScoreSignature() {
   context.clearRect(0, 0, canvas.width, canvas.height);
   signaturePad.hasInk = false;
   signaturePad.drawing = false;
+  updateSignatureStatus();
 }
 
 function clearScoreSignatureAfterChange() {
@@ -4064,6 +4143,7 @@ function setupSignaturePad() {
     context.beginPath();
     context.moveTo(point.x, point.y);
     canvas.setPointerCapture?.(event.pointerId);
+    updateSignatureStatus();
   };
 
   const draw = (event) => {
@@ -5111,6 +5191,55 @@ function renderCompetition() {
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
 }
 
+function renderInternalFeedback(calc, precisionStage) {
+  const stage = getInternalStage(scoreDraft.stageId);
+  if (precisionStage) {
+    const shots = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits.length : 0;
+    $("#calcHitsLabel").textContent = "Punten";
+    $("#calcHits").textContent = `${formatNumber(calc.rawPoints, 0)} / ${formatNumber(stage.maxPoints, 0)}`;
+    $("#calcPenaltiesLabel").textContent = "Percentage";
+    $("#calcPenalties").textContent = `${formatNumber(calc.percentage, 0)}%`;
+    $("#calcNetLabel").textContent = "Schoten";
+    $("#calcNet").textContent = `${shots} / ${masterCardMaxShots}`;
+    $("#calcHitfactorLabel").textContent = "Bijdrage korte baan (max 40)";
+    $("#calcHitfactor").textContent = formatNumber(calc.precisionContribution, 1);
+    return;
+  }
+  $("#calcHitsLabel").textContent = `Netto punten (max ${formatNumber(stage.maxPoints, 0)})`;
+  $("#calcHits").textContent = formatNumber(calc.net, 0);
+  $("#calcPenaltiesLabel").textContent = "Totale tijd";
+  $("#calcPenalties").textContent = calc.time > 0 ? `${formatNumber(calc.time, 2)} sec` : "—";
+  $("#calcNetLabel").textContent = "Precisie";
+  $("#calcNet").textContent = `${formatNumber(calc.percentage, 0)}%`;
+  $("#calcHitfactorLabel").textContent = "Hitfactor";
+  $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+}
+
+function getInternalFeedbackNoteText(precisionStage) {
+  const shooter = getShooter(scoreDraft.shooterId);
+  const item = getInternalCompetitionRanking().find((entry) => entry.shooter.id === scoreDraft.shooterId);
+  const intro = precisionStage
+    ? "Korte baan telt 40% mee in het totaal."
+    : "Snelheid wordt bepaald t.o.v. de snelste tijd van alle schutters in de stand.";
+  if (!shooter) return intro;
+  if (!item || item.completedStages === 0) {
+    return `${intro} Nog geen opgeslagen onderdelen voor ${shooter.name}.`;
+  }
+  return `${intro} Opgeslagen totaal ${shooter.name}: ${formatNumber(item.baseOverallScore, 1)} / 100 · korte ${formatNumber(item.precisionContribution, 1)}/40 · lange ${formatNumber(item.dynamicContribution, 1)}/60 (${item.completedStages}/${item.totalStages} onderdelen).`;
+}
+
+function updateSignatureStatus() {
+  const panel = $("#scoreSignaturePanel");
+  const statusText = $("#signatureStatusText");
+  const signed = signaturePad.hasInk;
+  if (panel && !panel.hidden) panel.classList.toggle("is-signed", signed);
+  if (statusText) {
+    statusText.textContent = signed
+      ? "Getekend ✓ — je kunt de score opslaan."
+      : "Verplicht: laat de schutter hier tekenen voor akkoord van score en tijd.";
+  }
+}
+
 function renderScores() {
   const internalMode = isInternalCompetitionClub();
   const internalStage = getInternalStage(scoreDraft.stageId);
@@ -5121,7 +5250,18 @@ function renderScores() {
   $("#scoreDisciplineField").hidden = internalMode;
   $("#scoreStageField").hidden = !internalMode;
   $("#internalScoreFields").hidden = !internalMode;
+  $("#scoreForm")?.classList.toggle("is-internal", internalMode);
+  const internalHelp = $("#internalHelpText");
+  if (internalHelp) {
+    internalHelp.hidden = !internalMode;
+    if (internalMode) {
+      internalHelp.textContent = precisionStage
+        ? "Korte baan (stage 1 + 2): tik per schot de geschoten ring (mis of 6–10), maximaal 10 schoten. Laat de schutter daarna tekenen voor akkoord en sla op. Telt 40% mee in het totaal."
+        : "Lange baan (stage 3 t/m 7): voer het totaal aantal punten en de totale tijd in. Met de − knoppen haal je een 10/50/100-treffer terug. Laat de schutter tekenen en sla op. Telt 60% mee in het totaal.";
+    }
+  }
   $("#scorePenaltyPointsField").hidden = !internalMode || precisionStage;
+  $("#scoreMaxCard").hidden = !internalMode || precisionStage;
   $("#masterCardStepper").hidden = !internalMode || !precisionStage;
   $("#masterCardSummary").hidden = !internalMode || !precisionStage;
   $("#internalPointStepper").hidden = !internalMode || precisionStage;
@@ -5139,24 +5279,8 @@ function renderScores() {
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
   $("#longCourseSummary").textContent = `Invoer: ${formatLongCourseHitsCompact()} · totaal ${formatNumber(getLongCourseHitsTotal(), 0)}`;
 
-  if (internalMode && precisionStage) {
-    $("#calcHitsLabel").textContent = "Behaalde punten";
-    $("#calcPenaltiesLabel").textContent = "Maximum";
-    $("#calcNetLabel").textContent = "Percentage";
-    $("#calcHitfactorLabel").textContent = "Korte bijdrage";
-    $("#calcHits").textContent = formatNumber(calc.rawPoints, 0);
-    $("#calcPenalties").textContent = formatNumber(calc.maxPoints, 0);
-    $("#calcNet").textContent = `${formatNumber(calc.percentage, 2)}%`;
-    $("#calcHitfactor").textContent = formatNumber(calc.precisionContribution, 2);
-  } else if (internalMode) {
-    $("#calcHitsLabel").textContent = "Punten";
-    $("#calcPenaltiesLabel").textContent = "Strafpunten";
-    $("#calcNetLabel").textContent = "Netto";
-    $("#calcHitfactorLabel").textContent = "Hitfactor";
-    $("#calcHits").textContent = formatNumber(calc.rawPoints, 0);
-    $("#calcPenalties").textContent = formatNumber(calc.penaltyPoints, 0);
-    $("#calcNet").textContent = formatNumber(calc.net, 0);
-    $("#calcHitfactor").textContent = formatNumber(calc.hitfactor, 3);
+  if (internalMode) {
+    renderInternalFeedback(calc, precisionStage);
   } else {
     $("#calcHitsLabel").textContent = "Trefferpunten";
     $("#calcPenaltiesLabel").textContent = "Strafpunten";
@@ -5177,6 +5301,11 @@ function renderScores() {
   $("#resetScoreButton").setAttribute("aria-label", isEditing ? "Wijzigen annuleren" : "Score wissen");
   const editNotice = $("#editScoreNotice");
   if (editNotice) editNotice.hidden = !isEditing;
+  const feedbackNote = $("#internalFeedbackNote");
+  if (feedbackNote) {
+    feedbackNote.hidden = !internalMode;
+    if (internalMode) feedbackNote.textContent = getInternalFeedbackNoteText(precisionStage);
+  }
   const signaturePanel = $("#scoreSignaturePanel");
   if (signaturePanel) {
     const showSignature = isInternalCompetitionClub();
@@ -5188,6 +5317,7 @@ function renderScores() {
       clearScoreSignature();
     }
   }
+  updateSignatureStatus();
 
   $("#recentScores").innerHTML = renderScoreProgress();
 }
