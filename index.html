@@ -3548,6 +3548,24 @@ dialog .primary-action::after {
                 <button class="secondary-action danger-action full-width" id="resetInternalCompetitionButton" type="button">Alle scores resetten</button>
               </section>
 
+              <section class="section-block" data-trainer-only data-internal-competition-only>
+                <h3>Maximale punten</h3>
+                <p class="notice" id="internalMaxPointsNotice">
+                  Pas dit aan als het aantal doelen verandert. De formule rekent automatisch mee:
+                  korte baan = netto ÷ max × 40, lange baan precisie = netto ÷ max.
+                </p>
+                <div class="settings-grid">
+                  <label>
+                    <span>Korte baan (max punten)</span>
+                    <input id="internalShortMaxSetting" type="number" min="10" step="1" inputmode="numeric" placeholder="100" />
+                  </label>
+                  <label>
+                    <span>Lange baan (max punten)</span>
+                    <input id="internalLongMaxSetting" type="number" min="1" step="1" inputmode="numeric" placeholder="1750" />
+                  </label>
+                </div>
+              </section>
+
               <section class="section-block" data-trainer-only>
                 <h3>Rondetijd</h3>
                 <p class="notice">Stel een maximale tijd in als een ronde een tijdslimiet heeft. Trainers kunnen die tijd daarna met één knop invullen.</p>
@@ -3777,6 +3795,7 @@ const defaultData = {
     { id: "pen-dq", name: "Onveilig wapengebruik", value: 0, active: false },
   ],
   maxRoundTime: "",
+  internalStageMaxPoints: {},
   scores: [],
   bestScores: [],
   trainingResults: [],
@@ -3800,7 +3819,6 @@ const levelOptions = ["Beginner", "Gevorderd", "EPP wedstrijd", "IPSC/DSR wedstr
 const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
-const masterCardMaxShots = 10;
 const longCoursePointValues = [10, 50, 100];
 const INTERNAL_COMPETITION_CONFIG = {
   competitionId: "internal-competition-v1",
@@ -3952,6 +3970,7 @@ function mergeData(base, saved) {
     .filter((penalty) => penalty.id !== "pen-late" && penalty.name !== "Late start")
     .map((penalty) => (penalty.id === "pen-procedure" && Number(penalty.value) === -10 ? { ...penalty, value: -5 } : penalty));
   const maxRoundTime = Number(saved.maxRoundTime) > 0 ? String(saved.maxRoundTime) : "";
+  const internalStageMaxPoints = normalizeInternalStageMaxPoints(saved.internalStageMaxPoints);
 
   return {
     ...structuredClone(base),
@@ -3960,6 +3979,7 @@ function mergeData(base, saved) {
     points,
     penalties,
     maxRoundTime,
+    internalStageMaxPoints,
     shooters,
     scores,
     bestScores,
@@ -4518,9 +4538,39 @@ function getNextScoreRound(shooterId, excludeScoreId = "") {
   return progressRounds.find((round) => !usedRounds.has(round)) || progressRounds.at(-1) + 1;
 }
 
+function normalizeInternalStageMaxPoints(value) {
+  return Object.fromEntries(
+    INTERNAL_COMPETITION_CONFIG.stages.map((stage) => {
+      const configured = Math.round(Number(value?.[stage.id]));
+      return [stage.id, configured > 0 ? configured : stage.maxPoints];
+    }),
+  );
+}
+
+function getInternalStageMaxPoints(stageId) {
+  const base = INTERNAL_COMPETITION_CONFIG.stages.find((stage) => stage.id === stageId);
+  const configured = Math.round(Number(state?.internalStageMaxPoints?.[stageId]));
+  return configured > 0 ? configured : base?.maxPoints || 0;
+}
+
+// Stages met de door de vereniging ingestelde maximale punten. Alles wat de
+// formule gebruikt (precisie = netto / max) leest hieruit, zodat een gewijzigd
+// aantal doelen automatisch doorwerkt in score, stand en beamer.
+function getInternalStages() {
+  return INTERNAL_COMPETITION_CONFIG.stages.map((stage) => ({
+    ...stage,
+    maxPoints: getInternalStageMaxPoints(stage.id),
+  }));
+}
+
+function getMasterCardMaxShots() {
+  return Math.max(1, Math.round(getInternalStageMaxPoints("stage-short") / 10));
+}
+
 function getInternalStage(stageId = scoreDraft.stageId) {
   const canonicalStageId = getCanonicalInternalStageId(stageId);
-  return INTERNAL_COMPETITION_CONFIG.stages.find((stage) => stage.id === canonicalStageId) || INTERNAL_COMPETITION_CONFIG.stages[0];
+  const stages = getInternalStages();
+  return stages.find((stage) => stage.id === canonicalStageId) || stages[0];
 }
 
 function isPrecisionStage(stageId = scoreDraft.stageId) {
@@ -4658,8 +4708,9 @@ function updateMasterCardScore(value) {
   const stage = getInternalStage(scoreDraft.stageId);
   if (stage.scoringType !== "precision") return;
   const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits : [];
-  if (hits.length >= masterCardMaxShots) {
-    showToast("Maximaal 10 schoten voor stage 1 en 2 samen");
+  const maxShots = getMasterCardMaxShots();
+  if (hits.length >= maxShots) {
+    showToast(`Maximaal ${maxShots} schoten voor stage 1 en 2 samen`);
     return;
   }
   const nextHits = [...hits, value];
@@ -4703,7 +4754,7 @@ function renderMasterCardSummary(calc) {
     })
     .filter(Boolean)
     .join(" · ");
-  return `${hits.length}/${masterCardMaxShots} schoten · ${counts} · totaal ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`;
+  return `${hits.length}/${getMasterCardMaxShots()} schoten · ${counts} · totaal ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`;
 }
 
 function getScoreStatusMeta(status) {
@@ -4881,7 +4932,7 @@ function getInternalCompetitionRanking(filters = {}) {
       scoresByShooterStage.set(key, { ...score, stageId: canonicalStageId, maxPoints: getInternalStage(canonicalStageId).maxPoints });
     });
 
-  INTERNAL_COMPETITION_CONFIG.stages
+  getInternalStages()
     .filter((stage) => stage.scoringType === "hitfactor")
     .forEach((stage) => {
       let fastestTime = Number.POSITIVE_INFINITY;
@@ -4903,7 +4954,7 @@ function getInternalCompetitionRanking(filters = {}) {
       let completedStages = 0;
       let totalDynamicTime = 0;
       let hasDq = false;
-      const stageResults = INTERNAL_COMPETITION_CONFIG.stages.map((stage) => {
+      const stageResults = getInternalStages().map((stage) => {
         const score = scoresByShooterStage.get(`${shooter.id}:${stage.id}`);
         const isCompleted = Boolean(score);
         if (isCompleted) completedStages += 1;
@@ -5250,7 +5301,7 @@ function renderInternalFeedback(calc, precisionStage) {
     $("#calcPenaltiesLabel").textContent = "Percentage";
     $("#calcPenalties").textContent = `${formatNumber(calc.percentage, 0)}%`;
     $("#calcNetLabel").textContent = "Schoten";
-    $("#calcNet").textContent = `${shots} / ${masterCardMaxShots}`;
+    $("#calcNet").textContent = `${shots} / ${getMasterCardMaxShots()}`;
     $("#calcHitfactorLabel").textContent = "Bijdrage korte baan (max 40)";
     $("#calcHitfactor").textContent = formatNumber(calc.precisionContribution, 1);
     return;
@@ -5306,8 +5357,8 @@ function renderScores() {
     internalHelp.hidden = !internalMode;
     if (internalMode) {
       internalHelp.textContent = precisionStage
-        ? "Korte baan (stage 1 + 2): tik per schot de geschoten ring (mis of 6–10), maximaal 10 schoten. Laat de schutter daarna tekenen voor akkoord en sla op. Telt 40% mee in het totaal."
-        : "Lange baan (stage 3 t/m 7): voer het totaal aantal punten en de totale tijd in. Met de − knoppen haal je een 10/50/100-treffer terug. Laat de schutter tekenen en sla op. Telt 60% mee in het totaal.";
+        ? `Korte baan (stage 1 + 2): tik per schot de geschoten ring (mis of 6–10), maximaal ${getMasterCardMaxShots()} schoten van ${formatNumber(internalStage.maxPoints, 0)} punten. Laat de schutter daarna tekenen voor akkoord en sla op. Telt 40% mee in het totaal.`
+        : `Lange baan (stage 3 t/m 7): voer het totaal aantal punten (max ${formatNumber(internalStage.maxPoints, 0)}) en de totale tijd in. Met de − knoppen haal je een 10/50/100-treffer terug. Laat de schutter tekenen en sla op. Telt 60% mee in het totaal.`;
     }
   }
   $("#scorePenaltyPointsField").hidden = !internalMode || precisionStage;
@@ -5858,11 +5909,13 @@ function renderBeamerBoard() {
   if (formula) {
     formula.hidden = !internalMode;
     if (internalMode) {
+      const shortMax = formatNumber(getInternalStageMaxPoints("stage-short"), 0);
+      const longMax = formatNumber(getInternalStageMaxPoints("stage-long"), 0);
       formula.innerHTML = `
         <strong>Zo telt de eindscore</strong>
-        <span><b>Korte baan 40%</b> = netto ÷ 100 × 40</span>
+        <span><b>Korte baan 40%</b> = netto ÷ ${shortMax} × 40</span>
         <span><b>Lange baan 60%</b> = (precisie × 70% + snelheid × 30%) × 60%</span>
-        <span>precisie = netto ÷ max · snelheid = snelste tijd ÷ eigen tijd</span>
+        <span>precisie = netto ÷ ${longMax} · snelheid = snelste tijd ÷ eigen tijd</span>
         <span>Optic-schutter: eindscore × 0,7</span>
       `;
     }
@@ -6201,6 +6254,10 @@ function renderProgress() {
 
 function renderSettings() {
   $("#maxRoundTimeSetting").value = state.maxRoundTime || "";
+  $("#internalShortMaxSetting").value = getInternalStageMaxPoints("stage-short");
+  $("#internalLongMaxSetting").value = getInternalStageMaxPoints("stage-long");
+  $("#internalMaxPointsNotice").textContent =
+    `Pas dit aan als het aantal doelen verandert. De formule rekent automatisch mee: korte baan = netto ÷ ${getInternalStageMaxPoints("stage-short")} × 40, lange baan precisie = netto ÷ ${getInternalStageMaxPoints("stage-long")}. De meesterkaart telt nu ${getMasterCardMaxShots()} schoten.`;
   $("#pointsSettings").innerHTML = Object.entries(state.points)
     .map(
       ([key, value]) => `
@@ -7370,6 +7427,10 @@ $("#settingsForm").addEventListener("submit", (event) => {
   });
   const maxRoundTime = parseDecimal($("#maxRoundTimeSetting").value);
   state.maxRoundTime = maxRoundTime > 0 ? maxRoundTime.toFixed(2) : "";
+  state.internalStageMaxPoints = normalizeInternalStageMaxPoints({
+    "stage-short": parseDecimal($("#internalShortMaxSetting").value),
+    "stage-long": parseDecimal($("#internalLongMaxSetting").value),
+  });
   $$("[data-penalty]").forEach((row) => {
     const penalty = state.penalties.find((item) => item.id === row.dataset.penalty);
     penalty.name = row.querySelector("[data-penalty-name]").value.trim() || penalty.name;
