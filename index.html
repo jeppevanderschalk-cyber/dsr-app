@@ -1454,6 +1454,7 @@ select:focus {
 .timer-toggle span {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .timer-toggle strong {
@@ -2800,6 +2801,10 @@ dialog .primary-action::after {
 }
 
 @media (max-width: 759px) {
+  .timer-settings {
+    grid-template-columns: 1fr;
+  }
+
   .score-round-row {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
