@@ -3073,6 +3073,7 @@ dialog .primary-action::after {
                   <button type="button" data-internal-step="rawPoints" data-step-value="+50">+50</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="+100">+100</button>
                 </div>
+                <small id="longCourseSummary" class="master-card-summary" hidden></small>
               </label>
               <div class="score-max-card" aria-label="Maximale punten">
                 <span>Maximale punten</span>
@@ -3661,6 +3662,7 @@ const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
 const masterCardMaxShots = 10;
+const longCoursePointValues = [10, 50, 100];
 const INTERNAL_COMPETITION_CONFIG = {
   competitionId: "internal-competition-v1",
   precisionWeight: 40,
@@ -3756,6 +3758,7 @@ function mergeData(base, saved) {
         maxPoints: Math.max(0, Number(score.maxPoints) || 0),
         percentage: Number(score.percentage) || 0,
         cardHits: Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [],
+        longCourseHits: normalizeLongCourseHits(score.longCourseHits),
         legacy: Boolean(score.legacy || (normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE" && !score.stageId)),
         signatureDataUrl: typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
         signedAt: score.signedAt || "",
@@ -4260,6 +4263,29 @@ function syncScoreOpticToggle() {
   opticInput.disabled = !shooter;
 }
 
+function createEmptyLongCourseHits() {
+  return Object.fromEntries(longCoursePointValues.map((value) => [String(value), 0]));
+}
+
+function normalizeLongCourseHits(value) {
+  const normalized = createEmptyLongCourseHits();
+  if (!value || typeof value !== "object") return normalized;
+  longCoursePointValues.forEach((pointValue) => {
+    normalized[String(pointValue)] = Math.max(0, Number(value[String(pointValue)] ?? value[pointValue]) || 0);
+  });
+  return normalized;
+}
+
+function getLongCourseHitsTotal(hits = scoreDraft.longCourseHits) {
+  const normalized = normalizeLongCourseHits(hits);
+  return longCoursePointValues.reduce((sum, pointValue) => sum + pointValue * normalized[String(pointValue)], 0);
+}
+
+function formatLongCourseHits(hits = scoreDraft.longCourseHits) {
+  const normalized = normalizeLongCourseHits(hits);
+  return longCoursePointValues.map((pointValue) => `${pointValue} punten: ${normalized[String(pointValue)]}x`).join(" · ");
+}
+
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -4275,6 +4301,7 @@ function createEmptyDraft() {
     rawPoints: "",
     penaltyPoints: "",
     cardHits: [],
+    longCourseHits: createEmptyLongCourseHits(),
     notes: "",
     status: "normal",
     editScoreId: "",
@@ -4389,6 +4416,8 @@ function combineInternalStageScores(current, score, canonicalStageId) {
   const time = stage.scoringType === "hitfactor" ? (Number(current.time) || 0) + (Number(score.time) || 0) : 0;
   const hitfactor = stage.scoringType === "hitfactor" && time > 0 ? net / time : 0;
   const updatedAt = String(score.updatedAt || score.createdAt).localeCompare(String(current.updatedAt || current.createdAt)) > 0 ? score.updatedAt || score.createdAt : current.updatedAt;
+  const currentLongHits = normalizeLongCourseHits(current.longCourseHits);
+  const scoreLongHits = normalizeLongCourseHits(score.longCourseHits);
   return {
     ...current,
     id: current.id,
@@ -4401,6 +4430,12 @@ function combineInternalStageScores(current, score, canonicalStageId) {
     time,
     hitfactor,
     percentage: stage.maxPoints > 0 ? Math.min(100, (net / stage.maxPoints) * 100) : 0,
+    longCourseHits: Object.fromEntries(
+      longCoursePointValues.map((pointValue) => [
+        String(pointValue),
+        currentLongHits[String(pointValue)] + scoreLongHits[String(pointValue)],
+      ]),
+    ),
     status: current.status === "dq" || score.status === "dq" ? "dq" : current.status === "ended" || score.status === "ended" ? "ended" : "normal",
     updatedAt,
   };
@@ -4444,7 +4479,30 @@ function updateInternalScoreValue(key, delta) {
   const stage = getInternalStage(scoreDraft.stageId);
   const current = Math.max(0, parseDecimal(scoreDraft[key]) || 0);
   const max = key === "rawPoints" ? stage.maxPoints : Number.POSITIVE_INFINITY;
+  if (key === "rawPoints" && stage.scoringType === "hitfactor" && delta > 0 && current + delta > max) {
+    showToast(`Maximaal ${formatNumber(max, 0)} punten voor de lange baan`);
+    return;
+  }
+  if (key === "rawPoints" && stage.scoringType === "hitfactor" && delta < 0 && longCoursePointValues.includes(Math.abs(delta))) {
+    const pointValue = Math.abs(delta);
+    const hits = normalizeLongCourseHits(scoreDraft.longCourseHits);
+    if (hits[String(pointValue)] <= 0) {
+      showToast(`Geen ${pointValue}-punten telling om te verlagen`);
+      return;
+    }
+  }
   const next = Math.min(max, Math.max(0, current + delta));
+  if (key === "rawPoints" && stage.scoringType === "hitfactor" && longCoursePointValues.includes(Math.abs(delta))) {
+    const pointValue = Math.abs(delta);
+    const hits = normalizeLongCourseHits(scoreDraft.longCourseHits);
+    if (delta > 0 && next > current) {
+      hits[String(pointValue)] += 1;
+    }
+    if (delta < 0 && current > next && hits[String(pointValue)] > 0) {
+      hits[String(pointValue)] -= 1;
+    }
+    scoreDraft.longCourseHits = hits;
+  }
   scoreDraft[key] = String(next);
   clearScoreSignatureAfterChange();
   renderScores();
@@ -5051,6 +5109,7 @@ function renderScores() {
   $("#masterCardStepper").hidden = !internalMode || !precisionStage;
   $("#masterCardSummary").hidden = !internalMode || !precisionStage;
   $("#internalPointStepper").hidden = !internalMode || precisionStage;
+  $("#longCourseSummary").hidden = !internalMode || precisionStage;
   $("#counterGrid").hidden = internalMode;
   $("#scoreFlexField").hidden = internalMode;
   $("#scoreTimeField").hidden = internalMode && precisionStage;
@@ -5062,6 +5121,7 @@ function renderScores() {
   $("#scoreRawPoints").required = internalMode;
   $("#scorePenaltyPoints").required = internalMode && !precisionStage;
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
+  $("#longCourseSummary").textContent = `Telling: ${formatLongCourseHits()} · totaal uit knoppen ${formatNumber(getLongCourseHitsTotal(), 0)}`;
 
   if (internalMode && precisionStage) {
     $("#calcHitsLabel").textContent = "Behaalde punten";
@@ -5322,6 +5382,7 @@ function loadScoreForEdit(scoreId) {
   scoreDraft.rawPoints = score.stageId ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
   scoreDraft.penaltyPoints = score.stageId ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
   scoreDraft.cardHits = Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
+  scoreDraft.longCourseHits = normalizeLongCourseHits(score.longCourseHits);
   scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
@@ -5442,14 +5503,15 @@ function formatInternalStageResult(result) {
   if (result.stage.scoringType === "precision") {
     return `${formatNumber(result.points, 0)}/${formatNumber(result.stage.maxPoints, 0)} punten · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
   }
-  return `${formatNumber(result.points, 0)} punten · ${formatNumber(result.time, 2)} sec · precisie ${formatNumber(result.precisionPercentage, 1)}% · snelheid ${formatNumber(result.speedPercentage, 1)}% · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
+  const longCourseText = result.score ? ` · ${formatLongCourseHits(result.score.longCourseHits)}` : "";
+  return `${formatNumber(result.points, 0)} punten${longCourseText} · ${formatNumber(result.time, 2)} sec · precisie ${formatNumber(result.precisionPercentage, 1)}% · snelheid ${formatNumber(result.speedPercentage, 1)}% · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
 }
 
 function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
   if (score.stageId) {
     const stage = getInternalStage(score.stageId);
     const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
-    const time = stage.scoringType === "hitfactor" ? ` · ${formatNumber(score.time, 2)} sec · HF ${formatNumber(score.hitfactor, 3)}` : "";
+    const time = stage.scoringType === "hitfactor" ? ` · ${formatLongCourseHits(score.longCourseHits)} · ${formatNumber(score.time, 2)} sec · HF ${formatNumber(score.hitfactor, 3)}` : "";
     const agreement = score.signatureDataUrl ? " · akkoord getekend" : "";
     return `${stage.label} · ${formatNumber(score.net, 0)}/${formatNumber(score.maxPoints || stage.maxPoints, 0)} punten${time}${status}${agreement}`;
   }
@@ -6290,7 +6352,7 @@ function exportCsv() {
           result.completed
             ? `${formatNumber(result.points, 0)} pt${
                 result.stage.scoringType === "hitfactor"
-                  ? `; ${formatNumber(result.time, 2)} sec; precisie ${formatNumber(result.precisionPercentage, 2)}%; snelheid ${formatNumber(result.speedPercentage, 2)}%`
+                  ? `; ${formatLongCourseHits(result.score.longCourseHits)}; ${formatNumber(result.time, 2)} sec; precisie ${formatNumber(result.precisionPercentage, 2)}%; snelheid ${formatNumber(result.speedPercentage, 2)}%`
                   : ""
               }; ${formatNumber(result.percentage, 2)}%`
             : "",
@@ -6756,11 +6818,18 @@ $("#scoreForm").addEventListener("input", (event) => {
         scoreDraft.time = "";
         scoreDraft.penaltyPoints = "";
         scoreDraft.cardHits = [];
+        scoreDraft.longCourseHits = createEmptyLongCourseHits();
       }
     }
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
-  if (event.target.id === "scoreRawPoints") scoreDraft.rawPoints = event.target.value;
+  if (event.target.id === "scoreRawPoints") {
+    scoreDraft.rawPoints = event.target.value;
+    if (isInternalCompetitionClub() && isDynamicStage(scoreDraft.stageId)) {
+      const rawPoints = Math.max(0, parseDecimal(event.target.value) || 0);
+      if (rawPoints !== getLongCourseHitsTotal()) scoreDraft.longCourseHits = createEmptyLongCourseHits();
+    }
+  }
   if (event.target.id === "scorePenaltyPoints") scoreDraft.penaltyPoints = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
@@ -6820,6 +6889,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
       hitfactor: calc.hitfactor,
       percentage: calc.percentage,
       cardHits: stage.scoringType === "precision" ? [...(scoreDraft.cardHits || [])] : [],
+      longCourseHits: stage.scoringType === "hitfactor" ? normalizeLongCourseHits(scoreDraft.longCourseHits) : createEmptyLongCourseHits(),
       hitPoints: calc.hitPoints,
       flexPoints: 0,
       alpha: 0,
