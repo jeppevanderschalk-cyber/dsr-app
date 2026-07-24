@@ -3368,7 +3368,7 @@ dialog .primary-action::after {
               <label>
                 <span>Schutter</span>
                 <select id="scoreShooter"></select>
-                <span class="score-optic-toggle">
+                <span class="score-optic-toggle" data-internal-competition-only>
                   <span>Optic schutter</span>
                   <input id="scoreShooterOptic" class="switch" type="checkbox" />
                 </span>
@@ -3916,7 +3916,7 @@ dialog .primary-action::after {
             <option value="IPSC/DSR wedstrijd schutter">IPSC/DSR wedstrijd schutter</option>
           </select>
         </label>
-        <label class="dialog-toggle-row">
+        <label class="dialog-toggle-row" data-internal-competition-only>
           <span>Optic schutter</span>
           <label class="toggle" title="Optic schutter">
             <input id="entryOptic" class="switch" type="checkbox" />
@@ -6565,7 +6565,7 @@ function renderProfiles() {
             <strong>${escapeHtml(shooter.name)}</strong>
             <small>${getShooterLevelLabel(shooter)} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
-          <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only>
+          <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only data-internal-competition-only>
             <input type="checkbox" class="switch" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${escapeHtml(shooter.name)} optic schutter" />
           </label>
           <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${escapeHtml(shooter.name)} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
