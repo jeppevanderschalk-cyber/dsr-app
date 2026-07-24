@@ -4017,6 +4017,7 @@ const CLUB_OPTIONS = [
 const BRAND_LOGOS = {
   default: "dsr-logo.jpeg",
   internalCompetition: "logo-SVBB.png",
+  svbb: "svbb-logo.png",
 };
 const AUTH_CONFIG = {
   trainerHashes: [
@@ -4399,21 +4400,45 @@ function getModeCopy(clubId = currentClubId) {
 }
 
 function getClubLogoSrc(clubId = currentClubId) {
-  return normalizeClubCode(clubId) === "INTERNE-COMPETITIE" ? BRAND_LOGOS.internalCompetition : BRAND_LOGOS.default;
+  const code = normalizeClubCode(clubId);
+  if (code === "INTERNE-COMPETITIE") return BRAND_LOGOS.internalCompetition;
+  if (code === "SVBB") return BRAND_LOGOS.svbb;
+  return BRAND_LOGOS.default;
+}
+
+function getClubLogoAlt(clubId = currentClubId) {
+  const code = normalizeClubCode(clubId);
+  if (code === "INTERNE-COMPETITIE") return "SV Beemte-Broekland";
+  if (code === "SVBB") return "SVBB";
+  return "DSR";
+}
+
+// Valt terug op het standaardlogo als een clublogo ontbreekt, zodat er nooit
+// een kapot plaatje in beeld staat.
+function applyBrandLogo(logo, src, alt) {
+  logo.onerror = () => {
+    logo.onerror = null;
+    logo.src = BRAND_LOGOS.default;
+  };
+  logo.src = src;
+  logo.alt = alt;
 }
 
 function updateBrandLogos(clubId = currentClubId) {
-  const isInternal = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  const code = normalizeClubCode(clubId);
+  // Zowel de interne competitie als SVBB gebruiken een rond clublogo
+  const useClubLogo = code === "INTERNE-COMPETITIE" || code === "SVBB";
+  const logoSrc = getClubLogoSrc(clubId);
+  const logoAlt = getClubLogoAlt(clubId);
   $$("[data-brand-logo]").forEach((logo) => {
-    logo.src = getClubLogoSrc(clubId);
-    logo.alt = isInternal ? "SV Beemte-Broekland" : "DSR";
+    applyBrandLogo(logo, logoSrc, logoAlt);
   });
-  $("#appLogoImage")?.closest(".app-logo")?.classList.toggle("is-club-logo", isInternal);
-  $("#loginLogo")?.classList.toggle("is-club-logo", isInternal);
+  $("#appLogoImage")?.closest(".app-logo")?.classList.toggle("is-club-logo", useClubLogo);
+  $("#loginLogo")?.classList.toggle("is-club-logo", useClubLogo);
   const beamerLogo = $("#beamerLogoImage");
   if (beamerLogo) {
-    beamerLogo.hidden = !isInternal;
-    beamerLogo.src = BRAND_LOGOS.internalCompetition;
+    beamerLogo.hidden = !useClubLogo;
+    applyBrandLogo(beamerLogo, logoSrc, logoAlt);
   }
 }
 
