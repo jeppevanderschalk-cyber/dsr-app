@@ -2255,6 +2255,22 @@ select:focus {
   background: linear-gradient(170deg, rgba(255, 92, 170, 0.18), rgba(255, 92, 170, 0.06));
 }
 
+/* Schaalt mee met de omliggende tekst (em), zodat het ook op de beamer klopt */
+.rimfire-tag {
+  display: inline-block;
+  margin-left: 0.5em;
+  padding: 0.12em 0.5em;
+  border: 1px solid rgba(255, 92, 170, 0.65);
+  border-radius: 999px;
+  background: rgba(255, 92, 170, 0.22);
+  color: #ff8ec4;
+  font-size: 0.72em;
+  font-weight: 900;
+  line-height: 1.4;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .dashboard-grid {
   display: grid;
   gap: 14px;
@@ -6086,7 +6102,7 @@ function renderScoreProgress() {
         <article class="score-progress-card${shooter.rimfire ? " is-rimfire" : ""}">
           <header>
             <div>
-              <strong>${escapeHtml(shooter.name)}</strong>
+              <strong>${escapeHtml(shooter.name)}${shooter.rimfire ? `<span class="rimfire-tag">.22</span>` : ""}</strong>
               <small>${getShooterLevelLabel(shooter)} · ${scores.length} scores</small>
             </div>
           </header>
@@ -6425,7 +6441,7 @@ function renderBeamerBoard() {
         return `
           <div class="beamer-row${podiumClass}${row.shooter.rimfire ? " is-rimfire" : ""}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
-            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</strong>
+            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}${row.shooter.rimfire ? `<span class="rimfire-tag">.22</span>` : ""}</strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
             <span>${internalMode ? internalScoreText : scoreTimeText}</span>
             <span>${internalMode ? internalStageText : latestText}</span>
