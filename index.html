@@ -175,8 +175,8 @@ body:has(#view-home.is-active) .topbar {
 .app-logo {
   display: inline-grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  width: 77px;
+  height: 77px;
   flex: 0 0 auto;
   border: 0;
   border-radius: 999px;
@@ -193,8 +193,8 @@ body:has(#view-home.is-active) .topbar {
 }
 
 .app-logo.is-club-logo {
-  width: 88px;
-  height: 88px;
+  width: 106px;
+  height: 106px;
   background: transparent;
   box-shadow: none;
   overflow: visible;
@@ -2758,8 +2758,8 @@ dialog .primary-action::after {
 }
 
 .login-logo {
-  width: 64px;
-  height: 64px;
+  width: 90px;
+  height: 90px;
   margin: 0 auto;
   border-radius: 16px;
   object-fit: cover;
@@ -3036,13 +3036,13 @@ dialog .primary-action::after {
   }
 
   .app-logo {
-    width: 72px;
-    height: 72px;
+    width: 86px;
+    height: 86px;
   }
 
   .app-logo.is-club-logo {
-    width: 108px;
-    height: 108px;
+    width: 130px;
+    height: 130px;
   }
 
   h1 {
@@ -4018,6 +4018,7 @@ const BRAND_LOGOS = {
   default: "dsr-logo.jpeg",
   internalCompetition: "logo-SVBB.png",
   svbb: "svbb-logo.png",
+  aps: "aps-logo.png",
 };
 const AUTH_CONFIG = {
   trainerHashes: [
@@ -4403,6 +4404,7 @@ function getClubLogoSrc(clubId = currentClubId) {
   const code = normalizeClubCode(clubId);
   if (code === "INTERNE-COMPETITIE") return BRAND_LOGOS.internalCompetition;
   if (code === "SVBB") return BRAND_LOGOS.svbb;
+  if (code === "APS-DSR") return BRAND_LOGOS.aps;
   return BRAND_LOGOS.default;
 }
 
@@ -4410,6 +4412,7 @@ function getClubLogoAlt(clubId = currentClubId) {
   const code = normalizeClubCode(clubId);
   if (code === "INTERNE-COMPETITIE") return "SV Beemte-Broekland";
   if (code === "SVBB") return "SVBB";
+  if (code === "APS-DSR") return "APS";
   return "DSR";
 }
 
@@ -4426,8 +4429,8 @@ function applyBrandLogo(logo, src, alt) {
 
 function updateBrandLogos(clubId = currentClubId) {
   const code = normalizeClubCode(clubId);
-  // Zowel de interne competitie als SVBB gebruiken een rond clublogo
-  const useClubLogo = code === "INTERNE-COMPETITIE" || code === "SVBB";
+  // Clubs met een eigen rond logo (de rest valt terug op het DSR-logo)
+  const useClubLogo = ["INTERNE-COMPETITIE", "SVBB", "APS-DSR"].includes(code);
   const logoSrc = getClubLogoSrc(clubId);
   const logoAlt = getClubLogoAlt(clubId);
   $$("[data-brand-logo]").forEach((logo) => {
