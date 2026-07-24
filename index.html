@@ -2245,6 +2245,16 @@ select:focus {
   background: linear-gradient(90deg, rgba(217, 148, 86, 0.18), rgba(217, 148, 86, 0.04));
 }
 
+/* .22 schutter: roze markering in de stand en de progressie */
+.beamer-row.is-rimfire:not(.beamer-head) {
+  background: linear-gradient(90deg, rgba(255, 92, 170, 0.36), rgba(255, 92, 170, 0.1));
+}
+
+.score-progress-card.is-rimfire {
+  border-color: rgba(255, 92, 170, 0.55);
+  background: linear-gradient(170deg, rgba(255, 92, 170, 0.18), rgba(255, 92, 170, 0.06));
+}
+
 .dashboard-grid {
   display: grid;
   gap: 14px;
@@ -3372,6 +3382,10 @@ dialog .primary-action::after {
                   <span>Optic schutter</span>
                   <input id="scoreShooterOptic" class="switch" type="checkbox" />
                 </span>
+                <span class="score-optic-toggle score-rimfire-toggle" data-svbb-only>
+                  <span>.22 schutter</span>
+                  <input id="scoreShooterRimfire" class="switch" type="checkbox" />
+                </span>
               </label>
               <label id="scoreDisciplineField">
                 <span>Discipline</span>
@@ -4139,6 +4153,7 @@ function mergeData(base, saved) {
         level: normalizeLevel(shooter.level),
         discipline: normalizeDiscipline(shooter.discipline),
         optic: Boolean(shooter.optic),
+        rimfire: Boolean(shooter.rimfire),
       }))
     : base.shooters;
   const scores = Array.isArray(saved.scores)
@@ -4294,6 +4309,10 @@ function getClubLabel(clubId = currentClubId) {
 
 function isInternalCompetitionClub() {
   return normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
+}
+
+function isSvbbClub() {
+  return normalizeClubCode(currentClubId) === "SVBB";
 }
 
 function getModeCopy(clubId = currentClubId) {
@@ -4695,6 +4714,11 @@ function syncScoreOpticToggle() {
   const shooter = getShooter(scoreDraft.shooterId);
   opticInput.checked = Boolean(shooter?.optic);
   opticInput.disabled = !shooter;
+  const rimfireInput = $("#scoreShooterRimfire");
+  if (rimfireInput) {
+    rimfireInput.checked = Boolean(shooter?.rimfire);
+    rimfireInput.disabled = !shooter;
+  }
 }
 
 function createEmptyLongCourseHits() {
@@ -6059,7 +6083,7 @@ function renderScoreProgress() {
   return groups
     .map(
       ({ shooter, scores }) => `
-        <article class="score-progress-card">
+        <article class="score-progress-card${shooter.rimfire ? " is-rimfire" : ""}">
           <header>
             <div>
               <strong>${escapeHtml(shooter.name)}</strong>
@@ -6399,7 +6423,7 @@ function renderBeamerBoard() {
         const internalScoreText = `${formatNumber(row.precisionContribution, 1)} / ${formatNumber(row.dynamicContribution, 1)}`;
         const internalStageText = `${row.completedStages}/${row.totalStages} · ${row.status}`;
         return `
-          <div class="beamer-row${podiumClass}">
+          <div class="beamer-row${podiumClass}${row.shooter.rimfire ? " is-rimfire" : ""}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
             <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
@@ -7034,6 +7058,14 @@ function applyRolePermissions() {
 
   $$("[data-non-internal-competition]").forEach((element) => {
     const hidden = readOnly || internalCompetition;
+    element.hidden = hidden;
+    element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
+      control.disabled = hidden;
+    });
+  });
+
+  $$("[data-svbb-only]").forEach((element) => {
+    const hidden = readOnly || !isSvbbClub();
     element.hidden = hidden;
     element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
       control.disabled = hidden;
@@ -8148,6 +8180,23 @@ $("#scoreShooterOptic").addEventListener("change", (event) => {
   markDirty();
   render();
   showToast(shooter.optic ? "Optic aftrek actief" : "Optic aftrek uit");
+});
+
+$("#scoreShooterRimfire").addEventListener("change", (event) => {
+  if (!requireTrainer()) {
+    event.target.checked = !event.target.checked;
+    return;
+  }
+  const shooter = getShooter(scoreDraft.shooterId);
+  if (!shooter) {
+    event.target.checked = false;
+    showToast("Kies eerst een schutter");
+    return;
+  }
+  shooter.rimfire = event.target.checked;
+  markDirty();
+  render();
+  showToast(shooter.rimfire ? ".22 schutter aan" : ".22 schutter uit");
 });
 
 document.addEventListener("click", (event) => {
