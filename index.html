@@ -2770,6 +2770,13 @@ dialog .primary-action::after {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
 }
 
+/* Het logo van de interne competitie heeft veel witruimte in de afbeelding,
+   dus dat mag op het inlogscherm groter dan de andere clublogo's. */
+.login-logo[data-club="INTERNE-COMPETITIE"] {
+  width: 126px;
+  height: 126px;
+}
+
 .login-card h2 {
   margin: 0;
 }
@@ -4434,6 +4441,7 @@ function updateBrandLogos(clubId = currentClubId) {
   const logoSrc = getClubLogoSrc(clubId);
   const logoAlt = getClubLogoAlt(clubId);
   $$("[data-brand-logo]").forEach((logo) => {
+    logo.dataset.club = code;
     applyBrandLogo(logo, logoSrc, logoAlt);
   });
   $("#appLogoImage")?.closest(".app-logo")?.classList.toggle("is-club-logo", useClubLogo);
