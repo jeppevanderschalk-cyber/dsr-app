@@ -1931,11 +1931,23 @@ select:focus {
 
 .beamer-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: clamp(12px, 1.6vw, 22px);
   padding-bottom: clamp(8px, 1.1vw, 14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.beamer-wide-logo {
+  justify-self: start;
+  height: clamp(52px, 7vw, 104px);
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.beamer-wide-logo[hidden] {
+  display: none;
 }
 
 .beamer-header h2 {
@@ -3979,11 +3991,8 @@ dialog .primary-action::after {
     <section class="beamer-overlay" id="beamerOverlay" hidden aria-label="Live score beamerweergave">
       <div class="beamer-shell">
         <header class="beamer-header">
-          <div>
-            <p class="eyebrow">Live score</p>
-            <h2>Wedstrijdstand</h2>
-          </div>
-          <div class="beamer-brand">
+          <img src="svbb-wide.png" alt="SVBB" class="beamer-wide-logo" id="beamerWideLogo" hidden />
+          <div class="beamer-brand" id="beamerBrand">
             <img src="svbb-logo.png" alt="SVBB" id="beamerLogoImage" hidden />
             <strong id="beamerClubTitle">SVBB</strong>
           </div>
@@ -6416,6 +6425,14 @@ function renderBeamerBoard() {
   const updatedAt = state.updatedAt || new Date().toISOString();
   const table = $("#beamerTable");
   $("#beamerClubTitle").textContent = getClubLabel();
+  // SVBB en de interne competitie tonen het brede SVBB-logo links; andere
+  // clubs vallen terug op het ronde clublogo met naam.
+  const code = normalizeClubCode(currentClubId);
+  const useWideLogo = code === "SVBB" || code === "INTERNE-COMPETITIE";
+  const wideLogo = $("#beamerWideLogo");
+  const brand = $("#beamerBrand");
+  if (wideLogo) wideLogo.hidden = !useWideLogo;
+  if (brand) brand.hidden = useWideLogo;
   $("#beamerSummary").innerHTML = `
     <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
