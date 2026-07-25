@@ -1931,11 +1931,21 @@ select:focus {
 
 .beamer-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: clamp(12px, 1.6vw, 22px);
   padding-bottom: clamp(8px, 1.1vw, 14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.beamer-header-title {
+  justify-self: end;
+  color: #fff;
+  font-size: clamp(1.6rem, 3.4vw, 4rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: right;
 }
 
 .beamer-wide-logo {
@@ -3994,8 +4004,8 @@ dialog .primary-action::after {
           <img src="svbb-wide.png" alt="SVBB" class="beamer-wide-logo" id="beamerWideLogo" hidden />
           <div class="beamer-brand" id="beamerBrand">
             <img src="svbb-logo.png" alt="SVBB" id="beamerLogoImage" hidden />
-            <strong id="beamerClubTitle">SVBB</strong>
           </div>
+          <strong class="beamer-header-title" id="beamerClubTitle">SVBB</strong>
           <button class="icon-button beamer-close" id="beamerCloseButton" type="button" aria-label="Beamerweergave sluiten" title="Sluiten">
             <span aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
