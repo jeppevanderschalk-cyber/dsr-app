@@ -1966,13 +1966,16 @@ select:focus {
   display: none;
 }
 
-.beamer-wide-logo--full {
-  justify-self: start;
-  height: auto;
-  width: 50%;
-  max-width: none;
+.beamer-header-title-image {
+  justify-self: end;
+  height: clamp(46px, 6.4vw, 96px);
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
-  object-position: left center;
+}
+
+.beamer-header-title-image[hidden] {
+  display: none;
 }
 
 .beamer-header h2 {
@@ -4021,6 +4024,7 @@ dialog .primary-action::after {
             <img src="svbb-logo.png" alt="SVBB" id="beamerLogoImage" hidden />
           </div>
           <strong class="beamer-header-title" id="beamerClubTitle">SVBB</strong>
+          <img class="beamer-header-title-image" id="beamerTitleImage" alt="Interne competitie" hidden />
           <button class="icon-button beamer-close" id="beamerCloseButton" type="button" aria-label="Beamerweergave sluiten" title="Sluiten">
             <span aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
@@ -6453,21 +6457,25 @@ function renderBeamerBoard() {
   clubTitle.textContent = getClubLabel();
   // SVBB en de interne competitie tonen het brede SVBB-logo links; andere
   // clubs vallen terug op het ronde clublogo met naam. De interne competitie
-  // gebruikt één samengestelde banner (logo + titel) in plaats van het losse
-  // logo met apart gerenderde titeltekst.
+  // toont daarnaast een titelafbeelding rechts in plaats van de apart
+  // gerenderde neon-titeltekst.
   const code = normalizeClubCode(currentClubId);
   const useWideLogo = code === "SVBB" || code === "INTERNE-COMPETITIE";
   const useFullBanner = code === "INTERNE-COMPETITIE";
   const wideLogo = $("#beamerWideLogo");
   const brand = $("#beamerBrand");
+  const titleImage = $("#beamerTitleImage");
   if (wideLogo) {
     wideLogo.hidden = !useWideLogo;
-    wideLogo.src = useFullBanner ? "svbb-interne-competitie-banner.png" : "svbb-neon.png";
-    wideLogo.alt = useFullBanner ? "SV Beemte-Broekland — Interne competitie" : "SV Beemte-Broekland";
-    wideLogo.classList.toggle("beamer-wide-logo--full", useFullBanner);
+    wideLogo.src = useFullBanner ? "svbb-interne-competitie-logo.png" : "svbb-neon.png";
+    wideLogo.alt = "SV Beemte-Broekland";
   }
   if (brand) brand.hidden = useWideLogo;
   clubTitle.hidden = useFullBanner;
+  if (titleImage) {
+    titleImage.hidden = !useFullBanner;
+    if (useFullBanner) titleImage.src = "svbb-interne-competitie-title.png";
+  }
   $("#beamerSummary").innerHTML = `
     <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
