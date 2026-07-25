@@ -2770,13 +2770,6 @@ dialog .primary-action::after {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
 }
 
-/* Het logo van de interne competitie heeft veel witruimte in de afbeelding,
-   dus dat mag op het inlogscherm groter dan de andere clublogo's. */
-.login-logo[data-club="INTERNE-COMPETITIE"] {
-  width: 126px;
-  height: 126px;
-}
-
 .login-card h2 {
   margin: 0;
 }
@@ -3991,7 +3984,7 @@ dialog .primary-action::after {
             <h2>Wedstrijdstand</h2>
           </div>
           <div class="beamer-brand">
-            <img src="logo-SVBB.png" alt="SV Beemte-Broekland" id="beamerLogoImage" hidden />
+            <img src="svbb-logo.png" alt="SVBB" id="beamerLogoImage" hidden />
             <strong id="beamerClubTitle">SVBB</strong>
           </div>
           <button class="icon-button beamer-close" id="beamerCloseButton" type="button" aria-label="Beamerweergave sluiten" title="Sluiten">
@@ -4023,7 +4016,7 @@ const CLUB_OPTIONS = [
 ];
 const BRAND_LOGOS = {
   default: "dsr-logo.jpeg",
-  internalCompetition: "logo-SVBB.png",
+  internalCompetition: "svbb-logo.png",
   svbb: "svbb-logo.png",
   aps: "aps-logo.png",
 };
