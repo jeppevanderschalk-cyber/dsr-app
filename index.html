@@ -1966,6 +1966,15 @@ select:focus {
   display: none;
 }
 
+.beamer-wide-logo--full {
+  justify-self: stretch;
+  height: auto;
+  width: 100%;
+  max-width: none;
+  object-fit: contain;
+  object-position: left center;
+}
+
 .beamer-header h2 {
   margin: 0;
   color: #fff;
@@ -6440,15 +6449,25 @@ function renderBeamerBoard() {
   const groups = getBeamerLevelGroups(rows);
   const updatedAt = state.updatedAt || new Date().toISOString();
   const table = $("#beamerTable");
-  $("#beamerClubTitle").textContent = getClubLabel();
+  const clubTitle = $("#beamerClubTitle");
+  clubTitle.textContent = getClubLabel();
   // SVBB en de interne competitie tonen het brede SVBB-logo links; andere
-  // clubs vallen terug op het ronde clublogo met naam.
+  // clubs vallen terug op het ronde clublogo met naam. De interne competitie
+  // gebruikt één samengestelde banner (logo + titel) in plaats van het losse
+  // logo met apart gerenderde titeltekst.
   const code = normalizeClubCode(currentClubId);
   const useWideLogo = code === "SVBB" || code === "INTERNE-COMPETITIE";
+  const useFullBanner = code === "INTERNE-COMPETITIE";
   const wideLogo = $("#beamerWideLogo");
   const brand = $("#beamerBrand");
-  if (wideLogo) wideLogo.hidden = !useWideLogo;
+  if (wideLogo) {
+    wideLogo.hidden = !useWideLogo;
+    wideLogo.src = useFullBanner ? "svbb-interne-competitie-banner.png" : "svbb-neon.png";
+    wideLogo.alt = useFullBanner ? "SV Beemte-Broekland — Interne competitie" : "SV Beemte-Broekland";
+    wideLogo.classList.toggle("beamer-wide-logo--full", useFullBanner);
+  }
   if (brand) brand.hidden = useWideLogo;
+  clubTitle.hidden = useFullBanner;
   $("#beamerSummary").innerHTML = `
     <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
