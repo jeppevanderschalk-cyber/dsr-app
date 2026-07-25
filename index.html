@@ -1922,7 +1922,7 @@ select:focus {
 
 .beamer-shell {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: clamp(8px, 1.15vw, 16px);
   width: min(100%, 1780px);
   height: 100%;
@@ -2028,10 +2028,10 @@ select:focus {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: clamp(8px, 0.9vw, 14px);
-  padding: clamp(10px, 1.2vw, 18px) clamp(14px, 1.5vw, 24px);
+  gap: clamp(5px, 0.5vw, 8px);
+  padding: clamp(5px, 0.55vw, 9px) clamp(9px, 0.9vw, 14px);
   border: 1px solid rgba(245, 197, 24, 0.28);
-  border-radius: 16px;
+  border-radius: 12px;
   background: rgba(245, 197, 24, 0.08);
 }
 
@@ -2041,18 +2041,18 @@ select:focus {
 
 .beamer-formula > strong {
   color: var(--yellow);
-  font-size: clamp(0.95rem, 1.35vw, 1.55rem);
+  font-size: clamp(0.62rem, 0.8vw, 0.9rem);
   font-weight: 900;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .beamer-formula > span {
-  padding: clamp(5px, 0.6vw, 9px) clamp(10px, 1vw, 16px);
+  padding: clamp(3px, 0.35vw, 5px) clamp(6px, 0.55vw, 9px);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.9);
-  font-size: clamp(0.85rem, 1.2vw, 1.42rem);
+  font-size: clamp(0.56rem, 0.7vw, 0.82rem);
   font-weight: 800;
   line-height: 1.15;
 }
@@ -4033,9 +4033,9 @@ dialog .primary-action::after {
         </header>
 
         <div class="beamer-summary" id="beamerSummary"></div>
-        <div class="beamer-formula" id="beamerFormula" hidden></div>
         <div class="beamer-table" id="beamerTable"></div>
         <div class="beamer-pager" id="beamerPager" hidden></div>
+        <div class="beamer-formula" id="beamerFormula" hidden></div>
       </div>
     </section>
 
