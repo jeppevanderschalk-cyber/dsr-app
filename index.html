@@ -6454,12 +6454,12 @@ function renderBeamerBoard() {
   const updatedAt = state.updatedAt || new Date().toISOString();
   const table = $("#beamerTable");
   const clubTitle = $("#beamerClubTitle");
-  clubTitle.textContent = getClubLabel();
+  const code = normalizeClubCode(currentClubId);
+  clubTitle.textContent = code === "SVBB" ? "Resultaat training" : getClubLabel();
   // SVBB en de interne competitie tonen het brede SVBB-logo links; andere
   // clubs vallen terug op het ronde clublogo met naam. De interne competitie
   // toont daarnaast een titelafbeelding rechts in plaats van de apart
   // gerenderde neon-titeltekst.
-  const code = normalizeClubCode(currentClubId);
   const useWideLogo = code === "SVBB" || code === "INTERNE-COMPETITIE";
   const useFullBanner = code === "INTERNE-COMPETITIE";
   const wideLogo = $("#beamerWideLogo");
