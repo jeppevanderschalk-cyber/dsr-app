@@ -3685,7 +3685,7 @@ dialog .primary-action::after {
               <option value="all">Alle niveaus</option>
               <option value="Beginner">Beginner</option>
               <option value="Gevorderd">Gevorderd</option>
-              <option value="EPP wedstrijd">EPP wedstrijd</option>
+              <option value="Wedstrijdploeg dinsdagen">Wedstrijdploeg dinsdagen</option>
               <option value="IPSC/DSR wedstrijd schutter">IPSC/DSR wedstrijd schutter</option>
             </select>
             <select id="rankScope" aria-label="Training selectie">
@@ -3982,7 +3982,7 @@ dialog .primary-action::after {
           <select id="entryMeta">
             <option value="Beginner">Beginner</option>
             <option value="Gevorderd">Gevorderd</option>
-            <option value="EPP wedstrijd">EPP wedstrijd</option>
+            <option value="Wedstrijdploeg dinsdagen">Wedstrijdploeg dinsdagen</option>
             <option value="IPSC/DSR wedstrijd schutter">IPSC/DSR wedstrijd schutter</option>
           </select>
         </label>
@@ -4125,7 +4125,7 @@ const DEFAULT_POINT_LABELS = {
 const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const defaultLevel = "Beginner";
-const levelOptions = ["Beginner", "Gevorderd", "EPP wedstrijd", "IPSC/DSR wedstrijd schutter"];
+const levelOptions = ["Beginner", "Gevorderd", "Wedstrijdploeg dinsdagen", "IPSC/DSR wedstrijd schutter"];
 const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
@@ -4150,6 +4150,12 @@ const iconX = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
+  </svg>
+`;
+
+const iconPencil = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="m16.5 3.5 4 4L7 21l-4.5 1L4 17.5Z" />
   </svg>
 `;
 
@@ -4780,6 +4786,7 @@ function normalizeDiscipline(discipline) {
 
 function normalizeLevel(level) {
   if (level === "Wedstrijdschutter" || level === "Open") return "IPSC/DSR wedstrijd schutter";
+  if (level === "EPP wedstrijd") return "Wedstrijdploeg dinsdagen";
   return levelOptions.includes(level) ? level : defaultLevel;
 }
 
@@ -6697,6 +6704,7 @@ function renderProfiles() {
           <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only data-internal-competition-only>
             <input type="checkbox" class="switch" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${escapeHtml(shooter.name)} optic schutter" />
           </label>
+          <button class="icon-button" type="button" data-edit-shooter="${shooter.id}" aria-label="${escapeHtml(shooter.name)} bewerken" title="Bewerken" data-trainer-only>${iconPencil}</button>
           <button class="delete-button" type="button" data-delete-shooter="${shooter.id}" aria-label="${escapeHtml(shooter.name)} verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
         </article>
       `;
@@ -7178,13 +7186,17 @@ function applyRolePermissions() {
   });
 }
 
-function openEntryDialog() {
+let editingShooterId = null;
+
+function openEntryDialog(shooterId) {
   if (!requireTrainer()) return;
-  $("#entryTitle").textContent = "Schutter toevoegen";
-  $("#entryName").value = "";
-  $("#entryMeta").value = defaultLevel;
-  $("#entryOptic").checked = false;
-  $("#entryDiscipline").value = defaultDiscipline;
+  const shooter = shooterId ? getShooter(shooterId) : null;
+  editingShooterId = shooter ? shooter.id : null;
+  $("#entryTitle").textContent = shooter ? "Schutter bewerken" : "Schutter toevoegen";
+  $("#entryName").value = shooter ? shooter.name : "";
+  $("#entryMeta").value = normalizeLevel(shooter ? shooter.level : defaultLevel);
+  $("#entryOptic").checked = shooter ? Boolean(shooter.optic) : false;
+  $("#entryDiscipline").value = normalizeDiscipline(shooter ? shooter.discipline : defaultDiscipline);
   $("#entryMetaLabel span").textContent = "Niveau";
   $("#entryDialog").showModal();
   $("#entryName").focus();
@@ -7202,19 +7214,28 @@ function saveEntryDialog() {
     return;
   }
 
-  state.shooters.push({
-    id: createId("shooter"),
-    name,
-    level: meta || defaultLevel,
-    discipline,
-    optic,
-    active: true,
-  });
+  const shooter = editingShooterId ? getShooter(editingShooterId) : null;
+  if (shooter) {
+    shooter.name = name;
+    shooter.level = meta || defaultLevel;
+    shooter.discipline = discipline;
+    shooter.optic = optic;
+  } else {
+    state.shooters.push({
+      id: createId("shooter"),
+      name,
+      level: meta || defaultLevel,
+      discipline,
+      optic,
+      active: true,
+    });
+  }
   markDirty();
 
+  editingShooterId = null;
   $("#entryDialog").close();
   render();
-  showToast("Schutter toegevoegd");
+  showToast(shooter ? "Schutter bijgewerkt" : "Schutter toegevoegd");
 }
 
 function addDemoScores() {
@@ -8184,9 +8205,12 @@ $("#beamerCloseButton").addEventListener("click", closeBeamerBoard);
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
 $("#resetInternalCompetitionButton").addEventListener("click", resetInternalCompetitionScores);
-$("#addShooterButton").addEventListener("click", () => openEntryDialog("shooter"));
-$("#profileAddButton").addEventListener("click", () => openEntryDialog("shooter"));
+$("#addShooterButton").addEventListener("click", () => openEntryDialog());
+$("#profileAddButton").addEventListener("click", () => openEntryDialog());
 $("#entryCancelButton").addEventListener("click", () => $("#entryDialog").close());
+$("#entryDialog").addEventListener("close", () => {
+  editingShooterId = null;
+});
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !$("#beamerOverlay").hidden) closeBeamerBoard();
@@ -8202,6 +8226,12 @@ document.addEventListener("click", (event) => {
   const signatureButton = event.target.closest("[data-view-signature]");
   if (signatureButton) {
     openSignatureDialog(signatureButton.dataset.viewSignature);
+    return;
+  }
+
+  const editShooterButton = event.target.closest("[data-edit-shooter]");
+  if (editShooterButton) {
+    openEntryDialog(editShooterButton.dataset.editShooter);
     return;
   }
 
