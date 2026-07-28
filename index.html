@@ -2068,6 +2068,90 @@ select:focus {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   background: rgba(12, 12, 14, 0.88);
+  display: flex;
+  flex-direction: column;
+}
+
+.beamer-rounds-wrap {
+  min-height: 0;
+  overflow: auto;
+  flex: 1;
+}
+
+.beamer-rounds-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.beamer-rounds-table th,
+.beamer-rounds-table td {
+  padding: clamp(6px, 0.9vh, 14px) clamp(10px, 1.2vw, 18px);
+  text-align: center;
+  font-size: clamp(0.82rem, 1.3vw, 1.32rem);
+  font-weight: 800;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  white-space: nowrap;
+}
+
+.beamer-rounds-table th:first-child,
+.beamer-rounds-table td:first-child {
+  text-align: left;
+  color: #fff;
+}
+
+.beamer-rounds-table thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(12, 12, 14, 0.96);
+  color: rgba(255, 255, 255, 0.66);
+  font-size: clamp(0.68rem, 0.95vw, 0.95rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  z-index: 1;
+}
+
+.beamer-rounds-table tbody td {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.beamer-rounds-table tbody td.is-best {
+  color: #0b0b0c;
+  background: var(--yellow);
+  border-radius: 10px;
+  box-shadow: 0 0 14px rgba(245, 197, 24, 0.55);
+}
+
+.beamer-notes {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(4px, 0.5vw, 8px);
+  padding: clamp(8px, 1vh, 14px) clamp(14px, 1.5vw, 22px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(245, 197, 24, 0.05);
+}
+
+.beamer-notes > strong {
+  color: var(--yellow);
+  font-size: clamp(0.72rem, 0.9vw, 0.95rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.beamer-notes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(6px, 0.8vw, 12px);
+  font-size: clamp(0.78rem, 1.05vw, 1.15rem);
+  font-weight: 700;
+}
+
+.beamer-notes-row span:first-child {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 800;
+}
+
+.beamer-notes-row span:last-child {
+  color: #fff;
 }
 
 .beamer-pager {
@@ -3747,6 +3831,11 @@ dialog .primary-action::after {
             <section class="section-block">
               <div class="section-heading">
                 <h3 id="scoreRoundsTitle">Score-rondes</h3>
+                <button class="icon-button" id="roundsBeamerButton" type="button" aria-label="Beamerweergave rondes" title="Beamerweergave rondes" hidden>
+                  <span aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+                  </span>
+                </button>
                 <button class="text-button" id="progressPdfButton" type="button">PDF downloaden</button>
               </div>
               <div class="filter-bar single-filter">
@@ -4173,6 +4262,7 @@ let currentRole = "";
 let sessionTrainerPassword = ""; // alleen in memory, nooit opgeslagen
 let shotTimer = createShotTimerState();
 let beamerPaging = { index: 0, timer: 0 };
+let beamerMode = "ranking"; // "ranking" | "rounds"
 const BEAMER_PAGE_INTERVAL_MS = 9000;
 let signaturePad = {
   initialized: false,
@@ -6452,6 +6542,102 @@ function startBeamerAutoPaging() {
   }, BEAMER_PAGE_INTERVAL_MS);
 }
 
+// Voortgang per ronde voor de trainingsbeamer: per schutter de hitfactor per
+// ronde, met de beste ronde gemarkeerd en eventuele opmerkingen bij scores.
+function getBeamerRoundsData() {
+  const entries = getScoreRoundEntries("all");
+  const shooters = state.shooters.filter((shooter) => shooter.active);
+  const maxRound = Math.min(
+    progressRounds.at(-1),
+    Math.max(4, ...entries.map((entry) => Number(entry.displayRound) || 1)),
+  );
+  const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
+
+  const rows = shooters
+    .map((shooter) => {
+      const shooterEntries = entries.filter((entry) => entry.shooterId === shooter.id);
+      const bestHitfactor = shooterEntries.length ? Math.max(...shooterEntries.map((entry) => entry.hitfactor || 0)) : 0;
+      const cells = rounds.map((round) => {
+        const score = shooterEntries
+          .filter((entry) => Number(entry.displayRound) === round)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+        const isBest = Boolean(score) && bestHitfactor > 0 && Math.abs(score.hitfactor - bestHitfactor) < 0.0005;
+        return { round, score, isBest };
+      });
+      return { shooter, cells, bestHitfactor, entryCount: shooterEntries.length };
+    })
+    .sort((a, b) => b.bestHitfactor - a.bestHitfactor || a.shooter.name.localeCompare(b.shooter.name, "nl"));
+
+  const notes = entries
+    .filter((entry) => entry.notes && entry.notes.trim())
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, 8)
+    .map((entry) => ({ ...entry, shooter: getShooter(entry.shooterId) }));
+
+  return { rounds, rows, notes };
+}
+
+function renderBeamerRoundsBody() {
+  const table = $("#beamerTable");
+  table.classList.remove("is-dense", "is-ultra-dense", "is-split", "is-mega");
+  const { rounds, rows, notes } = getBeamerRoundsData();
+
+  const grid = !rows.length
+    ? `<div class="empty">Nog geen actieve deelnemers.</div>`
+    : `
+      <div class="beamer-rounds-wrap">
+        <table class="beamer-rounds-table">
+          <thead>
+            <tr>
+              <th>Schutter</th>
+              ${rounds.map((round) => `<th>${formatRound(round)}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+                  <tr>
+                    <th>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</th>
+                    ${row.cells
+                      .map(
+                        (cell) =>
+                          `<td class="${cell.isBest ? "is-best" : ""}">${cell.score ? formatNumber(cell.score.hitfactor, 3) : "—"}</td>`,
+                      )
+                      .join("")}
+                  </tr>
+                `,
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+  const notesBlock = notes.length
+    ? `
+      <div class="beamer-notes">
+        <strong>Opmerkingen</strong>
+        ${notes
+          .map(
+            (entry) => `
+              <div class="beamer-notes-row">
+                <span>${escapeHtml(entry.shooter?.name || "Onbekend")} · ${formatRound(entry.displayRound)}</span>
+                <span>${escapeHtml(entry.notes)}</span>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    `
+    : "";
+
+  table.innerHTML = `${grid}${notesBlock}`;
+
+  const pager = $("#beamerPager");
+  if (pager) pager.hidden = true;
+}
+
 function renderBeamerBoard() {
   const overlay = $("#beamerOverlay");
   if (!overlay || overlay.hidden) return;
@@ -6486,6 +6672,14 @@ function renderBeamerBoard() {
   $("#beamerSummary").innerHTML = `
     <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
+
+  if (beamerMode === "rounds") {
+    const formula = $("#beamerFormula");
+    if (formula) formula.hidden = true;
+    renderBeamerRoundsBody();
+    return;
+  }
+
   const rowsPerPage = getBeamerRowsPerPage();
   const pages = buildBeamerPages(groups, rowsPerPage);
   if (beamerPaging.index >= pages.length) beamerPaging.index = 0;
@@ -6575,8 +6769,9 @@ function renderBeamerBoard() {
   }
 }
 
-async function openBeamerBoard() {
+async function openBeamerBoard(mode = "ranking") {
   const overlay = $("#beamerOverlay");
+  beamerMode = mode;
   overlay.hidden = false;
   beamerPaging.index = 0;
   renderBeamerBoard();
@@ -7184,6 +7379,9 @@ function applyRolePermissions() {
       control.disabled = hidden;
     });
   });
+
+  const roundsBeamerButton = $("#roundsBeamerButton");
+  if (roundsBeamerButton) roundsBeamerButton.hidden = !isSvbbClub();
 }
 
 let editingShooterId = null;
@@ -8200,7 +8398,8 @@ $("#maxTimeButton").addEventListener("click", () => {
 });
 
 $("#exportButton").addEventListener("click", exportCsv);
-$("#beamerButton").addEventListener("click", openBeamerBoard);
+$("#beamerButton").addEventListener("click", () => openBeamerBoard("ranking"));
+$("#roundsBeamerButton").addEventListener("click", () => openBeamerBoard("rounds"));
 $("#beamerCloseButton").addEventListener("click", closeBeamerBoard);
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
