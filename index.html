@@ -6301,14 +6301,14 @@ function loadScoreForEdit(scoreId) {
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
   scoreDraft.status = scoreStatusOptions[score.status] ? score.status : "normal";
-  scoreDraft.signatureDataUrl = score.signatureDataUrl || "";
-  scoreDraft.signedAt = score.signedAt || "";
-  scoreDraft.agreementText = score.agreementText || "";
+  scoreDraft.signatureDataUrl = "";
+  scoreDraft.signedAt = "";
+  scoreDraft.agreementText = "";
   scoreDraft.editScoreId = score.id;
   setView("scores");
   render();
-  setScoreSignatureFromDataUrl(scoreDraft.signatureDataUrl);
-  showToast("Score geopend om te wijzigen");
+  clearScoreSignature();
+  showToast(isInternalCompetitionClub() ? "Score geopend. Laat opnieuw tekenen." : "Score geopend om te wijzigen");
 }
 
 function renderScoreProgress() {
@@ -8289,7 +8289,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
           item.shooterId === scoreDraft.shooterId &&
           item.stageId === stage.id,
       );
-    const signatureDataUrl = getScoreSignatureDataUrl() || existingScore?.signatureDataUrl || "";
+    const signatureDataUrl = getScoreSignatureDataUrl();
     if (!signatureDataUrl) {
       showToast("Laat de schutter eerst tekenen voor akkoord");
       return;
@@ -8324,8 +8324,8 @@ $("#scoreForm").addEventListener("submit", (event) => {
       reshootAvailable: statusMeta.reshootAvailable,
       notes: scoreDraft.notes || "",
       signatureDataUrl,
-      signedAt: scoreDraft.signedAt || existingScore?.signedAt || new Date().toISOString(),
-      agreementText: scoreDraft.agreementText || existingScore?.agreementText || "Score en tijd akkoord door schutter",
+      signedAt: new Date().toISOString(),
+      agreementText: "Score en tijd akkoord door schutter",
       createdAt: existingScore?.createdAt || new Date().toISOString(),
       updatedAt: existingScore ? new Date().toISOString() : "",
     };
