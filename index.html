@@ -4499,6 +4499,19 @@ function isInternalCompetitionClub() {
   return normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
 }
 
+function getEditingScore() {
+  return scoreDraft.editScoreId ? state.scores.find((score) => score.id === scoreDraft.editScoreId) : null;
+}
+
+function isEditingInternalCompetitionScore() {
+  const score = getEditingScore();
+  return Boolean(score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId);
+}
+
+function isInternalScoreMode() {
+  return isInternalCompetitionClub() || isEditingInternalCompetitionScore();
+}
+
 function isSvbbClub() {
   return normalizeClubCode(currentClubId) === "SVBB";
 }
@@ -5943,7 +5956,7 @@ function updateSignatureStatus() {
 }
 
 function renderScores() {
-  const internalMode = isInternalCompetitionClub();
+  const internalMode = isInternalScoreMode();
   const internalStage = getInternalStage(scoreDraft.stageId);
   const precisionStage = internalMode && internalStage.scoringType === "precision";
   const calc = internalMode ? calculateInternalCompetitionScore(scoreDraft) : calculateScore(scoreDraft);
@@ -8225,7 +8238,7 @@ $("#scoreForm").addEventListener("input", (event) => {
   if (event.target.id === "scoreShooter") {
     scoreDraft.shooterId = event.target.value;
     syncScoreOpticToggle();
-    if (!isInternalCompetitionClub()) {
+    if (!isInternalScoreMode()) {
       scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
       $("#scoreDiscipline").value = scoreDraft.discipline;
     }
@@ -8247,7 +8260,7 @@ $("#scoreForm").addEventListener("input", (event) => {
   if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
   if (event.target.id === "scoreRawPoints") {
     scoreDraft.rawPoints = event.target.value;
-    if (isInternalCompetitionClub() && isDynamicStage(scoreDraft.stageId)) {
+    if (isInternalScoreMode() && isDynamicStage(scoreDraft.stageId)) {
       const rawPoints = Math.max(0, parseDecimal(event.target.value) || 0);
       if (rawPoints !== getLongCourseHitsTotal()) scoreDraft.longCourseHits = createEmptyLongCourseHits();
     }
@@ -8265,7 +8278,7 @@ $("#scoreForm").addEventListener("change", (event) => {
 $("#scoreForm").addEventListener("submit", (event) => {
   event.preventDefault();
   if (!requireTrainer()) return;
-  if (isInternalCompetitionClub()) {
+  if (isInternalScoreMode()) {
     const stage = getInternalStage(scoreDraft.stageId);
     const calc = calculateInternalCompetitionScore(scoreDraft);
     const statusMeta = getScoreStatusMeta(calc.status);
@@ -8281,6 +8294,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
       showToast("Vul een geldige totaaltijd in voor de lange baan");
       return;
     }
+    const signatureRequired = isInternalCompetitionClub();
     const existingScore =
       (scoreDraft.editScoreId && state.scores.find((item) => item.id === scoreDraft.editScoreId)) ||
       state.scores.find(
@@ -8289,8 +8303,8 @@ $("#scoreForm").addEventListener("submit", (event) => {
           item.shooterId === scoreDraft.shooterId &&
           item.stageId === stage.id,
       );
-    const signatureDataUrl = getScoreSignatureDataUrl();
-    if (!signatureDataUrl) {
+    const signatureDataUrl = signatureRequired ? getScoreSignatureDataUrl() : existingScore?.signatureDataUrl || "";
+    if (signatureRequired && !signatureDataUrl) {
       showToast("Laat de schutter eerst tekenen voor akkoord");
       return;
     }
@@ -8324,8 +8338,8 @@ $("#scoreForm").addEventListener("submit", (event) => {
       reshootAvailable: statusMeta.reshootAvailable,
       notes: scoreDraft.notes || "",
       signatureDataUrl,
-      signedAt: new Date().toISOString(),
-      agreementText: "Score en tijd akkoord door schutter",
+      signedAt: signatureRequired ? new Date().toISOString() : existingScore?.signedAt || "",
+      agreementText: signatureDataUrl ? existingScore?.agreementText || "Score en tijd akkoord door schutter" : "",
       createdAt: existingScore?.createdAt || new Date().toISOString(),
       updatedAt: existingScore ? new Date().toISOString() : "",
     };
