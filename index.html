@@ -4386,6 +4386,7 @@ function loadState() {
 }
 
 function mergeData(base, saved) {
+  const internalClub = normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
   const shooters = Array.isArray(saved.shooters)
     ? saved.shooters.map((shooter) => ({
         ...shooter,
@@ -4396,27 +4397,32 @@ function mergeData(base, saved) {
       }))
     : base.shooters;
   const scores = Array.isArray(saved.scores)
-    ? saved.scores.map((score) => ({
-        ...score,
-        flexPoints: Math.max(0, Number(score.flexPoints) || 0),
-        status: scoreStatusOptions[score.status] ? score.status : "normal",
-        reshootAvailable: Boolean(score.reshootAvailable),
-        round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
-        discipline: normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
-        competitionId: score.competitionId || (score.stageId ? INTERNAL_COMPETITION_CONFIG.competitionId : ""),
-        stageId: score.stageId || "",
-        scoringType: score.scoringType || "",
-        inputMode: score.inputMode || "",
-        rawPoints: Math.max(0, Number(score.rawPoints) || 0),
-        maxPoints: Math.max(0, Number(score.maxPoints) || 0),
-        percentage: Number(score.percentage) || 0,
-        cardHits: Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [],
-        longCourseHits: normalizeLongCourseHits(score.longCourseHits),
-        legacy: Boolean(score.legacy || (normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE" && !score.stageId)),
-        signatureDataUrl: typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
-        signedAt: score.signedAt || "",
-        agreementText: score.agreementText || "",
-      }))
+    ? saved.scores.map((score) => {
+        const internalScore = internalClub && Boolean(score.stageId || score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId);
+        return {
+          ...score,
+          flexPoints: Math.max(0, Number(score.flexPoints) || 0),
+          status: scoreStatusOptions[score.status] ? score.status : "normal",
+          reshootAvailable: Boolean(score.reshootAvailable),
+          round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
+          discipline: internalScore
+            ? "Interne competitie"
+            : normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+          competitionId: internalScore ? score.competitionId || INTERNAL_COMPETITION_CONFIG.competitionId : "",
+          stageId: internalScore ? score.stageId || "" : "",
+          scoringType: internalScore ? score.scoringType || "" : "",
+          inputMode: internalScore ? score.inputMode || "" : "",
+          rawPoints: internalScore ? Math.max(0, Number(score.rawPoints) || 0) : 0,
+          maxPoints: internalScore ? Math.max(0, Number(score.maxPoints) || 0) : 0,
+          percentage: internalScore ? Number(score.percentage) || 0 : 0,
+          cardHits: internalScore && Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [],
+          longCourseHits: internalScore ? normalizeLongCourseHits(score.longCourseHits) : createEmptyLongCourseHits(),
+          legacy: Boolean(score.legacy || (internalClub && !score.stageId)),
+          signatureDataUrl: internalScore && typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
+          signedAt: internalScore ? score.signedAt || "" : "",
+          agreementText: internalScore ? score.agreementText || "" : "",
+        };
+      })
     : [];
   const bestScores = Array.isArray(saved.bestScores)
     ? saved.bestScores
@@ -6357,11 +6363,11 @@ function loadScoreForEdit(scoreId) {
   const editAsInternalCompetition = isInternalCompetitionClub() && Boolean(score.stageId);
   scoreDraft.shooterId = score.shooterId || "";
   scoreDraft.discipline = editAsInternalCompetition ? defaultDiscipline : getScoreDiscipline(score);
-  scoreDraft.stageId = getCanonicalInternalStageId(score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id);
+  scoreDraft.stageId = editAsInternalCompetition ? getCanonicalInternalStageId(score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id) : "";
   scoreDraft.rawPoints = editAsInternalCompetition ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
   scoreDraft.penaltyPoints = editAsInternalCompetition ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
-  scoreDraft.cardHits = Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
-  scoreDraft.longCourseHits = normalizeLongCourseHits(score.longCourseHits);
+  scoreDraft.cardHits = editAsInternalCompetition && Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
+  scoreDraft.longCourseHits = editAsInternalCompetition ? normalizeLongCourseHits(score.longCourseHits) : createEmptyLongCourseHits();
   scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
