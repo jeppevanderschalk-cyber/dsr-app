@@ -936,6 +936,22 @@ small {
   font-weight: 900;
 }
 
+.score-round-value {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  min-width: max-content;
+}
+
+.score-round-value em {
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
 .score-round-row small {
   min-width: 0;
   margin-top: 0;
@@ -2996,7 +3012,8 @@ dialog .primary-action::after {
     align-items: start;
   }
 
-  .score-round-row > strong {
+  .score-round-row > strong,
+  .score-round-value {
     justify-self: end;
   }
 
@@ -3007,6 +3024,10 @@ dialog .primary-action::after {
 
   .score-round-row small {
     text-align: left;
+  }
+
+  .score-round-value em {
+    font-size: 0.68rem;
   }
 
   .score-round-row .score-row-actions {
@@ -3138,7 +3159,8 @@ dialog .primary-action::after {
     align-items: start;
   }
 
-  .score-round-row > strong {
+  .score-round-row > strong,
+  .score-round-value {
     justify-self: end;
   }
 
@@ -3149,6 +3171,10 @@ dialog .primary-action::after {
 
   .score-round-row small {
     text-align: left;
+  }
+
+  .score-round-value em {
+    font-size: 0.68rem;
   }
 
   .score-row-actions {
@@ -6357,7 +6383,10 @@ function renderScoreProgress() {
                 (score) => `
                   <div class="score-round-row">
                     <span>${formatRound(score.displayRound)} ronde</span>
-                    <strong>${formatNumber(score.hitfactor, 3)}</strong>
+                    <div class="score-round-value">
+                      <strong>${formatNumber(score.hitfactor, 3)}</strong>
+                      <em>${formatScoreRoundMetrics(score)}</em>
+                    </div>
                     <small>${formatScoreDetails(score, shooter)}</small>
                     <div class="score-row-actions">
                       <button class="mini-action" type="button" data-edit-score="${score.id}" data-trainer-only>Wijzig</button>
@@ -6407,7 +6436,10 @@ function renderInternalScoreProgress() {
                 (result, index) => `
                   <div class="score-round-row">
                     <span>${index + 1}. ${result.stage.label}</span>
-                    <strong>${formatNumber(result.percentage, 2)}%</strong>
+                    <div class="score-round-value">
+                      <strong>${formatNumber(result.percentage, 2)}%</strong>
+                      <em>${formatInternalRoundMetrics(result)}</em>
+                    </div>
                     <small>${formatInternalStageResult(result)}</small>
                     <div class="score-row-actions">
                       <button class="mini-action" type="button" data-edit-score="${result.score.id}" data-trainer-only>Wijzig</button>
@@ -6427,6 +6459,19 @@ function renderInternalScoreProgress() {
       `,
     )
     .join("");
+}
+
+function formatScoreRoundMetrics(score) {
+  const points = Number(score.net ?? score.rawPoints ?? 0);
+  const time = Number(score.time) || 0;
+  return `Punten ${formatNumber(points, 0)} · Tijd ${formatNumber(time, 2)} sec`;
+}
+
+function formatInternalRoundMetrics(result) {
+  const score = result.score || {};
+  const points = Number(result.points ?? score.net ?? score.rawPoints ?? 0);
+  const time = Number(result.time ?? score.time) || 0;
+  return `Punten ${formatNumber(points, 0)} · Tijd ${formatNumber(time, 2)} sec`;
 }
 
 function formatInternalStageResult(result) {
