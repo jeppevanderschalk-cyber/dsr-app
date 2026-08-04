@@ -4556,11 +4556,11 @@ function getEditingScore() {
 
 function isEditingInternalCompetitionScore() {
   const score = getEditingScore();
-  return Boolean(score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId);
+  return isInternalCompetitionClub() && Boolean(score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId);
 }
 
 function isInternalScoreMode() {
-  return isInternalCompetitionClub() || isEditingInternalCompetitionScore();
+  return isInternalCompetitionClub();
 }
 
 function isSvbbClub() {
@@ -5109,7 +5109,7 @@ function describeScoreChanges(oldScore, newScore) {
 }
 
 function scoreLogContext(score, shooter = getShooter(score?.shooterId)) {
-  if (score?.stageId) return getInternalStage(score.stageId).label;
+  if (score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId) return getInternalStage(score.stageId).label;
   const discipline = getScoreDiscipline(score, shooter);
   const round = Number(score?.round) || Number(score?.displayRound);
   return round ? `${discipline} · ronde ${round}` : discipline;
@@ -6354,11 +6354,12 @@ function loadScoreForEdit(scoreId) {
   counters.forEach((counter) => {
     scoreDraft[counter.key] = Math.max(0, Number(score[counter.key]) || 0);
   });
+  const editAsInternalCompetition = isInternalCompetitionClub() && Boolean(score.stageId);
   scoreDraft.shooterId = score.shooterId || "";
-  scoreDraft.discipline = score.stageId ? defaultDiscipline : getScoreDiscipline(score);
+  scoreDraft.discipline = editAsInternalCompetition ? defaultDiscipline : getScoreDiscipline(score);
   scoreDraft.stageId = getCanonicalInternalStageId(score.stageId || INTERNAL_COMPETITION_CONFIG.stages[0].id);
-  scoreDraft.rawPoints = score.stageId ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
-  scoreDraft.penaltyPoints = score.stageId ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
+  scoreDraft.rawPoints = editAsInternalCompetition ? String(Number(score.rawPoints) || Number(score.net) || 0).replace(".", ",") : "";
+  scoreDraft.penaltyPoints = editAsInternalCompetition ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
   scoreDraft.cardHits = Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
   scoreDraft.longCourseHits = normalizeLongCourseHits(score.longCourseHits);
   scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
@@ -6509,7 +6510,7 @@ function formatInternalStageResult(result) {
 }
 
 function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
-  if (score.stageId) {
+  if (isInternalCompetitionClub() && score.stageId) {
     const stage = getInternalStage(score.stageId);
     const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
     const time = stage.scoringType === "hitfactor" ? ` · ${formatLongCourseHits(score.longCourseHits)} · ${formatNumber(score.time, 2)} sec · HF ${formatNumber(score.hitfactor, 3)}` : "";
@@ -8477,10 +8478,30 @@ $("#scoreForm").addEventListener("submit", (event) => {
     return;
   }
 
-  const { editScoreId, ...scoreData } = scoreDraft;
+  const {
+    editScoreId,
+    stageId,
+    rawPoints,
+    penaltyPoints,
+    cardHits,
+    longCourseHits,
+    signatureDataUrl: draftSignatureDataUrl,
+    signedAt: draftSignedAt,
+    agreementText: draftAgreementText,
+    ...scoreData
+  } = scoreDraft;
   const savedScore = {
     id: editingScore?.id || createId("score"),
     ...scoreData,
+    competitionId: "",
+    stageId: "",
+    scoringType: "",
+    inputMode: "",
+    rawPoints: 0,
+    maxPoints: 0,
+    percentage: 0,
+    cardHits: [],
+    longCourseHits: createEmptyLongCourseHits(),
     round: currentRound,
     ...calc,
     reshootAvailable: getScoreStatusMeta(calc.status).reshootAvailable,
