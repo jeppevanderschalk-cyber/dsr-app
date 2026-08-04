@@ -4217,7 +4217,6 @@ const defaultLevel = "Beginner";
 const levelOptions = ["Beginner", "Gevorderd", "Wedstrijdploeg dinsdagen", "IPSC/DSR wedstrijd schutter"];
 const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
-const defaultVisibleRoundCount = 6;
 const masterCardValues = [0, 6, 7, 8, 9, 10];
 const longCoursePointValues = [10, 50, 100];
 const INTERNAL_COMPETITION_CONFIG = {
@@ -7004,8 +7003,7 @@ function renderProgress() {
   const shooters = state.shooters.filter(
     (shooter) => shooter.active || entries.some((score) => score.shooterId === shooter.id),
   );
-  const maxRound = Math.min(progressRounds.at(-1), Math.max(defaultVisibleRoundCount, ...entries.map((score) => Number(score.displayRound) || 1)));
-  const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
+  const rounds = [...new Set(entries.map((score) => Number(score.displayRound)).filter(Boolean))].sort((a, b) => a - b);
 
   if (!shooters.length) {
     table.innerHTML = "";
@@ -7600,11 +7598,7 @@ function getProgressPdfData() {
     }
   });
   const displayedScores = Array.from(scoreByShooterRound.values());
-  const maxRound = Math.min(
-    progressRounds.at(-1),
-    Math.max(defaultVisibleRoundCount, ...displayedScores.map((score) => Number(score.displayRound)).filter(Boolean)),
-  );
-  const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
+  const rounds = [...new Set(displayedScores.map((score) => Number(score.displayRound)).filter(Boolean))].sort((a, b) => a - b);
   const bestByShooter = new Map();
   displayedScores.forEach((score) => {
     const best = bestByShooter.get(score.shooterId);
