@@ -2166,11 +2166,36 @@ select:focus {
   color: rgba(255, 255, 255, 0.85);
 }
 
+.beamer-round-score {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  line-height: 1.05;
+}
+
+.beamer-round-score strong {
+  color: var(--yellow);
+  font-size: clamp(0.78rem, 1.18vw, 1.24rem);
+  font-weight: 900;
+}
+
+.beamer-round-score small {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(0.5rem, 0.68vw, 0.74rem);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
 .beamer-rounds-table tbody td.is-best {
   color: #0b0b0c;
   background: var(--yellow);
   border-radius: 10px;
   box-shadow: 0 0 14px rgba(245, 197, 24, 0.55);
+}
+
+.beamer-rounds-table tbody td.is-best .beamer-round-score strong,
+.beamer-rounds-table tbody td.is-best .beamer-round-score small {
+  color: #0b0b0c;
 }
 
 .beamer-notes {
@@ -6669,7 +6694,7 @@ function startBeamerAutoPaging() {
 }
 
 // Voortgang per ronde voor de trainingsbeamer: per schutter de hitfactor per
-// ronde, met de beste ronde gemarkeerd en eventuele opmerkingen bij scores.
+// ronde, met punten/tijd, de beste ronde gemarkeerd en eventuele opmerkingen.
 function getBeamerRoundsData() {
   const entries = getScoreRoundEntries("all");
   const shooters = state.shooters.filter((shooter) => shooter.active);
@@ -6688,7 +6713,12 @@ function getBeamerRoundsData() {
           .filter((entry) => Number(entry.displayRound) === round)
           .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
         const isBest = Boolean(score) && bestHitfactor > 0 && Math.abs(score.hitfactor - bestHitfactor) < 0.0005;
-        return { round, score, isBest };
+        return {
+          round,
+          score,
+          isBest,
+          html: score ? formatBeamerRoundScore(score) : "—",
+        };
       });
       return { shooter, cells, bestHitfactor, entryCount: shooterEntries.length };
     })
@@ -6728,7 +6758,7 @@ function renderBeamerRoundsBody() {
                     ${row.cells
                       .map(
                         (cell) =>
-                          `<td class="${cell.isBest ? "is-best" : ""}">${cell.score ? formatNumber(cell.score.hitfactor, 3) : "—"}</td>`,
+                          `<td class="${cell.isBest ? "is-best" : ""}">${cell.html}</td>`,
                       )
                       .join("")}
                   </tr>
@@ -6762,6 +6792,15 @@ function renderBeamerRoundsBody() {
 
   const pager = $("#beamerPager");
   if (pager) pager.hidden = true;
+}
+
+function formatBeamerRoundScore(score) {
+  return `
+    <span class="beamer-round-score">
+      <strong>${formatNumber(score.hitfactor, 3)}</strong>
+      <small>${formatNumber(score.net ?? 0, 0)} pt · ${formatNumber(score.time ?? 0, 2)} sec</small>
+    </span>
+  `;
 }
 
 function renderBeamerBoard() {
