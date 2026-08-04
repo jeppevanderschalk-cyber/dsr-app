@@ -755,6 +755,42 @@ small {
   color: #d99456;
 }
 
+#recentProgress .list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px 16px;
+}
+
+#recentProgress .list-item > div {
+  grid-column: 1;
+  min-width: 0;
+}
+
+#recentProgress .list-item > strong {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: start;
+  white-space: nowrap;
+  line-height: 1.05;
+}
+
+#recentProgress .list-item .score-row-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+#recentProgress .list-item .mini-action {
+  flex: 1 1 118px;
+  min-width: 0;
+}
+
+#recentProgress .list-item [data-view-signature] {
+  flex-basis: 168px;
+}
+
 .rank-score small {
   display: none;
 }
