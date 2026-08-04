@@ -4217,6 +4217,7 @@ const defaultLevel = "Beginner";
 const levelOptions = ["Beginner", "Gevorderd", "Wedstrijdploeg dinsdagen", "IPSC/DSR wedstrijd schutter"];
 const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
+const defaultVisibleRoundCount = 6;
 const masterCardValues = [0, 6, 7, 8, 9, 10];
 const longCoursePointValues = [10, 50, 100];
 const INTERNAL_COMPETITION_CONFIG = {
@@ -4638,24 +4639,50 @@ function getSignaturePoint(event) {
   };
 }
 
-function clearScoreSignature() {
+function clearScoreSignature({ clearDraft = true } = {}) {
   const canvas = getSignatureCanvas();
   if (!canvas) return;
   const context = canvas.getContext("2d");
   context.clearRect(0, 0, canvas.width, canvas.height);
   signaturePad.hasInk = false;
   signaturePad.drawing = false;
+  if (clearDraft) {
+    scoreDraft.signatureDataUrl = "";
+    scoreDraft.signedAt = "";
+    scoreDraft.agreementText = "";
+  }
   updateSignatureStatus();
 }
 
 function clearScoreSignatureAfterChange() {
-  if (!signaturePad.hasInk) return;
+  if (!signaturePad.hasInk && !scoreDraft.signatureDataUrl) return;
   clearScoreSignature();
+}
+
+function setScoreSignatureFromDataUrl(dataUrl) {
+  clearScoreSignature({ clearDraft: false });
+  if (!dataUrl) return;
+  scoreDraft.signatureDataUrl = dataUrl;
+  requestAnimationFrame(() => {
+    const canvas = getSignatureCanvas();
+    if (!canvas || canvas.closest("[hidden]")) return;
+    resizeSignatureCanvas();
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const image = new Image();
+    image.onload = () => {
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, rect.width, rect.height);
+      signaturePad.hasInk = true;
+      updateSignatureStatus();
+    };
+    image.src = dataUrl;
+  });
 }
 
 function getScoreSignatureDataUrl() {
   const canvas = getSignatureCanvas();
-  if (!canvas || !signaturePad.hasInk) return "";
+  if (!canvas || !signaturePad.hasInk) return scoreDraft.signatureDataUrl || "";
   const targetWidth = Math.min(900, canvas.width);
   const targetHeight = Math.round(canvas.height * (targetWidth / canvas.width));
   const output = document.createElement("canvas");
@@ -5003,6 +5030,9 @@ function createEmptyDraft() {
     notes: "",
     status: "normal",
     editScoreId: "",
+    signatureDataUrl: "",
+    signedAt: "",
+    agreementText: "",
   });
 }
 
@@ -6236,11 +6266,14 @@ function loadScoreForEdit(scoreId) {
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
   scoreDraft.status = scoreStatusOptions[score.status] ? score.status : "normal";
+  scoreDraft.signatureDataUrl = score.signatureDataUrl || "";
+  scoreDraft.signedAt = score.signedAt || "";
+  scoreDraft.agreementText = score.agreementText || "";
   scoreDraft.editScoreId = score.id;
-  clearScoreSignature();
   setView("scores");
   render();
-  showToast(isInternalCompetitionClub() ? "Score geopend. Laat opnieuw tekenen." : "Score geopend om te wijzigen");
+  setScoreSignatureFromDataUrl(scoreDraft.signatureDataUrl);
+  showToast("Score geopend om te wijzigen");
 }
 
 function renderScoreProgress() {
@@ -6971,7 +7004,7 @@ function renderProgress() {
   const shooters = state.shooters.filter(
     (shooter) => shooter.active || entries.some((score) => score.shooterId === shooter.id),
   );
-  const maxRound = Math.min(progressRounds.at(-1), Math.max(4, ...entries.map((score) => Number(score.displayRound) || 1)));
+  const maxRound = Math.min(progressRounds.at(-1), Math.max(defaultVisibleRoundCount, ...entries.map((score) => Number(score.displayRound) || 1)));
   const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
 
   if (!shooters.length) {
@@ -7567,7 +7600,11 @@ function getProgressPdfData() {
     }
   });
   const displayedScores = Array.from(scoreByShooterRound.values());
-  const rounds = [...new Set(displayedScores.map((score) => Number(score.displayRound)).filter(Boolean))].sort((a, b) => a - b);
+  const maxRound = Math.min(
+    progressRounds.at(-1),
+    Math.max(defaultVisibleRoundCount, ...displayedScores.map((score) => Number(score.displayRound)).filter(Boolean)),
+  );
+  const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
   const bestByShooter = new Map();
   displayedScores.forEach((score) => {
     const best = bestByShooter.get(score.shooterId);
@@ -8214,12 +8251,6 @@ $("#scoreForm").addEventListener("submit", (event) => {
       showToast("Vul een geldige totaaltijd in voor de lange baan");
       return;
     }
-    const signatureDataUrl = getScoreSignatureDataUrl();
-    if (!signatureDataUrl) {
-      showToast("Laat de schutter eerst tekenen voor akkoord");
-      return;
-    }
-
     const existingScore =
       (scoreDraft.editScoreId && state.scores.find((item) => item.id === scoreDraft.editScoreId)) ||
       state.scores.find(
@@ -8228,6 +8259,11 @@ $("#scoreForm").addEventListener("submit", (event) => {
           item.shooterId === scoreDraft.shooterId &&
           item.stageId === stage.id,
       );
+    const signatureDataUrl = getScoreSignatureDataUrl() || existingScore?.signatureDataUrl || "";
+    if (!signatureDataUrl) {
+      showToast("Laat de schutter eerst tekenen voor akkoord");
+      return;
+    }
     const savedScore = {
       id: existingScore?.id || createId("score"),
       competitionId: INTERNAL_COMPETITION_CONFIG.competitionId,
@@ -8258,8 +8294,8 @@ $("#scoreForm").addEventListener("submit", (event) => {
       reshootAvailable: statusMeta.reshootAvailable,
       notes: scoreDraft.notes || "",
       signatureDataUrl,
-      signedAt: new Date().toISOString(),
-      agreementText: "Score en tijd akkoord door schutter",
+      signedAt: scoreDraft.signedAt || existingScore?.signedAt || new Date().toISOString(),
+      agreementText: scoreDraft.agreementText || existingScore?.agreementText || "Score en tijd akkoord door schutter",
       createdAt: existingScore?.createdAt || new Date().toISOString(),
       updatedAt: existingScore ? new Date().toISOString() : "",
     };
