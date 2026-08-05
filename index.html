@@ -5371,6 +5371,7 @@ function updateInternalScoreValue(key, delta) {
     scoreDraft.longCourseHits = hits;
   }
   scoreDraft[key] = String(next);
+  syncScoreInputFields(true);
   clearScoreSignatureAfterChange();
   renderScores();
 }
@@ -5388,6 +5389,7 @@ function updateMasterCardScore(value) {
   const total = nextHits.reduce((sum, hit) => sum + hit, 0);
   scoreDraft.cardHits = nextHits;
   scoreDraft.rawPoints = String(Math.min(stage.maxPoints, total));
+  syncScoreInputFields(true);
   clearScoreSignatureAfterChange();
   renderScores();
 }
@@ -5396,6 +5398,7 @@ function undoMasterCardScore() {
   const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits.slice(0, -1) : [];
   scoreDraft.cardHits = hits;
   scoreDraft.rawPoints = String(hits.reduce((sum, hit) => sum + hit, 0));
+  syncScoreInputFields(true);
   clearScoreSignatureAfterChange();
   renderScores();
 }
@@ -5403,6 +5406,7 @@ function undoMasterCardScore() {
 function clearMasterCardScore() {
   scoreDraft.cardHits = [];
   scoreDraft.rawPoints = "";
+  syncScoreInputFields(true);
   clearScoreSignatureAfterChange();
   renderScores();
 }
@@ -5426,6 +5430,21 @@ function renderMasterCardSummary(calc) {
     .filter(Boolean)
     .join(" · ");
   return `${hits.length}/${getMasterCardMaxShots()} schoten · ${counts} · totaal ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`;
+}
+
+function syncScoreInputFields(force = false) {
+  const fields = [
+    ["scoreRawPoints", scoreDraft.rawPoints],
+    ["scorePenaltyPoints", scoreDraft.penaltyPoints],
+    ["scoreTime", scoreDraft.time],
+    ["scoreFlexPoints", scoreDraft.flexPoints],
+  ];
+  fields.forEach(([id, value]) => {
+    const field = $(`#${id}`);
+    if (!field) return;
+    if (!force && document.activeElement === field) return;
+    field.value = value ?? "";
+  });
 }
 
 function getScoreStatusMeta(status) {
@@ -6019,6 +6038,7 @@ function renderScores() {
   const calc = internalMode ? calculateInternalCompetitionScore(scoreDraft) : calculateScore(scoreDraft);
   const statusMeta = getScoreStatusMeta(calc.status);
   const isEditing = Boolean(scoreDraft.editScoreId);
+  syncScoreInputFields();
   $("#scoreDisciplineField").hidden = internalMode;
   $("#scoreStageField").hidden = !internalMode;
   $("#internalScoreFields").hidden = !internalMode;
@@ -6051,7 +6071,10 @@ function renderScores() {
   $("#scoreRawPoints").required = false;
   $("#scorePenaltyPoints").required = false;
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
-  $("#longCourseSummary").textContent = `Invoer: ${formatLongCourseHitsCompact()} · totaal ${formatNumber(getLongCourseHitsTotal(), 0)}`;
+  $("#longCourseSummary").textContent = `Invoer: ${formatLongCourseHitsCompact()} · bruto ${formatNumber(
+    calc.rawPoints,
+    0,
+  )} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)}`;
 
   if (internalMode) {
     renderInternalFeedback(calc, precisionStage);
