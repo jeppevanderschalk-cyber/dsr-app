@@ -1165,6 +1165,13 @@ select:focus {
   color: #ff867a;
 }
 
+.master-card-stepper button[data-master-card-remove] {
+  border-color: rgba(255, 107, 93, 0.4);
+  background: rgba(255, 107, 93, 0.14);
+  color: #fff;
+  font-size: 1rem;
+}
+
 .master-card-stepper button[data-master-card-action] {
   grid-column: span 2;
   min-height: 48px;
@@ -3641,6 +3648,12 @@ dialog .primary-action::after {
                   <button type="button" data-master-card-score="8">8</button>
                   <button type="button" data-master-card-score="9">9</button>
                   <button type="button" data-master-card-score="10">10</button>
+                  <button type="button" data-master-card-remove="0">-Mis</button>
+                  <button type="button" data-master-card-remove="6">-6</button>
+                  <button type="button" data-master-card-remove="7">-7</button>
+                  <button type="button" data-master-card-remove="8">-8</button>
+                  <button type="button" data-master-card-remove="9">-9</button>
+                  <button type="button" data-master-card-remove="10">-10</button>
                   <button type="button" data-master-card-action="undo">Laatste terug</button>
                   <button type="button" data-master-card-action="clear">Kaart wissen</button>
                 </div>
@@ -4366,7 +4379,7 @@ document.addEventListener(
     if (!event.target.closest("button")) return;
     if (event.target.closest("[data-step]")) return;
     if (event.target.closest("[data-internal-step]")) return;
-    if (event.target.closest("[data-master-card-score], [data-master-card-action]")) return;
+    if (event.target.closest("[data-master-card-score], [data-master-card-remove], [data-master-card-action]")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
@@ -5389,6 +5402,28 @@ function updateMasterCardScore(value) {
   const total = nextHits.reduce((sum, hit) => sum + hit, 0);
   scoreDraft.cardHits = nextHits;
   scoreDraft.rawPoints = String(Math.min(stage.maxPoints, total));
+  syncScoreInputFields(true);
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function removeMasterCardScore(value) {
+  const stage = getInternalStage(scoreDraft.stageId);
+  if (stage.scoringType !== "precision") return;
+  const hits = Array.isArray(scoreDraft.cardHits) ? [...scoreDraft.cardHits] : [];
+  const index = hits.lastIndexOf(value);
+  if (index >= 0) {
+    hits.splice(index, 1);
+    scoreDraft.cardHits = hits;
+    scoreDraft.rawPoints = String(hits.reduce((sum, hit) => sum + hit, 0));
+  } else {
+    const current = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
+    if (value <= 0 || current < value) {
+      showToast(`${value === 0 ? "Geen misser" : `Geen ${value}`} om te corrigeren`);
+      return;
+    }
+    scoreDraft.rawPoints = String(Math.max(0, current - value));
+  }
   syncScoreInputFields(true);
   clearScoreSignatureAfterChange();
   renderScores();
@@ -8327,6 +8362,13 @@ document.addEventListener("click", (event) => {
     if (!requireTrainer()) return;
     triggerHapticFeedback();
     updateMasterCardScore(Number(masterCardScoreButton.dataset.masterCardScore));
+  }
+
+  const masterCardRemoveButton = event.target.closest("[data-master-card-remove]");
+  if (masterCardRemoveButton) {
+    if (!requireTrainer()) return;
+    triggerHapticFeedback();
+    removeMasterCardScore(Number(masterCardRemoveButton.dataset.masterCardRemove));
   }
 
   const masterCardActionButton = event.target.closest("[data-master-card-action]");
