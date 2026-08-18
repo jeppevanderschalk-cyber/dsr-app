@@ -2894,6 +2894,15 @@ canvas {
   accent-color: var(--yellow);
 }
 
+.score-caliber-select select {
+  width: auto;
+  min-width: 86px;
+  min-height: 42px;
+  padding: 0 34px 0 12px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+}
+
 .score-max-card {
   display: grid;
   align-content: center;
@@ -3768,6 +3777,13 @@ dialog .primary-action::after {
                   <span>Optic schutter</span>
                   <input id="scoreShooterOptic" class="switch" type="checkbox" />
                 </span>
+                <span class="score-optic-toggle score-caliber-select" data-internal-competition-only>
+                  <span>Kaliber</span>
+                  <select id="scoreShooterCaliber">
+                    <option value="9mm">9mm</option>
+                    <option value=".22">.22</option>
+                  </select>
+                </span>
                 <span class="score-optic-toggle score-rimfire-toggle" data-svbb-only>
                   <span>.22 schutter</span>
                   <input id="scoreShooterRimfire" class="switch" type="checkbox" />
@@ -4342,6 +4358,13 @@ dialog .primary-action::after {
             <option value="Duo-Duo">Duo-Duo</option>
           </select>
         </label>
+        <label id="entryCaliberField" data-internal-competition-only>
+          <span>Kaliber</span>
+          <select id="entryCaliber">
+            <option value="9mm">9mm</option>
+            <option value=".22">.22</option>
+          </select>
+        </label>
         <div class="dialog-actions">
           <button class="secondary-action" id="entryCancelButton" type="button">Annuleer</button>
           <button class="primary-action" id="entrySaveButton" type="button">Opslaan</button>
@@ -4468,6 +4491,14 @@ const defaultDiscipline = "Standaard";
 const disciplineOptions = ["Standaard", "Duo", "Duo-Duo"];
 const defaultLevel = "Beginner";
 const levelOptions = ["Beginner", "Gevorderd", "Wedstrijdploeg dinsdagen", "IPSC/DSR wedstrijd schutter"];
+const internalClassOptions = ["A", "B", "C"];
+const internalClassLabels = {
+  A: "Klasse A - Wedstrijdschutter",
+  B: "Klasse B - Gevorderde schutter",
+  C: "Klasse C - Beginner",
+};
+const internalDisciplineOptions = ["Pistool", "Geweer"];
+const internalCaliberOptions = ["9mm", ".22"];
 const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
@@ -4609,10 +4640,13 @@ function mergeData(base, saved) {
   const shooters = Array.isArray(saved.shooters)
     ? saved.shooters.map((shooter) => ({
         ...shooter,
-        level: normalizeLevel(shooter.level),
-        discipline: normalizeDiscipline(shooter.discipline),
+        level: internalClub ? normalizeInternalClass(shooter.competitionClass || shooter.level) : normalizeLevel(shooter.level),
+        discipline: internalClub ? normalizeInternalDiscipline(shooter.competitionDiscipline || shooter.discipline) : normalizeDiscipline(shooter.discipline),
+        competitionClass: normalizeInternalClass(shooter.competitionClass || shooter.level),
+        competitionDiscipline: normalizeInternalDiscipline(shooter.competitionDiscipline || shooter.discipline),
+        caliber: normalizeCaliber(shooter.caliber || (shooter.rimfire ? ".22" : "9mm")),
         optic: Boolean(shooter.optic),
-        rimfire: Boolean(shooter.rimfire),
+        rimfire: Boolean(shooter.rimfire || shooter.caliber === ".22"),
       }))
     : base.shooters;
   const scores = Array.isArray(saved.scores)
@@ -4925,7 +4959,7 @@ function applyModeCopy(clubId = currentClubId) {
   $("#trainingResetTitle").textContent = copy.resetTitle;
   $("#trainingResetNotice").textContent = copy.resetNotice;
   $("#resetTrainingButton").textContent = copy.resetButton;
-  $("#rankDiscipline").hidden = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  $("#rankDiscipline").hidden = false;
   $("#rankSort").hidden = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
 }
 
@@ -5232,11 +5266,47 @@ function normalizeLevel(level) {
   return levelOptions.includes(level) ? level : defaultLevel;
 }
 
+function normalizeInternalClass(value) {
+  if (value === "A" || value === "Wedstrijdschutter" || value === "Open" || value === "EPP wedstrijd" || value === "Wedstrijdploeg dinsdagen" || value === "IPSC/DSR wedstrijd schutter") return "A";
+  if (value === "B" || value === "Gevorderd" || value === "Gevorderde schutter") return "B";
+  if (value === "C" || value === "Beginner") return "C";
+  return "C";
+}
+
+function getInternalClassLabel(value) {
+  return internalClassLabels[normalizeInternalClass(value)] || internalClassLabels.C;
+}
+
+function normalizeInternalDiscipline(value) {
+  if (value === "Rifle" || value === "Geweer") return "Geweer";
+  if (value === "Pistool" || value === "Pistol") return "Pistool";
+  return "Pistool";
+}
+
+function normalizeCaliber(value) {
+  return value === ".22" || value === "22" || value === "22lr" || value === "22LR" ? ".22" : "9mm";
+}
+
+function getShooterInternalClass(shooter) {
+  return normalizeInternalClass(shooter?.competitionClass || shooter?.level);
+}
+
+function getShooterInternalDiscipline(shooter) {
+  return normalizeInternalDiscipline(shooter?.competitionDiscipline || shooter?.discipline);
+}
+
+function getShooterCaliber(shooter) {
+  return normalizeCaliber(shooter?.caliber || (shooter?.rimfire ? ".22" : "9mm"));
+}
+
 function getShooterScoreMultiplier(shooter) {
   return shooter?.optic ? opticScoreMultiplier : 1;
 }
 
 function getShooterLevelLabel(shooter) {
+  if (isInternalCompetitionClub()) {
+    return `${getInternalClassLabel(getShooterInternalClass(shooter))}${shooter?.optic ? " · Optic -30%" : ""}`;
+  }
   return `${normalizeLevel(shooter?.level)}${shooter?.optic ? " · Optic -30%" : ""}`;
 }
 
@@ -5246,6 +5316,11 @@ function syncScoreOpticToggle() {
   const shooter = getShooter(scoreDraft.shooterId);
   opticInput.checked = Boolean(shooter?.optic);
   opticInput.disabled = !shooter;
+  const caliberInput = $("#scoreShooterCaliber");
+  if (caliberInput) {
+    caliberInput.value = getShooterCaliber(shooter);
+    caliberInput.disabled = !shooter;
+  }
   const rimfireInput = $("#scoreShooterRimfire");
   if (rimfireInput) {
     rimfireInput.checked = Boolean(shooter?.rimfire);
@@ -6083,6 +6158,7 @@ function getCurrentTrainingRanking(filters = {}) {
 function getInternalCompetitionRanking(filters = {}) {
   const completeOnly = Boolean(filters.completeOnly);
   const level = filters.level || "all";
+  const discipline = filters.discipline || "all";
   const activeShooters = state.shooters.filter((shooter) => shooter.active || getInternalCompetitionScores().some((score) => score.shooterId === shooter.id));
   const scores = getInternalCompetitionScores();
   const scoresByShooterStage = new Map();
@@ -6115,7 +6191,8 @@ function getInternalCompetitionRanking(filters = {}) {
     });
 
   const items = activeShooters
-    .filter((shooter) => level === "all" || shooter.level === level)
+    .filter((shooter) => level === "all" || getShooterInternalClass(shooter) === level)
+    .filter((shooter) => discipline === "all" || getShooterInternalDiscipline(shooter) === discipline)
     .map((shooter) => {
       let precisionRaw = 0;
       let precisionMaximum = 0;
@@ -6178,7 +6255,9 @@ function getInternalCompetitionRanking(filters = {}) {
 
       return {
         shooter,
-        discipline: "Interne competitie",
+        discipline: getShooterInternalDiscipline(shooter),
+        competitionClass: getShooterInternalClass(shooter),
+        caliber: getShooterCaliber(shooter),
         precisionRaw,
         precisionMaximum,
         precisionPercentage: Math.min(100, precisionPercentage),
@@ -6381,25 +6460,33 @@ function renderSelects() {
   const selectedProgressFilter = $("#progressDisciplineFilter").value;
   const selectedDashboardShooter = $("#dashboardShooterFilter").value;
   const selectedTimerShooter = $("#timerShooter")?.value || shotTimer.shooterId;
+  const selectedRankDiscipline = $("#rankDiscipline").value || "all";
   const selectedRankLevel = $("#rankLevel").value || "all";
   const shooterOptions = activeShooters.length
     ? activeShooters.map((shooter) => `<option value="${shooter.id}">${escapeHtml(shooter.name)}</option>`).join("")
     : `<option value="">Geen schutters</option>`;
-  const disciplineOptionsHtml = disciplineOptions
+  const internal = isInternalCompetitionClub();
+  const activeDisciplineOptions = internal ? internalDisciplineOptions : disciplineOptions;
+  const activeLevelOptions = internal ? internalClassOptions : levelOptions;
+  const disciplineOptionsHtml = activeDisciplineOptions
     .map((discipline) => `<option value="${discipline}">${discipline}</option>`)
     .join("");
-  const levelOptionsHtml = levelOptions
-    .map((level) => `<option value="${level}">${level}</option>`)
+  const levelOptionsHtml = activeLevelOptions
+    .map((level) => `<option value="${level}">${internal ? getInternalClassLabel(level) : level}</option>`)
     .join("");
   const stageOptionsHtml = INTERNAL_COMPETITION_CONFIG.stages
     .map((stage) => `<option value="${stage.id}">${stage.label}</option>`)
     .join("");
 
-  $("#rankLevel").innerHTML = `<option value="all">Alle niveaus</option>${levelOptionsHtml}`;
+  $("#rankLevel").innerHTML = `<option value="all">${internal ? "Alle klassen" : "Alle niveaus"}</option>${levelOptionsHtml}`;
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
   $("#scoreStage").innerHTML = stageOptionsHtml;
   $("#timerShooter").innerHTML = shooterOptions;
+  $("#rankDiscipline").innerHTML = [
+    `<option value="all">Alle disciplines</option>`,
+    ...activeDisciplineOptions.map((discipline) => `<option value="${discipline}">${discipline}</option>`),
+  ].join("");
   $("#progressDisciplineFilter").innerHTML = [
     `<option value="all">Alle disciplines</option>`,
     ...disciplineOptions.map((discipline) => `<option value="${discipline}">${discipline}</option>`),
@@ -6436,7 +6523,9 @@ function renderSelects() {
   $("#timerShooter").value = shotTimer.shooterId;
   $("#progressDisciplineFilter").value =
     selectedProgressFilter === "all" || disciplineOptions.includes(selectedProgressFilter) ? selectedProgressFilter || "all" : "all";
-  $("#rankLevel").value = selectedRankLevel === "all" || levelOptions.includes(selectedRankLevel) ? selectedRankLevel : "all";
+  $("#rankDiscipline").value =
+    selectedRankDiscipline === "all" || activeDisciplineOptions.includes(selectedRankDiscipline) ? selectedRankDiscipline : "all";
+  $("#rankLevel").value = selectedRankLevel === "all" || activeLevelOptions.includes(selectedRankLevel) ? selectedRankLevel : "all";
   $("#dashboardShooterFilter").value =
     selectedDashboardShooter === "all" || activeShooters.some((shooter) => shooter.id === selectedDashboardShooter)
       ? selectedDashboardShooter || "all"
@@ -6458,7 +6547,14 @@ function renderCompetition() {
 
   const activeShooters = state.shooters.filter((shooter) => shooter.active);
   $("#participantChips").innerHTML = activeShooters.length
-    ? activeShooters.map((shooter) => `<span class="chip">${escapeHtml(shooter.name)}${shooter.optic ? " · Optic" : ""}</span>`).join("")
+    ? activeShooters
+        .map((shooter) => {
+          const meta = isInternalCompetitionClub()
+            ? `${getShooterInternalDiscipline(shooter)} · ${getShooterInternalClass(shooter)} · ${getShooterCaliber(shooter)}${shooter.optic ? " · Optic" : ""}`
+            : `${shooter.optic ? " · Optic" : ""}`;
+          return `<span class="chip">${escapeHtml(shooter.name)}${meta ? ` · ${escapeHtml(meta)}` : ""}</span>`;
+        })
+        .join("")
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
 }
 
@@ -7054,7 +7150,7 @@ function renderRanking() {
   const scope = $("#rankScope").value || "all";
   const sort = $("#rankSort").value || "hitfactor";
   if (isInternalCompetitionClub()) {
-    $("#rankingList").innerHTML = renderRankingItems(getInternalCompetitionRanking({ level, completeOnly: scope === "latest" }), false);
+    $("#rankingList").innerHTML = renderRankingItems(getInternalCompetitionRanking({ discipline, level, completeOnly: scope === "latest" }), false);
     return;
   }
   let items = scope === "latest" ? getLatestTrainingRanking({ discipline, level }) : getRanking({ discipline, level });
@@ -7094,6 +7190,9 @@ function getBeamerRows() {
         shooter,
         position: item?.position || 0,
         average: isInternalCompetitionClub() ? item?.overallScore || 0 : item?.hitfactor || 0,
+        competitionClass: getShooterInternalClass(shooter),
+        competitionDiscipline: getShooterInternalDiscipline(shooter),
+        caliber: getShooterCaliber(shooter),
         precisionContribution: item?.precisionContribution || 0,
         dynamicContribution: item?.dynamicContribution || 0,
         completedStages: item?.completedStages || 0,
@@ -7119,21 +7218,41 @@ function getBeamerRows() {
 function getBeamerLevelGroups(rows) {
   const grouped = new Map();
   rows.forEach((row) => {
-    const level = normalizeLevel(row.shooter.level);
-    if (!grouped.has(level)) grouped.set(level, []);
-    grouped.get(level).push(row);
+    const groupKey = isInternalCompetitionClub()
+      ? `${row.competitionDiscipline}:${row.competitionClass}`
+      : normalizeLevel(row.shooter.level);
+    if (!grouped.has(groupKey)) grouped.set(groupKey, []);
+    grouped.get(groupKey).push(row);
   });
 
   return Array.from(grouped.entries())
     .sort(([levelA], [levelB]) => {
+      if (isInternalCompetitionClub()) {
+        const [disciplineA, classA] = levelA.split(":");
+        const [disciplineB, classB] = levelB.split(":");
+        const disciplineIndexA = internalDisciplineOptions.indexOf(disciplineA);
+        const disciplineIndexB = internalDisciplineOptions.indexOf(disciplineB);
+        if (disciplineIndexA !== disciplineIndexB) return disciplineIndexA - disciplineIndexB;
+        return internalClassOptions.indexOf(classA) - internalClassOptions.indexOf(classB);
+      }
       const indexA = levelOptions.includes(levelA) ? levelOptions.indexOf(levelA) : levelOptions.length;
       const indexB = levelOptions.includes(levelB) ? levelOptions.indexOf(levelB) : levelOptions.length;
       if (indexA !== indexB) return indexA - indexB;
       return levelA.localeCompare(levelB, "nl");
     })
     .map(([level, levelRows]) => ({
-      level,
-      rows: levelRows.map((row, index) => ({ ...row, levelPosition: row.position ? index + 1 : 0 })),
+      level: isInternalCompetitionClub()
+        ? `${level.split(":")[0]} · ${getInternalClassLabel(level.split(":")[1])}`
+        : level,
+      rows: levelRows
+        .slice()
+        .sort((a, b) => {
+          if (a.position && b.position) return a.position - b.position;
+          if (a.position) return -1;
+          if (b.position) return 1;
+          return a.shooter.name.localeCompare(b.shooter.name, "nl");
+        })
+        .map((row, index) => ({ ...row, levelPosition: row.position ? index + 1 : 0 })),
     }));
 }
 
@@ -7403,9 +7522,9 @@ function renderBeamerBoard() {
         const internalScoreText = `${formatNumber(row.precisionContribution, 1)} / ${formatNumber(row.dynamicContribution, 1)}`;
         const internalStageText = `${row.completedStages}/${row.totalStages} · ${row.status}`;
         return `
-          <div class="beamer-row${podiumClass}${row.shooter.rimfire ? " is-rimfire" : ""}">
+          <div class="beamer-row${podiumClass}${row.caliber === ".22" ? " is-rimfire" : ""}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
-            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}${row.shooter.rimfire ? `<span class="rimfire-tag">.22</span>` : ""}</strong>
+            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}<span class="rimfire-tag">${escapeHtml(row.caliber || getShooterCaliber(row.shooter))}</span></strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
             <span>${internalMode ? internalScoreText : scoreTimeText}</span>
             <span>${internalMode ? internalStageText : latestText}</span>
@@ -7504,7 +7623,7 @@ function renderInternalRankingItems(items, compact) {
           <span class="rank-number">${item.status === "DQ" ? "DQ" : index + 1}</span>
           <div class="rank-main">
             <strong>${escapeHtml(item.shooter.name)}</strong>
-            <small>Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)}${item.opticPenalty ? ` · Optic -${item.opticPenalty}% van ${formatNumber(item.baseOverallScore, 2)}` : ""} · ${item.completedStages}/${item.totalStages} onderdelen · ${item.status}</small>
+            <small>${escapeHtml(item.discipline)} · ${getInternalClassLabel(item.competitionClass)} · ${item.caliber}${item.opticPenalty ? ` · Optic -${item.opticPenalty}% van ${formatNumber(item.baseOverallScore, 2)}` : ""} · Kort ${formatNumber(item.precisionContribution, 2)} · Lang ${formatNumber(item.dynamicContribution, 2)} · ${item.completedStages}/${item.totalStages} onderdelen · ${item.status}</small>
             ${
               compact
                 ? ""
@@ -7568,7 +7687,7 @@ function renderProfiles() {
           <span class="profile-avatar">${escapeHtml(shooter.name.slice(0, 1).toUpperCase())}</span>
           <div class="profile-meta">
             <strong>${escapeHtml(shooter.name)}</strong>
-            <small>${getShooterLevelLabel(shooter)} · ${normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
+            <small>${getShooterLevelLabel(shooter)} · ${isInternalCompetitionClub() ? `${getShooterInternalDiscipline(shooter)} · ${getShooterCaliber(shooter)}` : normalizeDiscipline(shooter.discipline)} · HF ${formatNumber(avgHitfactor, 3)} · Beste ${formatNumber(bestScore, 0)} · Tijd ${formatNumber(bestTime, 2)} · Alpha ${formatNumber(avgAlpha, 1)} · Straf ${formatNumber(penalties, 0)}</small>
           </div>
           <label class="toggle profile-optic-toggle" title="Optic schutter" data-trainer-only data-internal-competition-only>
             <input type="checkbox" class="switch" ${shooter.optic ? "checked" : ""} data-shooter-optic="${shooter.id}" aria-label="${escapeHtml(shooter.name)} optic schutter" />
@@ -8062,22 +8181,33 @@ let editingShooterId = null;
 function openEntryDialog(shooterId) {
   if (!requireTrainer()) return;
   const shooter = shooterId ? getShooter(shooterId) : null;
+  const internal = isInternalCompetitionClub();
   editingShooterId = shooter ? shooter.id : null;
   $("#entryTitle").textContent = shooter ? "Schutter bewerken" : "Schutter toevoegen";
   $("#entryName").value = shooter ? shooter.name : "";
-  $("#entryMeta").value = normalizeLevel(shooter ? shooter.level : defaultLevel);
+  $("#entryMeta").innerHTML = internal
+    ? internalClassOptions.map((item) => `<option value="${item}">${getInternalClassLabel(item)}</option>`).join("")
+    : levelOptions.map((item) => `<option value="${item}">${item}</option>`).join("");
+  $("#entryDiscipline").innerHTML = internal
+    ? internalDisciplineOptions.map((item) => `<option value="${item}">${item}</option>`).join("")
+    : disciplineOptions.map((item) => `<option value="${item}">${item}</option>`).join("");
+  $("#entryMeta").value = internal ? getShooterInternalClass(shooter) : normalizeLevel(shooter ? shooter.level : defaultLevel);
   $("#entryOptic").checked = shooter ? Boolean(shooter.optic) : false;
-  $("#entryDiscipline").value = normalizeDiscipline(shooter ? shooter.discipline : defaultDiscipline);
-  $("#entryMetaLabel span").textContent = "Niveau";
+  $("#entryDiscipline").value = internal ? getShooterInternalDiscipline(shooter) : normalizeDiscipline(shooter ? shooter.discipline : defaultDiscipline);
+  $("#entryCaliber").value = getShooterCaliber(shooter);
+  $("#entryCaliberField").hidden = !internal;
+  $("#entryMetaLabel span").textContent = internal ? "Klasse" : "Niveau";
   $("#entryDialog").showModal();
   $("#entryName").focus();
 }
 
 function saveEntryDialog() {
   if (!requireTrainer()) return;
+  const internal = isInternalCompetitionClub();
   const name = $("#entryName").value.trim();
-  const meta = normalizeLevel($("#entryMeta").value.trim());
-  const discipline = normalizeDiscipline($("#entryDiscipline").value);
+  const meta = internal ? normalizeInternalClass($("#entryMeta").value) : normalizeLevel($("#entryMeta").value.trim());
+  const discipline = internal ? normalizeInternalDiscipline($("#entryDiscipline").value) : normalizeDiscipline($("#entryDiscipline").value);
+  const caliber = normalizeCaliber($("#entryCaliber").value);
   const optic = $("#entryOptic").checked;
   if (!name) {
     $("#entryName").focus();
@@ -8090,6 +8220,12 @@ function saveEntryDialog() {
     shooter.name = name;
     shooter.level = meta || defaultLevel;
     shooter.discipline = discipline;
+    if (internal) {
+      shooter.competitionClass = meta;
+      shooter.competitionDiscipline = discipline;
+      shooter.caliber = caliber;
+      shooter.rimfire = caliber === ".22";
+    }
     shooter.optic = optic;
   } else {
     state.shooters.push({
@@ -8097,7 +8233,11 @@ function saveEntryDialog() {
       name,
       level: meta || defaultLevel,
       discipline,
+      competitionClass: internal ? meta : normalizeInternalClass(meta),
+      competitionDiscipline: internal ? discipline : normalizeInternalDiscipline(discipline),
+      caliber: internal ? caliber : "9mm",
       optic,
+      rimfire: internal ? caliber === ".22" : false,
       active: true,
     });
   }
@@ -8856,12 +8996,14 @@ $("#scoreForm").addEventListener("input", (event) => {
   if (event.target.id === "scoreShooter") {
     scoreDraft.shooterId = event.target.value;
     syncScoreOpticToggle();
-    if (!isInternalScoreMode()) {
-      scoreDraft.discipline = normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
-      $("#scoreDiscipline").value = scoreDraft.discipline;
-    }
+    scoreDraft.discipline = isInternalCompetitionClub()
+      ? getShooterInternalDiscipline(getShooter(scoreDraft.shooterId))
+      : normalizeDiscipline(getShooter(scoreDraft.shooterId)?.discipline);
+    $("#scoreDiscipline").value = scoreDraft.discipline;
   }
-  if (event.target.id === "scoreDiscipline") scoreDraft.discipline = normalizeDiscipline(event.target.value);
+  if (event.target.id === "scoreDiscipline") {
+    scoreDraft.discipline = isInternalCompetitionClub() ? normalizeInternalDiscipline(event.target.value) : normalizeDiscipline(event.target.value);
+  }
     if (event.target.id === "scoreStage") {
       scoreDraft.stageId = event.target.value;
       const stage = getInternalStage(scoreDraft.stageId);
@@ -9238,6 +9380,23 @@ $("#scoreShooterOptic").addEventListener("change", (event) => {
   showToast(shooter.optic ? "Optic aftrek actief" : "Optic aftrek uit");
 });
 
+$("#scoreShooterCaliber").addEventListener("change", (event) => {
+  if (!requireTrainer()) {
+    syncScoreOpticToggle();
+    return;
+  }
+  const shooter = getShooter(scoreDraft.shooterId);
+  if (!shooter) {
+    showToast("Kies eerst een schutter");
+    return;
+  }
+  shooter.caliber = normalizeCaliber(event.target.value);
+  shooter.rimfire = shooter.caliber === ".22";
+  markDirty();
+  render();
+  showToast(`Kaliber: ${shooter.caliber}`);
+});
+
 $("#scoreShooterRimfire").addEventListener("change", (event) => {
   if (!requireTrainer()) {
     event.target.checked = !event.target.checked;
@@ -9250,6 +9409,7 @@ $("#scoreShooterRimfire").addEventListener("change", (event) => {
     return;
   }
   shooter.rimfire = event.target.checked;
+  shooter.caliber = shooter.rimfire ? ".22" : "9mm";
   markDirty();
   render();
   showToast(shooter.rimfire ? ".22 schutter aan" : ".22 schutter uit");
