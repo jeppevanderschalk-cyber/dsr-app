@@ -1187,6 +1187,158 @@ select:focus {
   line-height: 1.35;
 }
 
+.long-course-stage-input {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.long-course-stage-input[hidden] {
+  display: none;
+}
+
+.long-stage-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(32, 32, 36, 0.98), rgba(13, 13, 15, 0.98));
+}
+
+.long-stage-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.long-stage-card__head span,
+.long-stage-card__head small {
+  display: block;
+}
+
+.long-stage-card__head span {
+  color: var(--yellow);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.long-stage-card__head strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.long-stage-card__head small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.long-stage-card__score {
+  flex: 0 0 auto;
+  min-width: 86px;
+  text-align: right;
+  color: var(--yellow);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.long-stage-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px 74px 46px;
+  gap: 8px;
+  align-items: center;
+}
+
+.long-stage-line__label {
+  min-width: 0;
+}
+
+.long-stage-line__label strong,
+.long-stage-line__label small {
+  display: block;
+}
+
+.long-stage-line__label strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.long-stage-line__label small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.long-stage-line__count {
+  display: grid;
+  place-items: center;
+  min-height: 46px;
+  border-radius: 14px;
+  background: #101114;
+  color: var(--yellow);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.long-stage-step,
+.long-stage-bonus {
+  min-height: 46px;
+  border: 1px solid rgba(245, 197, 24, 0.32);
+  border-radius: 14px;
+  background: #2b2c32;
+  color: var(--ink);
+  font-size: 1.25rem;
+  font-weight: 900;
+  touch-action: manipulation;
+}
+
+.long-stage-step[data-step="1"] {
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: var(--accent-ink);
+}
+
+.long-stage-bonus {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.long-stage-bonus strong,
+.long-stage-bonus span {
+  display: block;
+}
+
+.long-stage-bonus strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.long-stage-bonus.is-active {
+  border-color: rgba(245, 197, 24, 0.85);
+  background: rgba(245, 197, 24, 0.14);
+  color: var(--yellow);
+}
+
+.long-stage-card__note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .signature-panel[hidden] {
   display: none;
 }
@@ -3666,6 +3818,7 @@ dialog .primary-action::after {
                   <button type="button" data-internal-step="rawPoints" data-step-value="+50">+50</button>
                   <button type="button" data-internal-step="rawPoints" data-step-value="+100">+100</button>
                 </div>
+                <div id="longCourseStageInput" class="long-course-stage-input" aria-label="Lange baan per stage invoeren" hidden></div>
               </label>
               <div class="score-max-card" id="scoreMaxCard" aria-label="Maximale punten">
                 <span>Maximale punten</span>
@@ -4037,7 +4190,7 @@ dialog .primary-action::after {
                   </label>
                   <label>
                     <span>Lange baan (max punten)</span>
-                    <input id="internalLongMaxSetting" type="number" min="1" step="1" inputmode="numeric" placeholder="1750" />
+                    <input id="internalLongMaxSetting" type="number" min="1" step="1" inputmode="numeric" placeholder="2200" />
                   </label>
                 </div>
               </section>
@@ -4318,14 +4471,66 @@ const levelOptions = ["Beginner", "Gevorderd", "Wedstrijdploeg dinsdagen", "IPSC
 const opticScoreMultiplier = 0.7;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
-const longCoursePointValues = [10, 50, 100];
+const longCoursePointValues = [10, 50, 100, 150];
+const longCourseStageConfig = [
+  {
+    id: "stage3",
+    label: "Stage 3",
+    title: "Paard - sterren",
+    note: "5 sterren, 100 punten per ster.",
+    maxPoints: 500,
+    items: [{ key: "stars", label: "Sterren", value: 100, max: 5 }],
+  },
+  {
+    id: "stage4",
+    label: "Stage 4",
+    title: "Ballonnen",
+    note: "5 ballonnen, 50 punten per ballon.",
+    maxPoints: 250,
+    items: [{ key: "balloons", label: "Ballonnen", value: 50, max: 5 }],
+  },
+  {
+    id: "stage5",
+    label: "Stage 5",
+    title: "Cactussen",
+    note: "5 treffers op cactusvlakken van 100 of 50 punten. Deze stage stopt op maximaal 500 punten.",
+    maxPoints: 500,
+    maxHits: 5,
+    items: [
+      { key: "cactus100", label: "100-vlak", value: 100, max: 5 },
+      { key: "cactus50", label: "50-vlak", value: 50, max: 5 },
+    ],
+  },
+  {
+    id: "stage6",
+    label: "Stage 6",
+    title: "Blikjes",
+    note: "5 blikjes, 50 punten per blikje.",
+    maxPoints: 250,
+    items: [{ key: "cans", label: "Blikjes", value: 50, max: 5 }],
+  },
+  {
+    id: "stage7",
+    label: "Stage 7",
+    title: "Spelkaarten + balletje",
+    note: "4 spelkaarten van 50 punten en 1 balletje van 150 punten.",
+    maxPoints: 350,
+    items: [
+      { key: "cards", label: "Spelkaarten", value: 50, max: 4 },
+      { key: "ball", label: "Balletje", value: 150, max: 1 },
+    ],
+  },
+];
+const longCourseBaseMaxPoints = longCourseStageConfig.reduce((sum, stage) => sum + stage.maxPoints, 0);
+const longCourseSheriffBonusMaxPoints = longCourseStageConfig.find((stage) => stage.id === "stage7")?.maxPoints || 0;
+const longCourseMaxPoints = longCourseBaseMaxPoints + longCourseSheriffBonusMaxPoints;
 const INTERNAL_COMPETITION_CONFIG = {
   competitionId: "internal-competition-v1",
   precisionWeight: 40,
   dynamicWeight: 60,
   stages: [
     { id: "stage-short", label: "Korte baan - stage 1 en 2 samen", scoringType: "precision", maxPoints: 100 },
-    { id: "stage-long", label: "Lange baan - stage 3 t/m 7 samen", scoringType: "hitfactor", maxPoints: 1750, weight: 100 },
+    { id: "stage-long", label: "Lange baan - stage 3 t/m 7", scoringType: "hitfactor", maxPoints: longCourseMaxPoints, weight: 100 },
   ],
 };
 const liveSyncIntervalMs = 5000;
@@ -4380,6 +4585,7 @@ document.addEventListener(
     if (event.target.closest("[data-step]")) return;
     if (event.target.closest("[data-internal-step]")) return;
     if (event.target.closest("[data-master-card-score], [data-master-card-remove], [data-master-card-action]")) return;
+    if (event.target.closest("[data-long-stage-step], [data-long-stage-bonus]")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
@@ -4430,6 +4636,7 @@ function mergeData(base, saved) {
           percentage: internalScore ? Number(score.percentage) || 0 : 0,
           cardHits: internalScore && Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [],
           longCourseHits: internalScore ? normalizeLongCourseHits(score.longCourseHits) : createEmptyLongCourseHits(),
+          longCourseStages: internalScore ? normalizeLongCourseStages(score.longCourseStages) : createEmptyLongCourseStages(),
           legacy: Boolean(score.legacy || (internalClub && !score.stageId)),
           signatureDataUrl: internalScore && typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
           signedAt: internalScore ? score.signedAt || "" : "",
@@ -5074,6 +5281,126 @@ function formatLongCourseHitsCompact(hits = scoreDraft.longCourseHits) {
   return longCoursePointValues.map((pointValue) => `${pointValue}: ${normalized[String(pointValue)]}x`).join(" · ");
 }
 
+function formatLongCourseBreakdown(score) {
+  const stageSummary = score && hasLongCourseStageInput(score.longCourseStages) ? getLongCourseStageSummary(score.longCourseStages) : "";
+  if (stageSummary) return stageSummary;
+  return formatLongCourseHits(score?.longCourseHits);
+}
+
+function createEmptyLongCourseStages() {
+  const stages = Object.fromEntries(
+    longCourseStageConfig.map((stage) => [
+      stage.id,
+      Object.fromEntries(stage.items.map((item) => [item.key, 0])),
+    ]),
+  );
+  stages.sheriffBonus = false;
+  return stages;
+}
+
+function normalizeLongCourseStages(value) {
+  const normalized = createEmptyLongCourseStages();
+  if (!value || typeof value !== "object") return normalized;
+  longCourseStageConfig.forEach((stage) => {
+    const source = value[stage.id] && typeof value[stage.id] === "object" ? value[stage.id] : {};
+    stage.items.forEach((item) => {
+      const count = Math.round(Number(source[item.key]) || 0);
+      normalized[stage.id][item.key] = Math.min(item.max, Math.max(0, count));
+    });
+  });
+  normalized.sheriffBonus = Boolean(value.sheriffBonus);
+  return normalized;
+}
+
+function getLongCourseStageBaseScore(stageConfig, stages = scoreDraft.longCourseStages) {
+  const normalized = normalizeLongCourseStages(stages);
+  const total = stageConfig.items.reduce(
+    (sum, item) => sum + item.value * (Number(normalized[stageConfig.id]?.[item.key]) || 0),
+    0,
+  );
+  return Math.min(stageConfig.maxPoints, total);
+}
+
+function getLongCourseStage7Score(stages = scoreDraft.longCourseStages) {
+  const stage7 = longCourseStageConfig.find((stage) => stage.id === "stage7");
+  return stage7 ? getLongCourseStageBaseScore(stage7, stages) : 0;
+}
+
+function hasLongCourseStageInput(stages = scoreDraft.longCourseStages) {
+  const normalized = normalizeLongCourseStages(stages);
+  return (
+    normalized.sheriffBonus ||
+    longCourseStageConfig.some((stage) =>
+      stage.items.some((item) => (Number(normalized[stage.id]?.[item.key]) || 0) > 0),
+    )
+  );
+}
+
+function getLongCourseStageTotals(stages = scoreDraft.longCourseStages) {
+  const normalized = normalizeLongCourseStages(stages);
+  const base = longCourseStageConfig.reduce((sum, stage) => sum + getLongCourseStageBaseScore(stage, normalized), 0);
+  const sheriffBonus = normalized.sheriffBonus ? getLongCourseStage7Score(normalized) : 0;
+  return {
+    base,
+    sheriffBonus,
+    total: Math.min(longCourseMaxPoints, base + sheriffBonus),
+  };
+}
+
+function getLongCourseStageSummary(stages = scoreDraft.longCourseStages) {
+  const normalized = normalizeLongCourseStages(stages);
+  return longCourseStageConfig
+    .map((stage) => {
+      const parts = stage.items
+        .map((item) => {
+          const count = Number(normalized[stage.id]?.[item.key]) || 0;
+          return count ? `${item.label}: ${count}x` : "";
+        })
+        .filter(Boolean)
+        .join(", ");
+      const score = getLongCourseStageBaseScore(stage, normalized);
+      return parts ? `${stage.label} ${formatNumber(score, 0)} pt (${parts})` : "";
+    })
+    .filter(Boolean)
+    .concat(normalized.sheriffBonus ? [`Sheriff bonus +${formatNumber(getLongCourseStage7Score(normalized), 0)} pt`] : [])
+    .join(" · ");
+}
+
+function createLongCourseHitsFromStages(stages = scoreDraft.longCourseStages) {
+  const hits = createEmptyLongCourseHits();
+  const normalized = normalizeLongCourseStages(stages);
+  longCourseStageConfig.forEach((stage) => {
+    stage.items.forEach((item) => {
+      const key = String(item.value);
+      hits[key] = (Number(hits[key]) || 0) + (Number(normalized[stage.id]?.[item.key]) || 0);
+    });
+  });
+  if (normalized.sheriffBonus) {
+    const stage7 = longCourseStageConfig.find((stage) => stage.id === "stage7");
+    stage7?.items.forEach((item) => {
+      const key = String(item.value);
+      hits[key] = (Number(hits[key]) || 0) + (Number(normalized.stage7?.[item.key]) || 0);
+    });
+  }
+  return normalizeLongCourseHits(hits);
+}
+
+function combineLongCourseStages(a, b) {
+  const first = normalizeLongCourseStages(a);
+  const second = normalizeLongCourseStages(b);
+  const combined = createEmptyLongCourseStages();
+  longCourseStageConfig.forEach((stage) => {
+    stage.items.forEach((item) => {
+      combined[stage.id][item.key] = Math.min(
+        item.max,
+        (Number(first[stage.id]?.[item.key]) || 0) + (Number(second[stage.id]?.[item.key]) || 0),
+      );
+    });
+  });
+  combined.sheriffBonus = first.sheriffBonus || second.sheriffBonus;
+  return combined;
+}
+
 function createId(prefix) {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -5145,6 +5472,7 @@ function createEmptyDraft() {
     penaltyPoints: "",
     cardHits: [],
     longCourseHits: createEmptyLongCourseHits(),
+    longCourseStages: createEmptyLongCourseStages(),
     notes: "",
     status: "normal",
     editScoreId: "",
@@ -5226,6 +5554,7 @@ function normalizeInternalStageMaxPoints(value) {
   return Object.fromEntries(
     INTERNAL_COMPETITION_CONFIG.stages.map((stage) => {
       const configured = Math.round(Number(value?.[stage.id]));
+      if (stage.id === "stage-long" && (configured === 1750 || configured > stage.maxPoints)) return [stage.id, stage.maxPoints];
       return [stage.id, configured > 0 ? configured : stage.maxPoints];
     }),
   );
@@ -5234,6 +5563,7 @@ function normalizeInternalStageMaxPoints(value) {
 function getInternalStageMaxPoints(stageId) {
   const base = INTERNAL_COMPETITION_CONFIG.stages.find((stage) => stage.id === stageId);
   const configured = Math.round(Number(state?.internalStageMaxPoints?.[stageId]));
+  if (stageId === "stage-long" && (configured === 1750 || configured > (base?.maxPoints || 0))) return base?.maxPoints || 0;
   return configured > 0 ? configured : base?.maxPoints || 0;
 }
 
@@ -5316,6 +5646,7 @@ function combineInternalStageScores(current, score, canonicalStageId) {
         currentLongHits[String(pointValue)] + scoreLongHits[String(pointValue)],
       ]),
     ),
+    longCourseStages: combineLongCourseStages(current.longCourseStages, score.longCourseStages),
     status: current.status === "dq" || score.status === "dq" ? "dq" : current.status === "ended" || score.status === "ended" ? "ended" : "normal",
     updatedAt,
   };
@@ -5467,6 +5798,116 @@ function renderMasterCardSummary(calc) {
   return `${hits.length}/${getMasterCardMaxShots()} schoten · ${counts} · totaal ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`;
 }
 
+function syncLongCourseScoreFromStages() {
+  const totals = getLongCourseStageTotals(scoreDraft.longCourseStages);
+  scoreDraft.rawPoints = String(totals.total);
+  scoreDraft.longCourseHits = createLongCourseHitsFromStages(scoreDraft.longCourseStages);
+}
+
+function updateLongCourseStageValue(stageId, itemKey, delta) {
+  const stage = longCourseStageConfig.find((item) => item.id === stageId);
+  const item = stage?.items.find((candidate) => candidate.key === itemKey);
+  if (!stage || !item || !isInternalScoreMode() || !isDynamicStage(scoreDraft.stageId)) return;
+
+  const stages = normalizeLongCourseStages(scoreDraft.longCourseStages);
+  const current = Number(stages[stage.id][item.key]) || 0;
+  const next = Math.min(item.max, Math.max(0, current + delta));
+  if (next === current) {
+    showToast(delta > 0 ? `Maximaal ${item.max}x ${item.label}` : `Geen ${item.label} om te corrigeren`);
+    return;
+  }
+  if (delta > 0 && stage.maxHits) {
+    const hitCount = stage.items.reduce((sum, candidate) => sum + (Number(stages[stage.id]?.[candidate.key]) || 0), 0);
+    if (hitCount >= stage.maxHits) {
+      showToast(`${stage.label} heeft maximaal ${stage.maxHits} treffers`);
+      return;
+    }
+  }
+
+  const beforeStageScore = getLongCourseStageBaseScore(stage, stages);
+  stages[stage.id][item.key] = next;
+  const afterStageScore = getLongCourseStageBaseScore(stage, stages);
+  if (delta > 0 && beforeStageScore >= stage.maxPoints && afterStageScore === beforeStageScore) {
+    showToast(`${stage.label} staat al op maximaal ${formatNumber(stage.maxPoints, 0)} punten`);
+    return;
+  }
+
+  scoreDraft.longCourseStages = stages;
+  syncLongCourseScoreFromStages();
+  syncScoreInputFields(true);
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function toggleLongCourseSheriffBonus() {
+  if (!isInternalScoreMode() || !isDynamicStage(scoreDraft.stageId)) return;
+  const stages = normalizeLongCourseStages(scoreDraft.longCourseStages);
+  stages.sheriffBonus = !stages.sheriffBonus;
+  scoreDraft.longCourseStages = stages;
+  syncLongCourseScoreFromStages();
+  syncScoreInputFields(true);
+  clearScoreSignatureAfterChange();
+  renderScores();
+}
+
+function renderLongCourseStageInput(calc) {
+  const target = $("#longCourseStageInput");
+  if (!target) return;
+  const stages = normalizeLongCourseStages(scoreDraft.longCourseStages);
+  const totals = getLongCourseStageTotals(stages);
+  target.innerHTML = longCourseStageConfig
+    .map((stage) => {
+      const stageScore = getLongCourseStageBaseScore(stage, stages);
+      const controls = stage.items
+        .map((item) => {
+          const count = Number(stages[stage.id]?.[item.key]) || 0;
+          return `
+            <div class="long-stage-line">
+              <div class="long-stage-line__label">
+                <strong>${escapeHtml(item.label)}</strong>
+                <small>${formatNumber(item.value, 0)} pt per stuk · max ${item.max}x</small>
+              </div>
+              <button class="long-stage-step" type="button" data-long-stage-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-step="-1" aria-label="${escapeHtml(item.label)} corrigeren">−</button>
+              <span class="long-stage-line__count">${count} / ${item.max}</span>
+              <button class="long-stage-step" type="button" data-long-stage-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-step="1" aria-label="${escapeHtml(item.label)} toevoegen">+</button>
+            </div>
+          `;
+        })
+        .join("");
+      const sheriffButton =
+        stage.id === "stage7"
+          ? `
+            <button class="long-stage-bonus ${stages.sheriffBonus ? "is-active" : ""}" type="button" data-long-stage-bonus="sheriff" aria-pressed="${stages.sheriffBonus}">
+              <strong>Sheriff ster behouden</strong>
+              <span>${stages.sheriffBonus ? `Bonus actief: +${formatNumber(getLongCourseStage7Score(stages), 0)} pt` : "Verdubbelt de punten van stage 7"}</span>
+            </button>
+          `
+          : "";
+      return `
+        <section class="long-stage-card">
+          <div class="long-stage-card__head">
+            <div>
+              <span>${escapeHtml(stage.label)}</span>
+              <strong>${escapeHtml(stage.title)}</strong>
+              <small>${escapeHtml(stage.note)}</small>
+            </div>
+            <div class="long-stage-card__score">${formatNumber(stageScore, 0)} / ${formatNumber(stage.maxPoints, 0)}</div>
+          </div>
+          ${controls}
+          ${sheriffButton}
+        </section>
+      `;
+    })
+    .join("");
+
+  if ($("#longCourseSummary")) {
+    $("#longCourseSummary").textContent = `Stages ${formatNumber(totals.base, 0)} · sheriff bonus ${formatNumber(
+      totals.sheriffBonus,
+      0,
+    )} · bruto ${formatNumber(calc.rawPoints, 0)} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)}`;
+  }
+}
+
 function syncScoreInputFields(force = false) {
   const fields = [
     ["scoreRawPoints", scoreDraft.rawPoints],
@@ -5520,7 +5961,11 @@ function calculateInternalCompetitionScore(input) {
   const stage = getInternalStage(input.stageId);
   const status = scoreStatusOptions[input.status] ? input.status : "normal";
   const inputRawPoints = Math.max(0, parseDecimal(input.rawPoints) || 0);
-  const rawPoints = stage.scoringType === "precision" ? Math.min(stage.maxPoints, inputRawPoints) : inputRawPoints;
+  const stagedRawPoints =
+    stage.scoringType === "hitfactor" && hasLongCourseStageInput(input.longCourseStages)
+      ? getLongCourseStageTotals(input.longCourseStages).total
+      : inputRawPoints;
+  const rawPoints = Math.min(stage.maxPoints, stage.scoringType === "precision" ? inputRawPoints : stagedRawPoints);
   const penaltyPoints = stage.scoringType === "hitfactor" ? Math.max(0, parseDecimal(input.penaltyPoints) || 0) : 0;
   const time = stage.scoringType === "hitfactor" ? Math.max(0, parseDecimal(input.time) || 0) : 0;
   const blocksScore = getScoreStatusMeta(status).blocksScore;
@@ -6084,14 +6529,15 @@ function renderScores() {
     if (internalMode) {
       internalHelp.textContent = precisionStage
         ? `Korte baan (stage 1 + 2): tik per schot de geschoten ring (mis of 6–10), maximaal ${getMasterCardMaxShots()} schoten van ${formatNumber(internalStage.maxPoints, 0)} punten. Laat de schutter daarna tekenen voor akkoord en sla op. Telt 40% mee in het totaal.`
-        : `Lange baan (stage 3 t/m 7): voer het totaal aantal punten (max ${formatNumber(internalStage.maxPoints, 0)}) en de totale tijd in. Met de − knoppen haal je een 10/50/100-treffer terug. Laat de schutter tekenen en sla op. Telt 60% mee in het totaal.`;
+        : `Lange baan (stage 3 t/m 7): vul per stage de geraakte doelen in. De app telt het totaal, de sheriff-bonus, strafpunten en tijd automatisch door. Laat de schutter tekenen en sla op. Telt 60% mee in het totaal.`;
     }
   }
   $("#scorePenaltyPointsField").hidden = !internalMode || precisionStage;
   $("#scoreMaxCard").hidden = !internalMode || precisionStage;
   $("#masterCardStepper").hidden = !internalMode || !precisionStage;
   $("#masterCardSummary").hidden = !internalMode || !precisionStage;
-  $("#internalPointStepper").hidden = !internalMode || precisionStage;
+  $("#internalPointStepper").hidden = true;
+  $("#longCourseStageInput").hidden = !internalMode || precisionStage;
   $("#longCourseSummary").hidden = !internalMode || precisionStage;
   $("#counterGrid").hidden = internalMode;
   $("#scoreFlexField").hidden = internalMode;
@@ -6099,17 +6545,14 @@ function renderScores() {
   $("#scoreRawPointsLabel").textContent = precisionStage ? "Totaal kaart 1 + 2" : "Totaal score lange baan";
   $("#scoreMaxPoints").textContent = formatNumber(internalStage.maxPoints, 0);
   $("#scoreRawPoints").max = internalStage.maxPoints;
-  $("#scoreRawPoints").readOnly = internalMode && precisionStage;
+  $("#scoreRawPoints").readOnly = internalMode;
   // Geen HTML5 `required`: de score-invoer gaat via de knoppen en strafpunten
   // is meestal 0. De echte controle (geldige tijd, maximum punten) gebeurt in JS.
   $("#scoreTime").required = false;
   $("#scoreRawPoints").required = false;
   $("#scorePenaltyPoints").required = false;
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
-  $("#longCourseSummary").textContent = `Invoer: ${formatLongCourseHitsCompact()} · bruto ${formatNumber(
-    calc.rawPoints,
-    0,
-  )} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)}`;
+  if (internalMode && !precisionStage) renderLongCourseStageInput(calc);
 
   if (internalMode) {
     renderInternalFeedback(calc, precisionStage);
@@ -6426,6 +6869,7 @@ function loadScoreForEdit(scoreId) {
   scoreDraft.penaltyPoints = editAsInternalCompetition ? String(Number(score.penaltyPoints) || 0).replace(".", ",") : "";
   scoreDraft.cardHits = editAsInternalCompetition && Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [];
   scoreDraft.longCourseHits = editAsInternalCompetition ? normalizeLongCourseHits(score.longCourseHits) : createEmptyLongCourseHits();
+  scoreDraft.longCourseStages = editAsInternalCompetition ? normalizeLongCourseStages(score.longCourseStages) : createEmptyLongCourseStages();
   scoreDraft.time = Number(score.time) > 0 ? String(score.time).replace(".", ",") : "";
   scoreDraft.flexPoints = Number(score.flexPoints) > 0 ? String(score.flexPoints).replace(".", ",") : "";
   scoreDraft.notes = score.notes || "";
@@ -6569,7 +7013,7 @@ function formatInternalStageResult(result) {
   if (result.stage.scoringType === "precision") {
     return `${formatNumber(result.points, 0)}/${formatNumber(result.stage.maxPoints, 0)} punten · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
   }
-  const longCourseText = result.score ? ` · ${formatLongCourseHits(result.score.longCourseHits)}` : "";
+  const longCourseText = result.score ? ` · ${formatLongCourseBreakdown(result.score)}` : "";
   return `${formatNumber(result.points, 0)} punten${longCourseText} · ${formatNumber(result.time, 2)} sec · precisie ${formatNumber(result.precisionPercentage, 1)}% · snelheid ${formatNumber(result.speedPercentage, 1)}% · bijdrage ${formatNumber(result.contribution, 2)}${status}`;
 }
 
@@ -6577,7 +7021,7 @@ function formatScoreDetails(score, shooter = getShooter(score.shooterId)) {
   if (isInternalCompetitionClub() && score.stageId) {
     const stage = getInternalStage(score.stageId);
     const status = score.status && score.status !== "normal" ? ` · ${getScoreStatusMeta(score.status).label}` : "";
-    const time = stage.scoringType === "hitfactor" ? ` · ${formatLongCourseHits(score.longCourseHits)} · ${formatNumber(score.time, 2)} sec · HF ${formatNumber(score.hitfactor, 3)}` : "";
+    const time = stage.scoringType === "hitfactor" ? ` · ${formatLongCourseBreakdown(score)} · ${formatNumber(score.time, 2)} sec · HF ${formatNumber(score.hitfactor, 3)}` : "";
     const agreement = score.signatureDataUrl ? " · akkoord getekend" : "";
     return `${stage.label} · ${formatNumber(score.net, 0)}/${formatNumber(score.maxPoints || stage.maxPoints, 0)} punten${time}${status}${agreement}`;
   }
@@ -7709,7 +8153,7 @@ function exportCsv() {
           result.completed
             ? `${formatNumber(result.points, 0)} pt${
                 result.stage.scoringType === "hitfactor"
-                  ? `; ${formatLongCourseHits(result.score.longCourseHits)}; ${formatNumber(result.time, 2)} sec; precisie ${formatNumber(result.precisionPercentage, 2)}%; snelheid ${formatNumber(result.speedPercentage, 2)}%`
+                  ? `; ${formatLongCourseBreakdown(result.score)}; ${formatNumber(result.time, 2)} sec; precisie ${formatNumber(result.precisionPercentage, 2)}%; snelheid ${formatNumber(result.speedPercentage, 2)}%`
                   : ""
               }; ${formatNumber(result.percentage, 2)}%`
             : "",
@@ -8379,6 +8823,24 @@ document.addEventListener("click", (event) => {
     if (masterCardActionButton.dataset.masterCardAction === "clear") clearMasterCardScore();
   }
 
+  const longStageButton = event.target.closest("[data-long-stage-step]");
+  if (longStageButton) {
+    if (!requireTrainer()) return;
+    triggerHapticFeedback();
+    updateLongCourseStageValue(
+      longStageButton.dataset.stageId,
+      longStageButton.dataset.itemKey,
+      Number(longStageButton.dataset.step) || 0,
+    );
+  }
+
+  const longStageBonusButton = event.target.closest("[data-long-stage-bonus]");
+  if (longStageBonusButton) {
+    if (!requireTrainer()) return;
+    triggerHapticFeedback();
+    toggleLongCourseSheriffBonus();
+  }
+
 	  const statusButton = event.target.closest("[data-score-status]");
   if (statusButton) {
     if (!requireTrainer()) return;
@@ -8410,6 +8872,7 @@ $("#scoreForm").addEventListener("input", (event) => {
         scoreDraft.penaltyPoints = "";
         scoreDraft.cardHits = [];
         scoreDraft.longCourseHits = createEmptyLongCourseHits();
+        scoreDraft.longCourseStages = createEmptyLongCourseStages();
       }
     }
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
@@ -8419,6 +8882,7 @@ $("#scoreForm").addEventListener("input", (event) => {
     if (isInternalScoreMode() && isDynamicStage(scoreDraft.stageId)) {
       const rawPoints = Math.max(0, parseDecimal(event.target.value) || 0);
       if (rawPoints !== getLongCourseHitsTotal()) scoreDraft.longCourseHits = createEmptyLongCourseHits();
+      if (rawPoints !== getLongCourseStageTotals().total) scoreDraft.longCourseStages = createEmptyLongCourseStages();
     }
   }
   if (event.target.id === "scorePenaltyPoints") scoreDraft.penaltyPoints = event.target.value;
@@ -8481,6 +8945,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
       percentage: calc.percentage,
       cardHits: stage.scoringType === "precision" ? [...(scoreDraft.cardHits || [])] : [],
       longCourseHits: stage.scoringType === "hitfactor" ? normalizeLongCourseHits(scoreDraft.longCourseHits) : createEmptyLongCourseHits(),
+      longCourseStages: stage.scoringType === "hitfactor" ? normalizeLongCourseStages(scoreDraft.longCourseStages) : createEmptyLongCourseStages(),
       hitPoints: calc.hitPoints,
       flexPoints: 0,
       alpha: 0,
@@ -8556,6 +9021,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
     penaltyPoints,
     cardHits,
     longCourseHits,
+    longCourseStages,
     signatureDataUrl: draftSignatureDataUrl,
     signedAt: draftSignedAt,
     agreementText: draftAgreementText,
