@@ -1258,6 +1258,7 @@ select:focus {
 
 .long-stage-line__label {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .long-stage-line__label strong,
@@ -1307,8 +1308,20 @@ select:focus {
 
 @media (max-width: 430px) {
   .long-stage-line {
-    grid-template-columns: minmax(0, 1fr) 58px 76px 58px;
+    grid-template-columns: 58px minmax(76px, 1fr) 58px;
     gap: 8px;
+  }
+
+  .long-stage-line__label {
+    grid-column: 1 / -1;
+  }
+
+  .long-stage-line__label strong {
+    font-size: 0.95rem;
+  }
+
+  .long-stage-line__label small {
+    font-size: 0.72rem;
   }
 
   .long-stage-step {
