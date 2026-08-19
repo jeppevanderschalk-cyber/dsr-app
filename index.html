@@ -6063,9 +6063,9 @@ async function pushRemoteState({ force = false } = {}) {
           isApplyingRemoteState = true;
           state = merged;
           saveState({ sync: false });
+          render();
           isApplyingRemoteState = false;
           payload = merged;
-          render();
         }
       }
     } catch (mergeError) {
@@ -7498,7 +7498,6 @@ function renderScores() {
   const calc = internalMode ? calculateInternalCompetitionScore(scoreDraft) : calculateScore(scoreDraft);
   const statusMeta = getScoreStatusMeta(calc.status);
   const isEditing = Boolean(scoreDraft.editScoreId);
-  if (internalMode) setLiveFocus(scoreDraft.shooterId, scoreDraft.stageId);
   syncScoreInputFields();
   $("#scoreDisciplineField").hidden = internalMode;
   $("#scoreStageField").hidden = !internalMode;
@@ -8063,31 +8062,26 @@ function getLatestShooterScore(shooterId) {
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
 }
 
-function getIpadFocusShooterIds() {
-  // De iPad toont per baan de schutter die de betreffende trainer via de sync
-  // heeft doorgegeven: korte baan links, lange baan rechts. renderScores zet de
-  // eigen selectie van dit toestel vlak vóór de weergave in state.liveFocus, dus
-  // dit werkt zowel voor het trainer-toestel als voor een los kijk-toestel.
-  const focus = state.liveFocus || {};
-  return {
-    shortId: focus.shortShooterId || "",
-    longId: focus.longShooterId || "",
-    shortAt: focus.shortAt || "",
-    longAt: focus.longAt || "",
-  };
+function latestInternalScoreForStage(stageId) {
+  let latest = null;
+  let latestTs = "";
+  for (const score of state.scores) {
+    if (score.stageId !== stageId) continue;
+    const ts = syncItemTimestamp(score);
+    if (!latest || ts > latestTs) {
+      latest = score;
+      latestTs = ts;
+    }
+  }
+  return latest;
 }
 
-function setLiveFocus(shooterId, stageId) {
-  if (currentRole !== "trainer" || isApplyingRemoteState || !isInternalCompetitionClub()) return;
-  const next = shooterId || "";
-  const stage = getInternalStage(stageId);
-  const idKey = stage?.scoringType === "hitfactor" ? "longShooterId" : "shortShooterId";
-  const atKey = stage?.scoringType === "hitfactor" ? "longAt" : "shortAt";
-  const focus = state.liveFocus || {};
-  if ((focus[idKey] || "") === next) return;
-  state.liveFocus = { ...focus, [idKey]: next, [atKey]: new Date().toISOString() };
-  markDirty();
-  saveState();
+// De iPad toont het eindresultaat van de schutter die als laatste de lange baan
+// (de afsluitende stage) heeft afgerond. Trainer 1 scoort de korte baan per
+// schutter en slaat op; dat wordt pas zichtbaar zodra de lange baan is
+// opgeslagen, zodat elke schutter zijn totaal na alle stages te zien krijgt.
+function getIpadResultShooterId() {
+  return latestInternalScoreForStage("stage-long")?.shooterId || "";
 }
 
 function getInternalIpadResultData(shooterId = "") {
@@ -8199,41 +8193,13 @@ function renderIpadResultView() {
   const body = $("#ipadResultBody");
   if (!overlay || overlay.hidden || !body) return;
 
-  const { shortId, longId, shortAt, longAt } = getIpadFocusShooterIds();
-  const shortData = getInternalIpadResultData(shortId);
-  const longData = getInternalIpadResultData(longId);
-
-  if (!shortData && !longData) {
-    body.innerHTML = `<div class="empty">Wachten op de trainer… zodra op de mobiel een schutter wordt gekozen, verschijnt de score hier automatisch.</div>`;
+  const data = getInternalIpadResultData(getIpadResultShooterId());
+  if (!data) {
+    body.innerHTML = `<div class="empty">Wachten op afronding van de lange baan… zodra een schutter alle stages heeft afgerond, verschijnt hier zijn of haar eindresultaat.</div>`;
     return;
   }
 
-  // Splitsen alleen als beide banen recent (binnen 10 min) door een trainer zijn
-  // aangeraakt; anders is er in de praktijk maar één trainer bezig en houdt de
-  // andere baan een oude schutter vast. Dan tonen we de meest recente baan.
-  const splitWindowMs = 10 * 60 * 1000;
-  const bothRecent =
-    shortAt && longAt && Math.abs(new Date(shortAt).getTime() - new Date(longAt).getTime()) <= splitWindowMs;
-
-  if (!shortData || !longData || shortId === longId || !bothRecent) {
-    const newest = shortData && longData ? (String(longAt) > String(shortAt) ? longData : shortData) : shortData || longData;
-    body.innerHTML = buildIpadResultCards(newest);
-    return;
-  }
-
-  // Twee trainers, twee schutters: korte baan links, lange baan rechts.
-  body.innerHTML = `
-    <div class="ipad-result-split">
-      <div class="ipad-result-column">
-        <div class="ipad-result-baan">Korte baan</div>
-        ${buildIpadResultCards(shortData)}
-      </div>
-      <div class="ipad-result-column">
-        <div class="ipad-result-baan">Lange baan</div>
-        ${buildIpadResultCards(longData)}
-      </div>
-    </div>
-  `;
+  body.innerHTML = buildIpadResultCards(data);
 }
 
 function openIpadResultView() {
@@ -8241,12 +8207,11 @@ function openIpadResultView() {
     showToast("iPad view is alleen voor Interne competitie");
     return;
   }
-  // De weergave toont korte baan, lange baan én de top 3 van het klassement,
-  // dus hij is zinvol op elke baan. Openen kan zolang er ergens een schutter
-  // in beeld is (via de sync doorgegeven door een mobiel).
-  const { shortId, longId } = getIpadFocusShooterIds();
-  if (!shortId && !longId) {
-    showToast("Nog geen schutter geselecteerd op de mobiel");
+  // De weergave toont het eindresultaat van de schutter die als laatste de
+  // lange baan heeft afgerond. Openen kan zodra er ergens een lange baan is
+  // opgeslagen (door een van de trainers, via de sync).
+  if (!getIpadResultShooterId()) {
+    showToast("Nog geen afgeronde lange baan");
     return;
   }
   const overlay = $("#ipadResultOverlay");
