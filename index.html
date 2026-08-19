@@ -2861,6 +2861,249 @@ select:focus {
   color: #9bbdff;
 }
 
+.ipad-result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 16% 8%, rgba(245, 197, 24, 0.2), transparent 30%),
+    radial-gradient(circle at 82% 18%, rgba(245, 197, 24, 0.12), transparent 28%),
+    #070707;
+  color: var(--ink);
+}
+
+.ipad-result-overlay[hidden] {
+  display: none;
+}
+
+.ipad-result-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(16px, 2.2vw, 28px);
+  width: min(100%, 1060px);
+  min-height: min(100%, 700px);
+}
+
+.ipad-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: clamp(12px, 1.6vw, 20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ipad-result-kicker {
+  margin: 0 0 6px;
+  color: var(--yellow);
+  font-size: clamp(0.9rem, 1.4vw, 1.25rem);
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ipad-result-header h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2.4rem, 5.8vw, 5.4rem);
+  line-height: 0.92;
+}
+
+.ipad-result-close {
+  flex: 0 0 auto;
+  width: clamp(58px, 7vw, 74px);
+  height: clamp(58px, 7vw, 74px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ipad-result-body {
+  display: grid;
+  gap: clamp(16px, 2.2vw, 28px);
+  min-height: 0;
+}
+
+.ipad-result-card {
+  display: grid;
+  gap: clamp(16px, 2vw, 24px);
+  padding: clamp(22px, 3vw, 38px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: clamp(24px, 3vw, 38px);
+  background:
+    linear-gradient(145deg, rgba(245, 197, 24, 0.1), rgba(255, 255, 255, 0.03)),
+    #151518;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+.ipad-result-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(16px, 3vw, 36px);
+  align-items: center;
+}
+
+.ipad-result-name {
+  min-width: 0;
+}
+
+.ipad-result-name strong {
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(3rem, 8vw, 7.2rem);
+  line-height: 0.9;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ipad-result-name small {
+  display: block;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: clamp(1rem, 2vw, 1.45rem);
+  font-weight: 900;
+}
+
+.ipad-result-position {
+  display: grid;
+  place-items: center;
+  width: clamp(128px, 18vw, 210px);
+  aspect-ratio: 1;
+  border: 2px solid rgba(245, 197, 24, 0.45);
+  border-radius: 999px;
+  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
+  color: #080809;
+  box-shadow: 0 18px 50px rgba(245, 197, 24, 0.28);
+  text-align: center;
+}
+
+.ipad-result-position span {
+  display: block;
+  color: rgba(0, 0, 0, 0.62);
+  font-size: clamp(0.72rem, 1.2vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ipad-result-position strong {
+  display: block;
+  font-size: clamp(3.2rem, 8vw, 6.6rem);
+  line-height: 0.92;
+  font-weight: 900;
+}
+
+.ipad-result-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 18px);
+}
+
+.ipad-result-metric {
+  display: grid;
+  gap: 8px;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.ipad-result-metric span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: clamp(0.72rem, 1.2vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ipad-result-metric strong {
+  color: var(--yellow);
+  font-size: clamp(1.55rem, 3vw, 2.8rem);
+  line-height: 1;
+  font-weight: 900;
+}
+
+.ipad-result-podium {
+  display: grid;
+  gap: clamp(10px, 1.4vw, 16px);
+}
+
+.ipad-result-podium h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+}
+
+.ipad-result-podium-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ipad-result-podium-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(12px, 1.8vw, 18px);
+  padding: clamp(12px, 1.8vw, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.ipad-result-podium-row.is-current {
+  border-color: rgba(245, 197, 24, 0.62);
+  background: rgba(245, 197, 24, 0.12);
+}
+
+.ipad-result-podium-row > span:first-child {
+  display: grid;
+  place-items: center;
+  width: clamp(38px, 5vw, 54px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: rgba(245, 197, 24, 0.14);
+  color: var(--yellow);
+  font-size: clamp(1rem, 2vw, 1.45rem);
+  font-weight: 900;
+}
+
+.ipad-result-podium-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(1.2rem, 2.4vw, 1.9rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ipad-result-podium-row small {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: clamp(0.82rem, 1.3vw, 1rem);
+  font-weight: 900;
+}
+
+.ipad-result-podium-row > span:last-child {
+  color: var(--yellow);
+  font-size: clamp(1.25rem, 2.6vw, 2rem);
+  font-weight: 900;
+}
+
+@media (max-width: 759px) {
+  .ipad-result-main,
+  .ipad-result-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ipad-result-position {
+    justify-self: start;
+  }
+
+  .ipad-result-name strong {
+    white-space: normal;
+  }
+}
+
 .dashboard-grid {
   display: grid;
   gap: 14px;
@@ -4146,6 +4389,11 @@ dialog .primary-action::after {
                 <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /></svg>
               </span>
             </button>
+            <button class="icon-button" id="ipadResultButton" type="button" aria-label="iPad view lange baan" title="iPad view lange baan" hidden>
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M11 18h2" /></svg>
+              </span>
+            </button>
           </div>
 
           <form id="scoreForm" class="score-form" data-trainer-only>
@@ -4781,6 +5029,23 @@ dialog .primary-action::after {
         <div class="beamer-table" id="beamerTable"></div>
         <div class="beamer-pager" id="beamerPager" hidden></div>
         <div class="beamer-formula" id="beamerFormula" hidden></div>
+      </div>
+    </section>
+
+    <section class="ipad-result-overlay" id="ipadResultOverlay" hidden aria-label="iPad resultaatweergave lange baan">
+      <div class="ipad-result-shell">
+        <header class="ipad-result-header">
+          <div>
+            <p class="ipad-result-kicker">Lange baan</p>
+            <h2>Resultaat</h2>
+          </div>
+          <button class="icon-button ipad-result-close" id="ipadResultCloseButton" type="button" aria-label="iPad view sluiten" title="Sluiten">
+            <span aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+            </span>
+          </button>
+        </header>
+        <div class="ipad-result-body" id="ipadResultBody"></div>
       </div>
     </section>
 
@@ -6809,6 +7074,7 @@ function render() {
   renderTimer();
   renderRanking();
   renderBeamerBoard();
+  renderIpadResultView();
   renderProfiles();
   renderProgress();
   renderSettings();
@@ -7057,6 +7323,8 @@ function renderScores() {
   });
   $("#scoreForm")?.classList.toggle("has-blocked-score", statusMeta.blocksScore);
   $("#scoreForm")?.classList.toggle("is-editing-score", isEditing);
+  const ipadButton = $("#ipadResultButton");
+  if (ipadButton) ipadButton.hidden = !internalMode || precisionStage;
   $("#scoreSubmitLabel").textContent = isEditing ? "Score bijwerken" : "Score opslaan";
   $("#resetScoreButton").title = isEditing ? "Wijzigen annuleren" : "Score wissen";
   $("#resetScoreButton").setAttribute("aria-label", isEditing ? "Wijzigen annuleren" : "Score wissen");
@@ -7563,6 +7831,132 @@ function getLatestShooterScore(shooterId) {
   return state.scores
     .filter((score) => score.shooterId === shooterId)
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+}
+
+function getInternalIpadResultData(shooterId = scoreDraft.shooterId) {
+  if (!isInternalCompetitionClub() || !shooterId) return null;
+  const shooter = getShooter(shooterId);
+  if (!shooter) return null;
+  const discipline = getShooterInternalDiscipline(shooter);
+  const level = getShooterInternalClass(shooter);
+  const group = getInternalCompetitionRanking({ discipline, level, completeOnly: false });
+  const item = group.find((entry) => entry.shooter.id === shooter.id) || null;
+  const position = group.findIndex((entry) => entry.shooter.id === shooter.id) + 1;
+  const longResult = item?.stageResults?.find((result) => result.stage.id === "stage-long") || null;
+  return {
+    shooter,
+    discipline,
+    level,
+    group,
+    item,
+    position,
+    longResult,
+    topThree: group.slice(0, 3),
+  };
+}
+
+function renderIpadResultView() {
+  const overlay = $("#ipadResultOverlay");
+  const body = $("#ipadResultBody");
+  if (!overlay || overlay.hidden || !body) return;
+
+  const data = getInternalIpadResultData();
+  if (!data) {
+    body.innerHTML = `<div class="empty">Kies eerst een schutter in het scoreformulier.</div>`;
+    return;
+  }
+
+  const { shooter, discipline, level, item, position, longResult, topThree } = data;
+  const longCompleted = Boolean(longResult?.completed);
+  const positionText = position > 0 ? `#${position}` : "—";
+  const scoreText = item ? formatNumber(item.overallScore, 2) : "0,00";
+  const longScoreText = longCompleted ? `${formatNumber(longResult.points, 0)} pt` : "Nog geen lange baan";
+  const longTimeText = longCompleted && longResult.time > 0 ? `${formatNumber(longResult.time, 2)} sec` : "—";
+  const groupLabel = `${discipline} · ${getInternalClassLabel(level)}`;
+
+  body.innerHTML = `
+    <section class="ipad-result-card">
+      <div class="ipad-result-main">
+        <div class="ipad-result-name">
+          <strong>${escapeHtml(shooter.name)}</strong>
+          <small>${escapeHtml(groupLabel)}${shooter.optic ? " · Optic -30%" : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
+        </div>
+        <div class="ipad-result-position" aria-label="Positie in klassement">
+          <div>
+            <span>positie</span>
+            <strong>${positionText}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="ipad-result-metrics">
+        <div class="ipad-result-metric">
+          <span>Eindscore</span>
+          <strong>${scoreText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Lange baan</span>
+          <strong>${longScoreText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Tijd</span>
+          <strong>${longTimeText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Status</span>
+          <strong>${escapeHtml(item?.status || "Voorlopig")}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="ipad-result-card ipad-result-podium">
+      <h3>Top 3 ${escapeHtml(groupLabel)}</h3>
+      <div class="ipad-result-podium-list">
+        ${
+          topThree.length
+            ? topThree
+                .map(
+                  (entry, index) => `
+                    <div class="ipad-result-podium-row${entry.shooter.id === shooter.id ? " is-current" : ""}">
+                      <span>${index + 1}</span>
+                      <div>
+                        <strong>${escapeHtml(entry.shooter.name)}</strong>
+                        <small>Kort ${formatNumber(entry.precisionContribution, 1)} · Lang ${formatNumber(entry.dynamicContribution, 1)} · ${entry.completedStages}/${entry.totalStages} onderdelen</small>
+                      </div>
+                      <span>${formatNumber(entry.overallScore, 2)}</span>
+                    </div>
+                  `,
+                )
+                .join("")
+            : `<div class="empty">Nog geen stand in dit klassement.</div>`
+        }
+      </div>
+    </section>
+  `;
+}
+
+function openIpadResultView() {
+  if (!isInternalCompetitionClub()) {
+    showToast("iPad view is alleen voor Interne competitie");
+    return;
+  }
+  if (getInternalStage(scoreDraft.stageId)?.scoringType !== "hitfactor") {
+    showToast("iPad view is voor de lange baan");
+    return;
+  }
+  if (!scoreDraft.shooterId) {
+    showToast("Kies eerst een schutter");
+    return;
+  }
+  const overlay = $("#ipadResultOverlay");
+  if (!overlay) return;
+  overlay.hidden = false;
+  renderIpadResultView();
+}
+
+function closeIpadResultView() {
+  const overlay = $("#ipadResultOverlay");
+  if (overlay) overlay.hidden = true;
 }
 
 function getBeamerRows() {
@@ -9429,6 +9823,7 @@ $("#scoreForm").addEventListener("input", (event) => {
   if (event.target.id === "scorePenaltyPoints") scoreDraft.penaltyPoints = event.target.value;
   if (event.target.id === "scoreNotes") scoreDraft.notes = event.target.value;
   renderScores();
+  renderIpadResultView();
 });
 
 $("#scoreForm").addEventListener("change", (event) => {
@@ -9664,6 +10059,8 @@ $("#exportButton").addEventListener("click", exportCsv);
 $("#beamerButton").addEventListener("click", () => openBeamerBoard("ranking"));
 $("#roundsBeamerButton").addEventListener("click", () => openBeamerBoard("rounds"));
 $("#beamerCloseButton").addEventListener("click", closeBeamerBoard);
+$("#ipadResultButton").addEventListener("click", openIpadResultView);
+$("#ipadResultCloseButton").addEventListener("click", closeIpadResultView);
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
 $("#resetInternalCompetitionButton").addEventListener("click", resetInternalCompetitionScores);
@@ -9676,6 +10073,7 @@ $("#entryDialog").addEventListener("close", () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !$("#beamerOverlay").hidden) closeBeamerBoard();
+  if (event.key === "Escape" && !$("#ipadResultOverlay").hidden) closeIpadResultView();
 });
 
 document.addEventListener("click", (event) => {
