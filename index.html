@@ -2198,6 +2198,9 @@ select:focus {
     #070707;
   color: var(--ink);
   padding: clamp(14px, 2vw, 24px);
+  /* Houd de beamerinhoud vrij van de mobiele statusbalk en plaats de kop
+     op tablets iets lager, zonder onnodig veel scorehoogte in te leveren. */
+  padding-top: max(clamp(36px, 4vh, 52px), calc(env(safe-area-inset-top) + 12px));
 }
 
 .beamer-overlay[hidden] {
