@@ -2206,7 +2206,7 @@ select:focus {
 .beamer-shell {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-  gap: clamp(8px, 1.15vw, 16px);
+  gap: clamp(5px, 0.65vw, 10px);
   width: min(100%, 1780px);
   height: 100%;
   margin: 0 auto;
@@ -2216,15 +2216,15 @@ select:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: clamp(12px, 1.6vw, 22px);
-  padding-bottom: clamp(8px, 1.1vw, 14px);
+  gap: clamp(8px, 1vw, 14px);
+  padding-bottom: clamp(5px, 0.7vw, 9px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .beamer-header-title {
   justify-self: end;
   color: #fff7e0;
-  font-size: clamp(1.5rem, 3vw, 3.6rem);
+  font-size: clamp(1rem, 1.8vw, 2.2rem);
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: 0.06em;
@@ -2239,7 +2239,7 @@ select:focus {
 
 .beamer-wide-logo {
   justify-self: start;
-  height: clamp(72px, 10vw, 150px);
+  height: clamp(42px, 5.8vw, 86px);
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -2251,7 +2251,7 @@ select:focus {
 
 .beamer-header-title-image {
   justify-self: end;
-  height: clamp(46px, 6.4vw, 96px);
+  height: clamp(30px, 3.8vw, 58px);
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -2264,7 +2264,7 @@ select:focus {
 .beamer-header h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2.1rem, 4vw, 4.9rem);
+  font-size: clamp(1.25rem, 2.15vw, 2.65rem);
   line-height: 0.9;
   letter-spacing: 0;
 }
@@ -2278,8 +2278,8 @@ select:focus {
 
 .beamer-brand img {
   display: block;
-  width: clamp(72px, 6.3vw, 118px);
-  height: clamp(72px, 6.3vw, 118px);
+  width: clamp(42px, 3.6vw, 68px);
+  height: clamp(42px, 3.6vw, 68px);
   border-radius: 999px;
   object-fit: cover;
   filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.34));
@@ -2287,7 +2287,7 @@ select:focus {
 
 .beamer-brand strong {
   color: #fff;
-  font-size: clamp(1.9rem, 3.8vw, 4.4rem);
+  font-size: clamp(1.1rem, 2vw, 2.4rem);
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -2299,9 +2299,9 @@ select:focus {
 .beamer-summary {
   display: flex;
   justify-content: flex-end;
-  min-height: 22px;
+  min-height: 14px;
   color: rgba(255, 255, 255, 0.66);
-  font-size: clamp(0.78rem, 1vw, 1.05rem);
+  font-size: clamp(0.52rem, 0.66vw, 0.72rem);
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2311,8 +2311,8 @@ select:focus {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: clamp(5px, 0.5vw, 8px);
-  padding: clamp(5px, 0.55vw, 9px) clamp(9px, 0.9vw, 14px);
+  gap: clamp(3px, 0.36vw, 6px);
+  padding: clamp(3px, 0.38vw, 6px) clamp(6px, 0.6vw, 10px);
   border: 1px solid rgba(245, 197, 24, 0.28);
   border-radius: 12px;
   background: rgba(245, 197, 24, 0.08);
@@ -2324,18 +2324,18 @@ select:focus {
 
 .beamer-formula > strong {
   color: var(--yellow);
-  font-size: clamp(0.62rem, 0.8vw, 0.9rem);
+  font-size: clamp(0.48rem, 0.58vw, 0.66rem);
   font-weight: 900;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .beamer-formula > span {
-  padding: clamp(3px, 0.35vw, 5px) clamp(6px, 0.55vw, 9px);
+  padding: clamp(2px, 0.22vw, 4px) clamp(4px, 0.38vw, 7px);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.9);
-  font-size: clamp(0.56rem, 0.7vw, 0.82rem);
+  font-size: clamp(0.44rem, 0.52vw, 0.62rem);
   font-weight: 800;
   line-height: 1.15;
 }
@@ -2368,9 +2368,9 @@ select:focus {
 
 .beamer-rounds-table th,
 .beamer-rounds-table td {
-  padding: clamp(6px, 0.9vh, 14px) clamp(10px, 1.2vw, 18px);
+  padding: clamp(3px, 0.45vh, 7px) clamp(6px, 0.7vw, 10px);
   text-align: center;
-  font-size: clamp(0.82rem, 1.3vw, 1.32rem);
+  font-size: clamp(0.5rem, 0.75vw, 0.82rem);
   font-weight: 800;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   white-space: nowrap;
@@ -2387,7 +2387,7 @@ select:focus {
   top: 0;
   background: rgba(12, 12, 14, 0.96);
   color: rgba(255, 255, 255, 0.66);
-  font-size: clamp(0.68rem, 0.95vw, 0.95rem);
+  font-size: clamp(0.46rem, 0.58vw, 0.64rem);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   z-index: 1;
@@ -2406,13 +2406,13 @@ select:focus {
 
 .beamer-round-score strong {
   color: var(--yellow);
-  font-size: clamp(0.78rem, 1.18vw, 1.24rem);
+  font-size: clamp(0.5rem, 0.68vw, 0.76rem);
   font-weight: 900;
 }
 
 .beamer-round-score small {
   color: rgba(255, 255, 255, 0.72);
-  font-size: clamp(0.5rem, 0.68vw, 0.74rem);
+  font-size: clamp(0.36rem, 0.44vw, 0.5rem);
   font-weight: 900;
   letter-spacing: 0.01em;
 }
@@ -2433,14 +2433,14 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: clamp(4px, 0.5vw, 8px);
-  padding: clamp(8px, 1vh, 14px) clamp(14px, 1.5vw, 22px);
+  padding: clamp(4px, 0.55vh, 8px) clamp(8px, 0.9vw, 14px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(245, 197, 24, 0.05);
 }
 
 .beamer-notes > strong {
   color: var(--yellow);
-  font-size: clamp(0.72rem, 0.9vw, 0.95rem);
+  font-size: clamp(0.48rem, 0.6vw, 0.66rem);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -2449,7 +2449,7 @@ select:focus {
   display: flex;
   flex-wrap: wrap;
   gap: clamp(6px, 0.8vw, 12px);
-  font-size: clamp(0.78rem, 1.05vw, 1.15rem);
+  font-size: clamp(0.48rem, 0.66vw, 0.74rem);
   font-weight: 700;
 }
 
@@ -2467,7 +2467,7 @@ select:focus {
   align-items: center;
   justify-content: center;
   gap: clamp(10px, 1.2vw, 18px);
-  padding-top: clamp(6px, 0.8vw, 12px);
+  padding-top: clamp(3px, 0.45vw, 7px);
 }
 
 .beamer-pager[hidden] {
@@ -2476,7 +2476,7 @@ select:focus {
 
 .beamer-pager-label {
   color: rgba(255, 255, 255, 0.72);
-  font-size: clamp(0.85rem, 1.1vw, 1.3rem);
+  font-size: clamp(0.5rem, 0.64vw, 0.72rem);
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2501,23 +2501,23 @@ select:focus {
 
 .beamer-row {
   display: grid;
-  grid-template-columns: minmax(56px, 0.38fr) minmax(220px, 2.35fr) minmax(112px, 0.8fr) minmax(120px, 0.85fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(34px, 0.32fr) minmax(150px, 2.25fr) minmax(74px, 0.72fr) minmax(86px, 0.78fr) minmax(110px, 0.92fr);
   align-items: center;
-  gap: clamp(8px, 1vw, 16px);
-  min-height: clamp(42px, 5.6vh, 64px);
-  padding: 0 clamp(12px, 1.4vw, 22px);
+  gap: clamp(5px, 0.62vw, 10px);
+  min-height: clamp(22px, 2.8vh, 34px);
+  padding: 0 clamp(7px, 0.8vw, 12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: clamp(0.92rem, 1.38vw, 1.48rem);
+  font-size: clamp(0.48rem, 0.72vw, 0.82rem);
   font-weight: 850;
 }
 
 .beamer-table.is-dense .beamer-row {
-  min-height: clamp(38px, 4.8vh, 58px);
-  font-size: clamp(0.82rem, 1.25vw, 1.32rem);
+  min-height: clamp(20px, 2.5vh, 30px);
+  font-size: clamp(0.44rem, 0.64vw, 0.74rem);
 }
 
 .beamer-table.is-dense .beamer-row strong {
-  font-size: clamp(1rem, 1.7vw, 1.72rem);
+  font-size: clamp(0.52rem, 0.82vw, 0.92rem);
 }
 
 .beamer-table.is-ultra-dense .beamer-row {
@@ -2565,22 +2565,22 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: clamp(34px, 4vh, 46px);
-  padding: 0 clamp(12px, 1.4vw, 22px);
+  min-height: clamp(20px, 2.45vh, 30px);
+  padding: 0 clamp(7px, 0.8vw, 12px);
   background: linear-gradient(90deg, rgba(245, 197, 24, 0.34), rgba(245, 197, 24, 0.06));
   color: #fff;
 }
 
 .beamer-level-title strong {
   color: var(--yellow);
-  font-size: clamp(1rem, 1.6vw, 1.72rem);
+  font-size: clamp(0.58rem, 0.88vw, 1rem);
   font-weight: 900;
   letter-spacing: 0.02em;
 }
 
 .beamer-level-title span {
   color: rgba(255, 255, 255, 0.72);
-  font-size: clamp(0.68rem, 0.9vw, 0.94rem);
+  font-size: clamp(0.42rem, 0.52vw, 0.6rem);
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2642,10 +2642,10 @@ select:focus {
 }
 
 .beamer-head {
-  min-height: clamp(34px, 4vh, 46px);
+  min-height: clamp(19px, 2.3vh, 28px);
   background: rgba(245, 197, 24, 0.14);
   color: var(--yellow);
-  font-size: clamp(0.66rem, 0.85vw, 0.92rem);
+  font-size: clamp(0.4rem, 0.5vw, 0.58rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -2654,7 +2654,7 @@ select:focus {
   min-width: 0;
   overflow: hidden;
   color: #fff;
-  font-size: clamp(1.08rem, 1.78vw, 1.9rem);
+  font-size: clamp(0.54rem, 0.9vw, 0.96rem);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7404,7 +7404,7 @@ function buildBeamerPages(groups, rowsPerPage) {
 
 function getBeamerRowsPerPage() {
   const height = window.innerHeight || 800;
-  return Math.max(6, Math.floor((height - 300) / 62));
+  return Math.max(12, Math.floor((height - 180) / 34));
 }
 
 function stopBeamerAutoPaging() {
