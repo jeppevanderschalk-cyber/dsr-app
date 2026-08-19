@@ -2682,6 +2682,22 @@ select:focus {
   background: linear-gradient(90deg, rgba(255, 92, 170, 0.36), rgba(255, 92, 170, 0.1));
 }
 
+.beamer-table.is-internal-competition .beamer-row.is-rimfire:not(.beamer-head) {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.beamer-table.is-internal-competition .beamer-row.is-rimfire.podium-1 {
+  background: linear-gradient(90deg, rgba(245, 197, 24, 0.28), rgba(245, 197, 24, 0.05));
+}
+
+.beamer-table.is-internal-competition .beamer-row.is-rimfire.podium-2 {
+  background: linear-gradient(90deg, rgba(216, 221, 230, 0.18), rgba(216, 221, 230, 0.04));
+}
+
+.beamer-table.is-internal-competition .beamer-row.is-rimfire.podium-3 {
+  background: linear-gradient(90deg, rgba(217, 148, 86, 0.18), rgba(217, 148, 86, 0.04));
+}
+
 .score-progress-card.is-rimfire {
   border-color: rgba(255, 92, 170, 0.55);
   background: linear-gradient(170deg, rgba(255, 92, 170, 0.18), rgba(255, 92, 170, 0.06));
@@ -7549,6 +7565,8 @@ function renderBeamerBoard() {
   $("#beamerSummary").innerHTML = `
     <span>Laatste update ${formatSyncTime(updatedAt)}</span>
   `;
+  const internalMode = isInternalCompetitionClub();
+  table.classList.toggle("is-internal-competition", internalMode);
 
   if (beamerMode === "rounds") {
     const formula = $("#beamerFormula");
@@ -7565,7 +7583,6 @@ function renderBeamerBoard() {
   // Alleen licht verdichten binnen één pagina; geen extreme verkleining meer.
   table.classList.toggle("is-dense", rowsPerPage <= 9);
   table.classList.remove("is-ultra-dense", "is-split", "is-mega");
-  const internalMode = isInternalCompetitionClub();
 
   const formula = $("#beamerFormula");
   if (formula) {
