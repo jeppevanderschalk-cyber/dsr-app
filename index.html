@@ -5130,6 +5130,7 @@ const defaultData = {
   trainingResults: [],
   progressEntries: [],
   liveFocus: { shooterId: "", at: "" },
+  deletedIds: [],
   updatedAt: "",
 };
 
@@ -5439,6 +5440,12 @@ function mergeData(base, saved) {
       shooterId: typeof saved.liveFocus?.shooterId === "string" ? saved.liveFocus.shooterId : "",
       at: typeof saved.liveFocus?.at === "string" ? saved.liveFocus.at : "",
     },
+    deletedIds: Array.isArray(saved.deletedIds)
+      ? saved.deletedIds
+          .filter((tomb) => tomb && tomb.id)
+          .map((tomb) => ({ id: String(tomb.id), at: String(tomb.at || "") }))
+          .slice(-2000)
+      : [],
     updatedAt: saved.updatedAt || (hasLocalContent ? new Date().toISOString() : ""),
   };
 }
@@ -5767,6 +5774,122 @@ function markDirty() {
   state.updatedAt = new Date().toISOString();
 }
 
+// --- Meerdere trainers tegelijk: veilige samenvoeging van de gedeelde state ---
+// De cloud-sync bewaart één document. Zonder samenvoeging zou de laatste
+// opslag de zojuist toegevoegde score van een andere trainer overschrijven.
+// Daarom voegen we per collectie samen op basis van id (nieuwste wint), met
+// tombstones (deletedIds) zodat verwijderingen niet terugkomen.
+
+function recordDeletion(...ids) {
+  const at = new Date().toISOString();
+  if (!Array.isArray(state.deletedIds)) state.deletedIds = [];
+  const flat = ids.flat().filter(Boolean);
+  const byId = new Map(state.deletedIds.map((tomb) => [tomb.id, tomb]));
+  flat.forEach((id) => byId.set(id, { id: String(id), at }));
+  state.deletedIds = [...byId.values()].slice(-2000);
+}
+
+function syncItemTimestamp(item) {
+  return String(item?.updatedAt || item?.createdAt || item?.savedAt || item?.signedAt || item?.at || "");
+}
+
+function syncItemKey(item) {
+  if (item?.id) return String(item.id);
+  return `_${item?.shooterId || ""}|${item?.stageId || ""}|${item?.round || ""}|${syncItemTimestamp(item)}`;
+}
+
+function mergeByIdNewer(localList, remoteList, localNewer) {
+  const map = new Map();
+  const put = (item, side) => {
+    if (!item) return;
+    const key = syncItemKey(item);
+    const current = map.get(key);
+    if (!current) {
+      map.set(key, { item, side });
+      return;
+    }
+    const a = syncItemTimestamp(current.item);
+    const b = syncItemTimestamp(item);
+    if (b > a || (b === a && side === (localNewer ? "local" : "remote"))) {
+      map.set(key, { item, side });
+    }
+  };
+  (Array.isArray(localList) ? localList : []).forEach((item) => put(item, "local"));
+  (Array.isArray(remoteList) ? remoteList : []).forEach((item) => put(item, "remote"));
+  return [...map.values()].map((entry) => entry.item);
+}
+
+function mergeTombstones(localTombs, remoteTombs) {
+  const map = new Map();
+  [...(Array.isArray(localTombs) ? localTombs : []), ...(Array.isArray(remoteTombs) ? remoteTombs : [])].forEach((tomb) => {
+    if (!tomb || !tomb.id) return;
+    const current = map.get(tomb.id);
+    if (!current || String(tomb.at || "") > String(current.at || "")) {
+      map.set(tomb.id, { id: String(tomb.id), at: String(tomb.at || "") });
+    }
+  });
+  return [...map.values()].slice(-2000);
+}
+
+function applyTombstones(list, tombstones) {
+  if (!tombstones.length) return list;
+  const tomb = new Map(tombstones.map((entry) => [entry.id, entry.at]));
+  return list.filter((item) => {
+    const at = item?.id ? tomb.get(item.id) : undefined;
+    if (!at) return true;
+    // Opnieuw ingevoerd na verwijderen (nieuwere tijdstempel) blijft behouden.
+    return syncItemTimestamp(item) > at;
+  });
+}
+
+function mergeChangeLogs(localLog, remoteLog) {
+  const map = new Map();
+  [...(Array.isArray(localLog) ? localLog : []), ...(Array.isArray(remoteLog) ? remoteLog : [])].forEach((entry) => {
+    if (entry && entry.id) map.set(entry.id, entry);
+  });
+  return [...map.values()].sort((a, b) => String(a.at).localeCompare(String(b.at))).slice(-300);
+}
+
+function mergeSyncStates(localState, remoteState) {
+  const localAt = String(localState.updatedAt || "");
+  const remoteAt = String(remoteState.updatedAt || "");
+  const localNewer = localAt >= remoteAt;
+  const newer = localNewer ? localState : remoteState;
+  const deletedIds = mergeTombstones(localState.deletedIds, remoteState.deletedIds);
+  const mergeColl = (key) => applyTombstones(mergeByIdNewer(localState[key], remoteState[key], localNewer), deletedIds);
+  return {
+    ...structuredClone(newer),
+    scores: mergeColl("scores"),
+    shooters: mergeColl("shooters"),
+    bestScores: mergeColl("bestScores"),
+    trainingResults: mergeColl("trainingResults"),
+    progressEntries: mergeColl("progressEntries"),
+    changeLog: mergeChangeLogs(localState.changeLog, remoteState.changeLog),
+    deletedIds,
+    updatedAt: localNewer ? localAt : remoteAt,
+  };
+}
+
+function syncCollectionFingerprint(list) {
+  return (Array.isArray(list) ? list : [])
+    .map((item) => `${syncItemKey(item)}:${syncItemTimestamp(item)}`)
+    .sort()
+    .join(",");
+}
+
+function syncStateFingerprint(candidate) {
+  return [
+    candidate.updatedAt || "",
+    candidate.liveFocus?.shooterId || "",
+    syncCollectionFingerprint(candidate.scores),
+    syncCollectionFingerprint(candidate.shooters),
+    syncCollectionFingerprint(candidate.bestScores),
+    syncCollectionFingerprint(candidate.trainingResults),
+    syncCollectionFingerprint(candidate.progressEntries),
+    (candidate.deletedIds || []).length,
+  ].join("||");
+}
+
 function isSyncConfigured() {
   return Boolean(SYNC_CONFIG.supabaseUrl && SYNC_CONFIG.anonKey);
 }
@@ -5826,25 +5949,29 @@ async function pullRemoteState({ silent = false } = {}) {
     }
 
     const remoteState = mergeData(defaultData, remote.data);
-    const remoteUpdatedAt = remoteState.updatedAt || remote.updated_at || "";
-    const localUpdatedAt = state.updatedAt || "";
+    const merged = mergeSyncStates(state, remoteState);
+    const mergedFingerprint = syncStateFingerprint(merged);
+    const localChanged = mergedFingerprint !== syncStateFingerprint(state);
+    const remoteMissesLocal = mergedFingerprint !== syncStateFingerprint(remoteState);
 
-    if (remoteUpdatedAt > localUpdatedAt) {
+    if (localChanged) {
       isApplyingRemoteState = true;
-      state = remoteState;
+      state = merged;
       saveState({ sync: false });
       render();
       isApplyingRemoteState = false;
-      lastSyncedAt = state.updatedAt || remoteUpdatedAt;
-      setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
-      return;
     }
 
-    if (localUpdatedAt > remoteUpdatedAt) {
+    // Bevat onze samenvoeging scores die op de server ontbreken (bijv. van een
+    // tweede trainer die net iets anders opsloeg)? Dan schrijven we die terug,
+    // zodat beide trainers en de iPad naar dezelfde volledige stand convergeren.
+    if (remoteMissesLocal && currentRole === "trainer" && sessionTrainerPassword) {
+      markDirty();
       const pushed = await pushRemoteState({ force: true });
       if (!pushed) return;
+    } else {
+      lastSyncedAt = merged.updatedAt || remoteState.updatedAt || "";
     }
-    lastSyncedAt = state.updatedAt || remoteUpdatedAt;
     setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
   } catch (error) {
     if (!silent) setSyncStatus("Synchronisatie niet gelukt. Lokale opslag blijft actief.");
@@ -5866,6 +5993,33 @@ async function pushRemoteState({ force = false } = {}) {
   }
 
   try {
+    let payload = state;
+    // Haal eerst de nieuwste server-versie op en voeg samen, zodat we de
+    // score van een gelijktijdig werkende tweede trainer nooit overschrijven.
+    try {
+      const currentResponse = await fetch(
+        `${syncBaseUrl()}?id=eq.${encodeURIComponent(getRemoteDocumentId())}&select=data&limit=1`,
+        { headers: syncHeaders() },
+      );
+      if (currentResponse.ok) {
+        const [current] = await currentResponse.json();
+        if (current?.data) {
+          const remoteState = mergeData(defaultData, current.data);
+          const merged = mergeSyncStates(state, remoteState);
+          merged.updatedAt = new Date().toISOString();
+          isApplyingRemoteState = true;
+          state = merged;
+          saveState({ sync: false });
+          isApplyingRemoteState = false;
+          payload = merged;
+          render();
+        }
+      }
+    } catch (mergeError) {
+      // Samenvoegen niet gelukt (bijv. offline): val terug op de lokale state.
+      payload = state;
+    }
+
     const response = await fetch(
       `${SYNC_CONFIG.supabaseUrl.replace(/\/$/, "")}/functions/v1/save-score`,
       {
@@ -5874,13 +6028,13 @@ async function pushRemoteState({ force = false } = {}) {
         body: JSON.stringify({
           password: sessionTrainerPassword,
           id: getRemoteDocumentId(),
-          data: state,
-          updatedAt: state.updatedAt,
+          data: payload,
+          updatedAt: payload.updatedAt,
         }),
       },
     );
     if (!response.ok) throw new Error(`Sync opslaan mislukt (${response.status})`);
-    lastSyncedAt = state.updatedAt;
+    lastSyncedAt = payload.updatedAt;
     setSyncStatus(`Live sync actief. Laatst bijgewerkt: ${formatSyncTime(lastSyncedAt)}`);
     return true;
   } catch (error) {
@@ -9721,6 +9875,10 @@ function resetTrainingScores() {
 
   updateStoredBestScores();
   updateStoredTrainingResults();
+  recordDeletion(
+    state.scores.map((score) => score.id),
+    state.progressEntries.map((entry) => entry.id),
+  );
   state.scores = [];
   state.progressEntries = [];
   scoreDraft = createEmptyDraft();
@@ -9751,6 +9909,12 @@ function resetInternalCompetitionScores() {
   );
   if (!confirmed) return;
 
+  recordDeletion(
+    state.scores.map((score) => score.id),
+    state.progressEntries.map((entry) => entry.id),
+    state.bestScores.map((score) => score.id),
+    state.trainingResults.map((result) => result.id),
+  );
   state.scores = [];
   state.progressEntries = [];
   state.bestScores = [];
@@ -10166,6 +10330,12 @@ document.addEventListener("click", (event) => {
   const confirmed = window.confirm(`${shooter.name} verwijderen? Scores van deze schutter worden ook verwijderd.`);
   if (!confirmed) return;
 
+  recordDeletion(
+    shooter.id,
+    state.scores.filter((score) => score.shooterId === shooter.id).map((score) => score.id),
+    state.bestScores.filter((score) => score.shooterId === shooter.id).map((score) => score.id),
+    state.progressEntries.filter((entry) => entry.shooterId === shooter.id).map((entry) => entry.id),
+  );
   state.shooters = state.shooters.filter((item) => item.id !== shooter.id);
   state.scores = state.scores.filter((score) => score.shooterId !== shooter.id);
   state.bestScores = state.bestScores.filter((score) => score.shooterId !== shooter.id);
@@ -10199,6 +10369,7 @@ document.addEventListener("click", (event) => {
     context: scoreLogContext(score, shooter),
     changes: [`verwijderd · netto ${formatNumber(Number(score.net) || 0, 0)}${score.time ? ` · ${formatNumber(Number(score.time), 2)} sec` : ""}`],
   });
+  recordDeletion(score.id);
   state.scores = state.scores.filter((item) => item.id !== score.id);
   markDirty();
   render();
@@ -10281,6 +10452,7 @@ document.addEventListener("click", (event) => {
   const score = state.scores.find((item) => item.id === reshootButton.dataset.reshootScore);
   if (!score) return;
 
+  recordDeletion(score.id);
   state.scores = state.scores.filter((item) => item.id !== score.id);
   scoreDraft = createEmptyDraft();
   scoreDraft.shooterId = score.shooterId;
@@ -10303,6 +10475,7 @@ document.addEventListener("click", (event) => {
   const confirmed = window.confirm(`Hi-score van ${shooter?.name || "deze schutter"} verwijderen?`);
   if (!confirmed) return;
 
+  recordDeletion(score.id);
   state.bestScores = state.bestScores.filter((item) => item.id !== score.id);
   markDirty();
   render();
