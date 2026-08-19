@@ -8326,22 +8326,39 @@ function buildBeamerPages(groups, rowsPerPage) {
   const pages = [];
   let current = [];
   let used = 0;
+  const HEADER_SLOTS = 2; // groepstitel + kolomkop nemen samen ongeveer twee regels
   const flush = () => {
     if (current.length) pages.push(current);
     current = [];
     used = 0;
   };
   groups.forEach((group) => {
+    const total = group.rows.length;
+    const needed = total + HEADER_SLOTS;
+    // Past de hele groep wel op een verse pagina, maar niet meer op wat er nu
+    // nog over is? Begin hem dan op een nieuwe pagina in plaats van er een paar
+    // rijen van af te knippen en een sneu restje door te schuiven.
+    if (current.length && needed <= rowsPerPage && needed > rowsPerPage - used) {
+      flush();
+    }
     let remaining = group.rows.slice();
     let continued = false;
     while (remaining.length) {
-      if (rowsPerPage - used < 2 && current.length) flush();
-      const capacity = Math.max(1, rowsPerPage - used - 1);
-      const take = remaining.slice(0, capacity);
+      let capacity = rowsPerPage - used - HEADER_SLOTS;
+      if (capacity < 1) {
+        flush();
+        capacity = rowsPerPage - HEADER_SLOTS;
+      }
+      // Laat nooit precies één rij als 'wees' voor de volgende pagina overlopen.
+      if (capacity < remaining.length && remaining.length - capacity === 1 && capacity >= 2) {
+        capacity -= 1;
+      }
+      const take = remaining.slice(0, Math.max(1, capacity));
       remaining = remaining.slice(take.length);
-      current.push({ level: group.level, total: group.rows.length, rows: take, continued });
-      used += take.length + 1;
+      current.push({ level: group.level, total, rows: take, continued });
+      used += take.length + HEADER_SLOTS;
       continued = true;
+      if (remaining.length) flush();
     }
   });
   flush();
@@ -8350,7 +8367,14 @@ function buildBeamerPages(groups, rowsPerPage) {
 
 function getBeamerRowsPerPage() {
   const height = window.innerHeight || 800;
-  if (isInternalCompetitionClub()) return Math.max(12, Math.floor((height - 180) / 34));
+  if (isInternalCompetitionClub()) {
+    // Werkelijke rijhoogte volgt clamp(22px, 2.8vh, 34px); +1 voor de rand.
+    // Zo vullen korte schermen beter en blijft het op hoge schermen veilig
+    // binnen de 'overflow: hidden' (geen afgeknipte rijen).
+    const rowHeight = Math.min(34, Math.max(22, 0.028 * height)) + 1;
+    const available = height - 185; // kop, pager en marges, met veiligheidsmarge
+    return Math.max(12, Math.floor(available / rowHeight));
+  }
   return Math.max(6, Math.floor((height - 300) / 62));
 }
 
