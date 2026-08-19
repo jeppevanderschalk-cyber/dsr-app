@@ -10140,6 +10140,19 @@ $("#scoreForm").addEventListener("submit", (event) => {
           item.shooterId === scoreDraft.shooterId &&
           item.stageId === stage.id,
       );
+    // Waarschuw als deze schutter al een score voor dit onderdeel heeft en dit
+    // geen bewuste bewerking is (via de Wijzig-knop). Zo overschrijft de trainer
+    // niet per ongeluk een score omdat hij vergat een nieuwe schutter te kiezen.
+    if (existingScore && !scoreDraft.editScoreId) {
+      const shooterName = getShooter(scoreDraft.shooterId)?.name || "Deze schutter";
+      const overwriteConfirmed = window.confirm(
+        `${shooterName} heeft al een score voor ${stage.label}.\n\nSelecteer een nieuwe schutter, of klik op OK om de bestaande score te overschrijven.`,
+      );
+      if (!overwriteConfirmed) {
+        showToast("Selecteer een nieuwe schutter");
+        return;
+      }
+    }
     const signatureDataUrl = signatureRequired ? getScoreSignatureDataUrl() : existingScore?.signatureDataUrl || "";
     if (signatureRequired && !signatureDataUrl) {
       showToast("Laat de schutter eerst tekenen voor akkoord");
