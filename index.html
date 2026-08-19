@@ -7347,7 +7347,7 @@ function renderScores() {
   $("#scoreForm")?.classList.toggle("has-blocked-score", statusMeta.blocksScore);
   $("#scoreForm")?.classList.toggle("is-editing-score", isEditing);
   const ipadButton = $("#ipadResultButton");
-  if (ipadButton) ipadButton.hidden = !internalMode || precisionStage;
+  if (ipadButton) ipadButton.hidden = !internalMode;
   $("#scoreSubmitLabel").textContent = isEditing ? "Score bijwerken" : "Score opslaan";
   $("#resetScoreButton").title = isEditing ? "Wijzigen annuleren" : "Score wissen";
   $("#resetScoreButton").setAttribute("aria-label", isEditing ? "Wijzigen annuleren" : "Score wissen");
@@ -7991,12 +7991,9 @@ function openIpadResultView() {
     showToast("iPad view is alleen voor Interne competitie");
     return;
   }
-  // Trainer die lokaal scoort: alleen zinvol op de lange baan. Een los
-  // kijk-toestel (zonder eigen selectie) volgt de trainer via de sync.
-  if (scoreDraft.shooterId && getInternalStage(scoreDraft.stageId)?.scoringType !== "hitfactor") {
-    showToast("iPad view is voor de lange baan");
-    return;
-  }
+  // De weergave toont korte baan, lange baan én de top 3 van het klassement,
+  // dus hij is zinvol op elke baan. Openen kan zolang er een schutter in
+  // beeld is (lokaal geselecteerd, of via de sync doorgegeven door de mobiel).
   if (!getIpadFocusShooterId()) {
     showToast("Nog geen schutter geselecteerd op de mobiel");
     return;
