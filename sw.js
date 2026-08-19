@@ -1,4 +1,4 @@
-const CACHE_NAME = "dsr-score-cache-v95";
+const CACHE_NAME = "dsr-score-cache-v96";
 const ASSETS = [
   "./",
   "index.html",

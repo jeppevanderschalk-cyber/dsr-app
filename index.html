@@ -2703,6 +2703,12 @@ select:focus {
   white-space: nowrap;
 }
 
+.rimfire-tag.is-centerfire-caliber {
+  border-color: rgba(75, 123, 218, 0.72);
+  background: rgba(12, 31, 76, 0.72);
+  color: #9bbdff;
+}
+
 .dashboard-grid {
   display: grid;
   gap: 14px;
@@ -7590,6 +7596,10 @@ function renderBeamerBoard() {
     sourceRows
       .map((row) => {
         const podiumClass = row.levelPosition && row.levelPosition <= 3 ? ` podium-${row.levelPosition}` : "";
+        const caliber = row.caliber || getShooterCaliber(row.shooter);
+        const rimfireRowClass = !internalMode && caliber === ".22" ? " is-rimfire" : "";
+        const caliberClass = caliber === ".22" ? " is-rimfire-caliber" : " is-centerfire-caliber";
+        const caliberBadge = internalMode || caliber === ".22" ? `<span class="rimfire-tag ${caliberClass}">${escapeHtml(caliber)}</span>` : "";
         const latest = row.latestScore;
         const scoreTimeText = latest
           ? `${formatNumber(latest.net, 0)} pt · ${formatNumber(latest.time, 2)} s`
@@ -7600,9 +7610,9 @@ function renderBeamerBoard() {
         const internalScoreText = `${formatNumber(row.precisionContribution, 1)} / ${formatNumber(row.dynamicContribution, 1)}`;
         const internalStageText = `${row.completedStages}/${row.totalStages} · ${row.status}`;
         return `
-          <div class="beamer-row${podiumClass}${row.caliber === ".22" ? " is-rimfire" : ""}">
+          <div class="beamer-row${podiumClass}${rimfireRowClass}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
-            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}<span class="rimfire-tag">${escapeHtml(row.caliber || getShooterCaliber(row.shooter))}</span></strong>
+            <strong>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}${caliberBadge}</strong>
             <span class="beamer-score">${row.position ? `${formatNumber(row.average, internalMode ? 2 : 1)}${internalMode ? "" : "%"}` : "—"}</span>
             <span>${internalMode ? internalScoreText : scoreTimeText}</span>
             <span>${internalMode ? internalStageText : latestText}</span>
