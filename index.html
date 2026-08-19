@@ -2869,7 +2869,7 @@ select:focus {
   z-index: 1001;
   display: grid;
   place-items: center;
-  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  padding: max(30px, calc(env(safe-area-inset-top) + 18px)) max(18px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
   background:
     radial-gradient(circle at 16% 8%, rgba(245, 197, 24, 0.2), transparent 30%),
     radial-gradient(circle at 82% 18%, rgba(245, 197, 24, 0.12), transparent 28%),
@@ -2900,7 +2900,7 @@ select:focus {
 }
 
 .ipad-result-kicker {
-  margin: 0 0 6px;
+  margin: 0 0 10px;
   color: var(--yellow);
   font-size: clamp(0.9rem, 1.4vw, 1.25rem);
   font-weight: 900;
@@ -2911,8 +2911,8 @@ select:focus {
 .ipad-result-header h2 {
   margin: 0;
   color: #fff;
-  font-size: clamp(2rem, 4.8vw, 4.4rem);
-  line-height: 0.92;
+  font-size: clamp(2rem, 4.4vw, 3.6rem);
+  line-height: 1;
 }
 
 .ipad-result-close {
@@ -3058,10 +3058,11 @@ select:focus {
 
 .ipad-result-metric strong {
   color: var(--yellow);
-  font-size: clamp(1.25rem, 2.4vw, 2.15rem);
+  font-size: clamp(1.15rem, 2.1vw, 1.9rem);
   line-height: 1.04;
   font-weight: 900;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  hyphens: none;
 }
 
 .ipad-result-podium {
