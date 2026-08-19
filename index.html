@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#f5c518" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="DSR score" />
     <title>DSR score</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -2879,6 +2879,15 @@ select:focus {
 
 .ipad-result-overlay[hidden] {
   display: none;
+}
+
+/* Als thuisscherm-app (standalone) loopt de content onder de doorschijnende
+   statusbalk door en is env(safe-area-inset-top) op iOS onbetrouwbaar. Daarom
+   hier een ruime, vaste bovenmarge zodat de kop altijd vrij onder de balk komt. */
+@media (display-mode: standalone) {
+  .ipad-result-overlay {
+    padding-top: max(72px, calc(env(safe-area-inset-top) + 44px));
+  }
 }
 
 .ipad-result-shell {
