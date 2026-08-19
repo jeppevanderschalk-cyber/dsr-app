@@ -7857,10 +7857,15 @@ function getLatestShooterScore(shooterId) {
 }
 
 function getIpadFocusShooterId() {
-  // Op het trainer-toestel bepaalt de lokale schutterselectie de weergave.
-  // Op een los kijk-toestel (iPad) valt dit terug op de schutter die de
-  // trainer via de gedeelde sync als "live focus" heeft doorgegeven.
-  return scoreDraft.shooterId || state.liveFocus?.shooterId || "";
+  // Alleen het trainer-toestel volgt zijn eigen lokale schutterselectie.
+  // Een kijk-toestel (schutter-login) krijgt bij het renderen automatisch de
+  // eerste schutter in zijn lokale scoreDraft geduwd; dat negeren we hier
+  // bewust en we volgen altijd de "live focus" die de trainer via de sync
+  // doorgeeft, anders blijft de iPad op de verkeerde schutter hangen.
+  if (currentRole === "trainer") {
+    return scoreDraft.shooterId || state.liveFocus?.shooterId || "";
+  }
+  return state.liveFocus?.shooterId || "";
 }
 
 function setLiveFocus(shooterId) {
