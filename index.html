@@ -1301,9 +1301,46 @@ select:focus {
   touch-action: manipulation;
 }
 
-.long-stage-step[data-step="1"] {
+.long-stage-step[data-long-step="1"] {
   background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
   color: var(--accent-ink);
+}
+
+.internal-score-grid.is-long-course #scoreRawPointsLabel,
+.internal-score-grid.is-long-course #scoreRawPoints {
+  display: none;
+}
+
+.long-course-total-card {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid rgba(245, 197, 24, 0.45);
+  border-radius: 20px;
+  background: linear-gradient(165deg, rgba(245, 197, 24, 0.18), rgba(13, 13, 15, 0.96));
+  box-shadow: 0 18px 48px rgba(245, 197, 24, 0.12);
+}
+
+.long-course-total-card span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.long-course-total-card strong {
+  color: var(--yellow);
+  font-size: clamp(2rem, 8vw, 4rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.long-course-total-card small {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 850;
+  line-height: 1.35;
 }
 
 .long-stage-bonus {
@@ -5942,9 +5979,9 @@ function renderLongCourseStageInput(calc) {
                 <strong>${escapeHtml(item.label)}</strong>
                 <small>${formatNumber(item.value, 0)} pt per stuk · max ${item.max}x</small>
               </div>
-              <button class="long-stage-step" type="button" data-long-stage-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-step="-1" aria-label="${escapeHtml(item.label)} corrigeren">−</button>
+              <button class="long-stage-step" type="button" data-long-stage-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-long-step="-1" aria-label="${escapeHtml(item.label)} corrigeren">−</button>
               <span class="long-stage-line__count">${count} / ${item.max}</span>
-              <button class="long-stage-step" type="button" data-long-stage-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-step="1" aria-label="${escapeHtml(item.label)} toevoegen">+</button>
+              <button class="long-stage-step" type="button" data-long-stage-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-long-step="1" aria-label="${escapeHtml(item.label)} toevoegen">+</button>
             </div>
           `;
         })
@@ -5975,12 +6012,17 @@ function renderLongCourseStageInput(calc) {
     })
     .join("");
 
-  if ($("#longCourseSummary")) {
-    $("#longCourseSummary").textContent = `Stages ${formatNumber(totals.base, 0)} · sheriff bonus ${formatNumber(
-      totals.sheriffBonus,
-      0,
-    )} · bruto ${formatNumber(calc.rawPoints, 0)} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)}`;
-  }
+  target.insertAdjacentHTML(
+    "beforeend",
+    `
+      <section class="long-course-total-card">
+        <span>Totaal lange baan</span>
+        <strong>${formatNumber(totals.total, 0)} / ${formatNumber(longCourseMaxPoints, 0)}</strong>
+        <small>Stages ${formatNumber(totals.base, 0)} · sheriff bonus ${formatNumber(totals.sheriffBonus, 0)} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)}</small>
+      </section>
+    `,
+  );
+  if ($("#longCourseSummary")) $("#longCourseSummary").textContent = "";
 }
 
 function syncScoreInputFields(force = false) {
@@ -6629,12 +6671,13 @@ function renderScores() {
     }
   }
   $("#scorePenaltyPointsField").hidden = !internalMode || precisionStage;
-  $("#scoreMaxCard").hidden = !internalMode || precisionStage;
+  $("#scoreMaxCard").hidden = !internalMode || precisionStage || isDynamicStage(scoreDraft.stageId);
   $("#masterCardStepper").hidden = !internalMode || !precisionStage;
   $("#masterCardSummary").hidden = !internalMode || !precisionStage;
   $("#internalPointStepper").hidden = true;
   $("#longCourseStageInput").hidden = !internalMode || precisionStage;
   $("#longCourseSummary").hidden = !internalMode || precisionStage;
+  $("#internalScoreFields")?.classList.toggle("is-long-course", internalMode && !precisionStage);
   $("#counterGrid").hidden = internalMode;
   $("#scoreFlexField").hidden = internalMode;
   $("#scoreTimeField").hidden = internalMode && precisionStage;
@@ -8928,8 +8971,10 @@ document.addEventListener("click", (event) => {
 	  const stepButton = event.target.closest("[data-step]");
 	  if (stepButton) {
 	    if (!requireTrainer()) return;
+      const counter = stepButton.closest("[data-counter]");
+      if (!counter) return;
 	    triggerHapticFeedback();
-	    const key = stepButton.closest("[data-counter]").dataset.counter;
+	    const key = counter.dataset.counter;
 	    scoreDraft[key] = Math.max(0, scoreDraft[key] + Number(stepButton.dataset.step));
 	    updateStepperValue(stepButton, key);
 	  }
@@ -8970,7 +9015,7 @@ document.addEventListener("click", (event) => {
     updateLongCourseStageValue(
       longStageButton.dataset.stageId,
       longStageButton.dataset.itemKey,
-      Number(longStageButton.dataset.step) || 0,
+      Number(longStageButton.dataset.longStep) || 0,
     );
   }
 
