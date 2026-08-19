@@ -5213,7 +5213,8 @@ const internalClassLabels = {
 };
 const internalDisciplineOptions = ["Pistool", "Geweer"];
 const internalCaliberOptions = ["9mm", ".22"];
-const opticScoreMultiplier = 0.7;
+const opticScorePenalty = 15;
+const opticScoreMultiplier = 1 - opticScorePenalty / 100;
 const progressRounds = Array.from({ length: 15 }, (_, index) => index + 1);
 const masterCardValues = [0, 6, 7, 8, 9, 10];
 const longCoursePointValues = [10, 50, 100, 150];
@@ -6195,9 +6196,9 @@ function getShooterScoreMultiplier(shooter) {
 
 function getShooterLevelLabel(shooter) {
   if (isInternalCompetitionClub()) {
-    return `${getInternalClassLabel(getShooterInternalClass(shooter))}${shooter?.optic ? " · Optic -30%" : ""}`;
+    return `${getInternalClassLabel(getShooterInternalClass(shooter))}${shooter?.optic ? ` · Optic -${opticScorePenalty}%` : ""}`;
   }
-  return `${normalizeLevel(shooter?.level)}${shooter?.optic ? " · Optic -30%" : ""}`;
+  return `${normalizeLevel(shooter?.level)}${shooter?.optic ? ` · Optic -${opticScorePenalty}%` : ""}`;
 }
 
 function syncScoreOpticToggle() {
@@ -6985,7 +6986,7 @@ function scoreToRankingItem(score, shooter, disciplineLabel) {
     time: score.time || 0,
     rawHitfactor: score.hitfactor || 0,
     hitfactor: (score.hitfactor || 0) * multiplier,
-    opticPenalty: shooter?.optic ? 30 : 0,
+    opticPenalty: shooter?.optic ? opticScorePenalty : 0,
     entries: 1,
     penalties: Math.abs(score.penaltyPoints || 0),
     alpha: score.alpha || 0,
@@ -7049,7 +7050,7 @@ function getCurrentTrainingRanking(filters = {}) {
       ...item,
       rawHitfactor: item.hitfactor,
       hitfactor: item.hitfactor * multiplier,
-      opticPenalty: item.shooter.optic ? 30 : 0,
+      opticPenalty: item.shooter.optic ? opticScorePenalty : 0,
     };
   });
 }
@@ -7166,7 +7167,7 @@ function getInternalCompetitionRanking(filters = {}) {
         baseOverallScore,
         overallScore,
         hitfactor: overallScore,
-        opticPenalty: shooter.optic ? 30 : 0,
+        opticPenalty: shooter.optic ? opticScorePenalty : 0,
         points: precisionRaw + stageResults.reduce((sum, result) => sum + (result.stage.scoringType === "hitfactor" ? result.points : 0), 0),
         time: totalDynamicTime,
         entries: completedStages,
@@ -7203,7 +7204,7 @@ function trainingResultToRankingItem(result, shooter, savedTrainingCount = 0) {
     time: result.time || 0,
     rawHitfactor,
     hitfactor: rawHitfactor * multiplier,
-    opticPenalty: shooter?.optic ? 30 : 0,
+    opticPenalty: shooter?.optic ? opticScorePenalty : 0,
     entries: result.entries || 0,
     penalties: result.penalties || 0,
     alpha: result.alpha || 0,
@@ -8144,7 +8145,7 @@ function buildIpadResultCards(data) {
       <div class="ipad-result-main">
         <div class="ipad-result-name">
           <strong>${escapeHtml(shooter.name)}</strong>
-          <small>${escapeHtml(groupLabel)}${shooter.optic ? " · Optic -30%" : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
+          <small>${escapeHtml(groupLabel)}${shooter.optic ? ` · Optic -${opticScorePenalty}%` : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
         </div>
         <div class="ipad-result-position" aria-label="Positie in klassement">
           <div>
@@ -8587,7 +8588,7 @@ function renderBeamerBoard() {
         <span><b>Korte baan 40%</b> = netto ÷ ${shortMax} × 40</span>
         <span><b>Lange baan 60%</b> = (precisie × 70% + snelheid × 30%) × 60%</span>
         <span>precisie = netto ÷ ${longMax} · snelheid = snelste tijd ÷ eigen tijd</span>
-        <span>Optic-schutter: eindscore × 0,7</span>
+        <span>Optic-schutter: eindscore × ${formatNumber(opticScoreMultiplier, 2)}</span>
       `;
     }
   }
@@ -9875,7 +9876,7 @@ function downloadInternalScorecardPdf(shooterId) {
     shooterMeta: `${getShooterLevelLabel(item.shooter)} · ${item.completedStages}/${item.totalStages} onderdelen · status ${item.status}`,
     endScoreText: `${formatNumber(item.overallScore, 2)} / 100  (kort ${formatNumber(item.precisionContribution, 1)}/40 · lang ${formatNumber(item.dynamicContribution, 1)}/60)`,
     stages,
-    footer: `Formule: korte baan = netto / ${getInternalStageMaxPoints("stage-short")} x 40 · lange baan = (precisie x 70% + snelheid x 30%) x 60% · optic x 0,7`,
+    footer: `Formule: korte baan = netto / ${getInternalStageMaxPoints("stage-short")} x 40 · lange baan = (precisie x 70% + snelheid x 30%) x 60% · optic x ${formatNumber(opticScoreMultiplier, 2)}`,
   };
   const blob = createScorecardPdf(data);
   const url = URL.createObjectURL(blob);
