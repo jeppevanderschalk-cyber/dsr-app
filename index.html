@@ -3674,8 +3674,21 @@ dialog .primary-action::after {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
 }
 
+.login-logo.is-competition-login-logo {
+  width: min(100%, 260px);
+  height: 130px;
+  border-radius: 14px;
+  object-fit: contain;
+}
+
 .login-card h2 {
   margin: 0;
+}
+
+.login-card h2.is-competition-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .login-card label {
@@ -5650,6 +5663,7 @@ function applyBrandLogo(logo, src, alt) {
 
 function updateBrandLogos(clubId = currentClubId) {
   const code = normalizeClubCode(clubId);
+  const isCompetition = code === "INTERNE-COMPETITIE";
   // Clubs met een eigen rond logo (de rest valt terug op het DSR-logo)
   const useClubLogo = ["INTERNE-COMPETITIE", "SVBB", "APS-DSR"].includes(code);
   const logoSrc = getClubLogoSrc(clubId);
@@ -5659,7 +5673,16 @@ function updateBrandLogos(clubId = currentClubId) {
     applyBrandLogo(logo, logoSrc, logoAlt);
   });
   $("#appLogoImage")?.closest(".app-logo")?.classList.toggle("is-club-logo", useClubLogo);
-  $("#loginLogo")?.classList.toggle("is-club-logo", useClubLogo);
+  const loginLogo = $("#loginLogo");
+  if (loginLogo) {
+    loginLogo.classList.toggle("is-club-logo", useClubLogo && !isCompetition);
+    loginLogo.classList.toggle("is-competition-login-logo", isCompetition);
+    applyBrandLogo(
+      loginLogo,
+      isCompetition ? "svbb-competition-login-logo.png" : "svbb-login-logo-v5.png",
+      isCompetition ? "SVBB competitie" : "SVBB",
+    );
+  }
   const beamerLogo = $("#beamerLogoImage");
   if (beamerLogo) {
     beamerLogo.hidden = !useClubLogo;
@@ -5669,9 +5692,11 @@ function updateBrandLogos(clubId = currentClubId) {
 
 function applyModeCopy(clubId = currentClubId) {
   const copy = getModeCopy(clubId);
+  const isCompetition = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
   document.title = copy.appName;
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", copy.appName);
   $("#loginTitle").textContent = copy.loginTitle;
+  $("#loginTitle").classList.toggle("is-competition-title", isCompetition);
   $("#homeEyebrow").textContent = copy.eyebrow;
   $("#home-title").textContent = copy.homeTitle;
   $("#homeSubtitle").textContent = copy.homeSubtitle;
