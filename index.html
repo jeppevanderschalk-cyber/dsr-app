@@ -3681,6 +3681,13 @@ dialog .primary-action::after {
   object-fit: contain;
 }
 
+.login-logo.is-guest-login-logo {
+  width: min(100%, 280px);
+  height: 118px;
+  border-radius: 0;
+  object-fit: contain;
+}
+
 .login-card h2 {
   margin: 0;
 }
@@ -5676,13 +5683,23 @@ function updateBrandLogos(clubId = currentClubId) {
   const loginLogo = $("#loginLogo");
   if (loginLogo) {
     const isAps = code === "APS-DSR";
+    const isGuest = code === "GAST-GEBRUIKER";
+    let loginLogoSrc = "svbb-login-logo-v5.png";
+    let loginLogoAlt = "SVBB";
+    if (isCompetition) {
+      loginLogoSrc = "svbb-competition-login-logo.png";
+      loginLogoAlt = "SVBB competitie";
+    } else if (isAps) {
+      loginLogoSrc = BRAND_LOGOS.aps;
+      loginLogoAlt = "APS";
+    } else if (isGuest) {
+      loginLogoSrc = "svbb-beamer-logo-compact.png";
+      loginLogoAlt = "SVBB gast gebruiker";
+    }
     loginLogo.classList.toggle("is-club-logo", useClubLogo && !isCompetition);
     loginLogo.classList.toggle("is-competition-login-logo", isCompetition);
-    applyBrandLogo(
-      loginLogo,
-      isCompetition ? "svbb-competition-login-logo.png" : isAps ? BRAND_LOGOS.aps : "svbb-login-logo-v5.png",
-      isCompetition ? "SVBB competitie" : isAps ? "APS" : "SVBB",
-    );
+    loginLogo.classList.toggle("is-guest-login-logo", isGuest);
+    applyBrandLogo(loginLogo, loginLogoSrc, loginLogoAlt);
   }
   const beamerLogo = $("#beamerLogoImage");
   if (beamerLogo) {
