@@ -5675,12 +5675,13 @@ function updateBrandLogos(clubId = currentClubId) {
   $("#appLogoImage")?.closest(".app-logo")?.classList.toggle("is-club-logo", useClubLogo);
   const loginLogo = $("#loginLogo");
   if (loginLogo) {
+    const isAps = code === "APS-DSR";
     loginLogo.classList.toggle("is-club-logo", useClubLogo && !isCompetition);
     loginLogo.classList.toggle("is-competition-login-logo", isCompetition);
     applyBrandLogo(
       loginLogo,
-      isCompetition ? "svbb-competition-login-logo.png" : "svbb-login-logo-v5.png",
-      isCompetition ? "SVBB competitie" : "SVBB",
+      isCompetition ? "svbb-competition-login-logo.png" : isAps ? BRAND_LOGOS.aps : "svbb-login-logo-v5.png",
+      isCompetition ? "SVBB competitie" : isAps ? "APS" : "SVBB",
     );
   }
   const beamerLogo = $("#beamerLogoImage");
