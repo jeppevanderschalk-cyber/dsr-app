@@ -1000,8 +1000,9 @@ small {
 .chip {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   min-height: 36px;
-  padding: 8px 14px;
+  padding: 8px 8px 8px 14px;
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 800;
@@ -1018,6 +1019,53 @@ small {
   border: 1px solid rgba(245, 197, 24, 0.25);
   background: rgba(245, 197, 24, 0.1);
   color: var(--yellow);
+}
+
+.chip-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip-actions[hidden] {
+  display: none;
+}
+
+.chip-action {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--yellow);
+  transition: transform 140ms ease, background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.chip-action svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chip-action:hover {
+  transform: translateY(-1px);
+  background: rgba(245, 197, 24, 0.16);
+}
+
+.chip-action--delete {
+  color: #ff7a7a;
+  border-color: rgba(255, 122, 122, 0.4);
+}
+
+.chip-action--delete:hover {
+  background: rgba(255, 122, 122, 0.16);
 }
 
 .chip-list {
@@ -7547,7 +7595,8 @@ function renderCompetition() {
           const meta = isInternalCompetitionClub()
             ? `${getShooterInternalDiscipline(shooter)} · ${getShooterInternalClass(shooter)} · ${getShooterCaliber(shooter)}${shooter.optic ? " · Optic" : ""}`
             : `${shooter.optic ? " · Optic" : ""}`;
-          return `<span class="chip">${escapeHtml(shooter.name)}${meta ? ` · ${escapeHtml(meta)}` : ""}</span>`;
+          const safeName = escapeHtml(shooter.name);
+          return `<span class="chip">${safeName}${meta ? ` · ${escapeHtml(meta)}` : ""}<span class="chip-actions" data-trainer-only><button type="button" class="chip-action" data-edit-shooter="${shooter.id}" aria-label="${safeName} wijzigen" title="Wijzigen">${iconPencil}</button><button type="button" class="chip-action chip-action--delete" data-delete-shooter="${shooter.id}" aria-label="${safeName} verwijderen" title="Verwijderen">${iconX}</button></span></span>`;
         })
         .join("")
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
