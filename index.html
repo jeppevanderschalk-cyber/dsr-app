@@ -3662,8 +3662,8 @@ dialog .primary-action::after {
 }
 
 .login-logo {
-  width: 90px;
-  height: 90px;
+  width: 135px;
+  height: 135px;
   margin: 0 auto;
   border-radius: 16px;
   object-fit: cover;
@@ -3690,6 +3690,7 @@ dialog .primary-action::after {
 
 .login-card h2 {
   margin: 0;
+  font-size: 1.7rem;
 }
 
 .login-card h2.is-competition-title {
@@ -5099,7 +5100,7 @@ dialog .primary-action::after {
     <section class="beamer-overlay" id="beamerOverlay" hidden aria-label="Live score beamerweergave">
       <div class="beamer-shell">
         <header class="beamer-header">
-          <img src="svbb-beamer-logo-compact.png" alt="SV Beemte-Broekland" class="beamer-wide-logo" id="beamerWideLogo" hidden />
+          <img src="svbb-beamer-logo-v2.png" alt="SVBB" class="beamer-wide-logo" id="beamerWideLogo" hidden />
           <div class="beamer-brand" id="beamerBrand">
             <img src="svbb-login-logo-4.png" alt="SVBB" id="beamerLogoImage" hidden />
           </div>
@@ -8591,8 +8592,8 @@ function renderBeamerBoard() {
   const titleImage = $("#beamerTitleImage");
   if (wideLogo) {
     wideLogo.hidden = !useWideLogo;
-    wideLogo.src = "svbb-beamer-logo-compact.png";
-    wideLogo.alt = "SV Beemte-Broekland";
+    wideLogo.src = "svbb-beamer-logo-v2.png";
+    wideLogo.alt = "SVBB";
   }
   if (brand) brand.hidden = useWideLogo;
   clubTitle.hidden = useFullBanner;
