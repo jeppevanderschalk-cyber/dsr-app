@@ -1,4 +1,4 @@
-const CACHE_NAME = "dsr-score-cache-v128";
+const CACHE_NAME = "dsr-score-cache-v129";
 const ASSETS = [
   "./",
   "index.html",
@@ -7,7 +7,7 @@ const ASSETS = [
   "logo-SVBB.png",
   "aps-logo.png",
   "svbb-beamer-logo-compact.png",
-  "svbb-login-logo-v5.png",
+  "svbb-login-logo-v6.png",
   "svbb-competition-login-logo.png",
   "svbb-app-icon-v5-32.png",
   "svbb-app-icon-v5-180.png",
