@@ -5710,10 +5710,13 @@ function updateBrandLogos(clubId = currentClubId) {
 
 function applyModeCopy(clubId = currentClubId) {
   const copy = getModeCopy(clubId);
-  const isCompetition = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  const code = normalizeClubCode(clubId);
+  const isCompetition = code === "INTERNE-COMPETITIE";
+  const isGuest = code === "GAST-GEBRUIKER";
   document.title = copy.appName;
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", copy.appName);
   $("#loginTitle").textContent = copy.loginTitle;
+  $("#loginTitle").hidden = isGuest;
   $("#loginTitle").classList.toggle("is-competition-title", isCompetition);
   $("#homeEyebrow").textContent = copy.eyebrow;
   $("#home-title").textContent = copy.homeTitle;
