@@ -2243,10 +2243,17 @@ select:focus {
 
 .beamer-wide-logo {
   justify-self: start;
+  align-self: end;
   height: clamp(44px, 5.5vw, 84px);
   width: auto;
   max-width: 100%;
   object-fit: contain;
+  /* Vergroot het logo optisch zonder de layout-box (en dus de scorehoogte)
+     te veranderen: schalen laat de header-rij ongemoeid. Oorsprong linksonder
+     houdt de onderrand op de header-grens en laat het logo omhoog/rechts de
+     lege koptekstruimte in groeien. */
+  transform-origin: left bottom;
+  transform: scale(1.28);
 }
 
 .beamer-wide-logo[hidden] {
@@ -2680,6 +2687,7 @@ select:focus {
 
 .beamer-overlay:not(.is-internal-competition) .beamer-wide-logo {
   height: clamp(72px, 8vw, 120px);
+  transform: scale(1.5);
 }
 
 .beamer-overlay:not(.is-internal-competition) .beamer-header-title-image {
@@ -5100,7 +5108,7 @@ dialog .primary-action::after {
     <section class="beamer-overlay" id="beamerOverlay" hidden aria-label="Live score beamerweergave">
       <div class="beamer-shell">
         <header class="beamer-header">
-          <img src="SVBB-kogel-transparant.gif" alt="SVBB" class="beamer-wide-logo" id="beamerWideLogo" hidden />
+          <img src="SVBB-kogel-transparant-v2.gif" alt="SVBB" class="beamer-wide-logo" id="beamerWideLogo" hidden />
           <div class="beamer-brand" id="beamerBrand">
             <img src="svbb-login-logo-4.png" alt="SVBB" id="beamerLogoImage" hidden />
           </div>
@@ -8592,7 +8600,7 @@ function renderBeamerBoard() {
   const titleImage = $("#beamerTitleImage");
   if (wideLogo) {
     wideLogo.hidden = !useWideLogo;
-    wideLogo.src = "SVBB-kogel-transparant.gif";
+    wideLogo.src = "SVBB-kogel-transparant-v2.gif";
     wideLogo.alt = "SVBB";
   }
   if (brand) brand.hidden = useWideLogo;
