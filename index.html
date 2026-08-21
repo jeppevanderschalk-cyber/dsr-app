@@ -2243,7 +2243,7 @@ select:focus {
 
 .beamer-wide-logo {
   justify-self: start;
-  height: clamp(72px, 9vw, 140px);
+  height: clamp(44px, 5.5vw, 84px);
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -2508,10 +2508,10 @@ select:focus {
   grid-template-columns: minmax(34px, 0.32fr) minmax(150px, 2.25fr) minmax(74px, 0.72fr) minmax(86px, 0.78fr) minmax(110px, 0.92fr);
   align-items: center;
   gap: clamp(5px, 0.62vw, 10px);
-  min-height: clamp(22px, 2.8vh, 34px);
+  min-height: clamp(25px, 3.1vh, 38px);
   padding: 0 clamp(7px, 0.8vw, 12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: clamp(0.48rem, 0.72vw, 0.82rem);
+  font-size: clamp(0.54rem, 0.8vw, 0.9rem);
   font-weight: 850;
 }
 
@@ -2569,7 +2569,7 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: clamp(20px, 2.45vh, 30px);
+  min-height: clamp(23px, 2.8vh, 34px);
   padding: 0 clamp(7px, 0.8vw, 12px);
   background: linear-gradient(90deg, rgba(245, 197, 24, 0.34), rgba(245, 197, 24, 0.06));
   color: #fff;
@@ -2660,7 +2660,7 @@ select:focus {
   min-width: 0;
   overflow: hidden;
   color: #fff;
-  font-size: clamp(0.54rem, 0.9vw, 0.96rem);
+  font-size: clamp(0.6rem, 0.98vw, 1.04rem);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5688,7 +5688,7 @@ function updateBrandLogos(clubId = currentClubId) {
     let loginLogoSrc = "svbb-login-logo-v6.png";
     let loginLogoAlt = "SVBB";
     if (isCompetition) {
-      loginLogoSrc = "svbb-competition-login-logo.png";
+      loginLogoSrc = "svbb-beamer-logo-v2.png";
       loginLogoAlt = "SVBB competitie";
     } else if (isAps) {
       loginLogoSrc = BRAND_LOGOS.aps;
@@ -8433,8 +8433,8 @@ function getBeamerRowsPerPage() {
     // Werkelijke rijhoogte volgt clamp(22px, 2.8vh, 34px); +1 voor de rand.
     // Zo vullen korte schermen beter en blijft het op hoge schermen veilig
     // binnen de 'overflow: hidden' (geen afgeknipte rijen).
-    const rowHeight = Math.min(34, Math.max(22, 0.028 * height)) + 1;
-    const available = height - 185; // kop, pager en marges, met veiligheidsmarge
+    const rowHeight = Math.min(40, Math.max(26, 0.036 * height)) + 1;
+    const available = height - 245; // kleinere kop + pager en marges (ruimer, geen afknippen)
     return Math.max(12, Math.floor(available / rowHeight));
   }
   return Math.max(6, Math.floor((height - 300) / 62));
