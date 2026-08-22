@@ -10694,6 +10694,14 @@ function saveEntryDialog() {
     showToast("Vul eerst een naam in");
     return;
   }
+  const duplicate = state.shooters.find(
+    (item) => item.id !== editingShooterId && item.name.trim().toLowerCase() === name.toLowerCase(),
+  );
+  if (duplicate) {
+    $("#entryName").focus();
+    showToast(`${duplicate.name} bestaat al — kies een andere naam`);
+    return;
+  }
 
   const shooter = editingShooterId ? getShooter(editingShooterId) : null;
   if (shooter) {
