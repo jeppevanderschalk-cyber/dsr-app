@@ -1343,23 +1343,31 @@ select:focus {
 
 .long-stage-step,
 .long-stage-bonus {
-  min-height: 64px;
+  min-height: 76px;
   border: 1px solid rgba(245, 197, 24, 0.32);
   border-radius: 18px;
   background: #2b2c32;
   color: var(--ink);
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: 900;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .long-stage-step {
-  min-width: 64px;
+  min-width: 76px;
+}
+
+/* Sneller zichtbare feedback bij indrukken zonder op de re-render te wachten. */
+.long-stage-step:active {
+  transform: scale(0.94);
+  filter: brightness(1.15);
 }
 
 @media (max-width: 430px) {
   .long-stage-line {
-    grid-template-columns: 58px minmax(76px, 1fr) 58px;
+    grid-template-columns: 68px minmax(76px, 1fr) 68px;
     gap: 8px;
   }
 
@@ -1376,18 +1384,19 @@ select:focus {
   }
 
   .long-stage-step {
-    min-width: 58px;
-    min-height: 60px;
-    font-size: 1.6rem;
+    min-width: 68px;
+    min-height: 70px;
+    font-size: 1.85rem;
   }
 
   .long-stage-line__count {
-    min-height: 58px;
-    font-size: 1rem;
+    min-height: 66px;
+    font-size: 1.05rem;
   }
 }
 
-.long-stage-step[data-long-step="1"] {
+.long-stage-step[data-long-step="1"],
+.long-stage-step[data-aps-delta="1"] {
   background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
   color: var(--accent-ink);
 }
@@ -8055,6 +8064,13 @@ function renderApsEntry() {
   if (timeField && document.activeElement !== timeField) timeField.value = scoreDraft.apsTime ?? "";
   const penaltyLabel = $("#apsPenaltyCountLabel");
   if (penaltyLabel) penaltyLabel.textContent = String(Math.max(0, Math.round(Number(scoreDraft.apsPenaltyCount) || 0)));
+  updateApsTotals();
+  const submitLabel = form.querySelector("#apsScoreSubmitButton span");
+  if (submitLabel) submitLabel.textContent = scoreDraft.editScoreId ? "Resultaat bijwerken" : "Resultaat opslaan";
+}
+
+// Werkt alleen de eindscore-samenvatting bij (zonder de hele lijst te herbouwen).
+function updateApsTotals() {
   const calc = calculateApsScore(scoreDraft);
   const hf = $("#apsTotalHitfactor");
   if (hf) hf.textContent = formatNumber(calc.hitfactor, 3);
@@ -8062,8 +8078,6 @@ function renderApsEntry() {
   if (bd) {
     bd.textContent = `Kort ${formatNumber(calc.shortPoints, 0)}/${apsShortMaxPoints} · Lang ${formatNumber(calc.longPoints, 0)}/${apsLongMaxPoints} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)} pt · tijd ${calc.time > 0 ? formatNumber(calc.time, 2) + " sec" : "—"}`;
   }
-  const submitLabel = form.querySelector("#apsScoreSubmitButton span");
-  if (submitLabel) submitLabel.textContent = scoreDraft.editScoreId ? "Resultaat bijwerken" : "Resultaat opslaan";
 }
 
 function renderApsRecentScores() {
@@ -8109,18 +8123,33 @@ function handleApsStep(button) {
       }
     }
   }
+  if (next === current) return;
   stages[stage.id][item.key] = next;
   scoreDraft.apsStages = stages;
   triggerHapticFeedback();
-  renderApsEntry();
+  // In-place bijwerken zodat snel achter elkaar drukken niet mist (de knop
+  // zelf blijft in de DOM staan; geen volledige herbouw van de lijst).
+  const line = button.closest(".long-stage-line");
+  const countEl = line?.querySelector(".long-stage-line__count");
+  if (countEl) countEl.textContent = `${next} / ${item.max}`;
+  const card = button.closest(".long-stage-card");
+  const scoreEl = card?.querySelector(".long-stage-card__score");
+  if (scoreEl) scoreEl.textContent = `${formatNumber(getApsStageScore(stage, stages), 0)} / ${formatNumber(stage.maxPoints, 0)}`;
+  const hitsNote = card?.querySelector(".aps-hits-note");
+  if (hitsNote && stage.maxHits) hitsNote.textContent = `Totaal ${getApsStageHits(stage, stages)} / ${stage.maxHits} treffers`;
+  updateApsTotals();
 }
 
 function handleApsPenaltyStep(delta) {
   if (!requireTrainer()) return;
   const current = Math.max(0, Math.round(Number(scoreDraft.apsPenaltyCount) || 0));
-  scoreDraft.apsPenaltyCount = Math.max(0, current + delta);
+  const next = Math.max(0, current + delta);
+  if (next === current) return;
+  scoreDraft.apsPenaltyCount = next;
   triggerHapticFeedback();
-  renderApsEntry();
+  const penaltyLabel = $("#apsPenaltyCountLabel");
+  if (penaltyLabel) penaltyLabel.textContent = String(next);
+  updateApsTotals();
 }
 
 function editApsScore(shooterId) {
