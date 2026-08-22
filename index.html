@@ -990,6 +990,22 @@ small {
   line-height: 1.25;
 }
 
+.duplicate-score-warning {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 90, 90, 0.45);
+  border-radius: 16px;
+  background: rgba(255, 90, 90, 0.12);
+  color: #ff8a8a;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.duplicate-score-warning[hidden] {
+  display: none;
+}
+
 .mini-action {
   min-height: 34px;
   border: 1px solid rgba(245, 197, 24, 0.5);
@@ -4829,6 +4845,8 @@ dialog .primary-action::after {
               </label>
             </div>
 
+            <p class="duplicate-score-warning" id="apsDuplicateScoreNotice" hidden></p>
+
             <div id="apsStageInput" class="long-course-stage-input" aria-label="APS baan per stage invoeren"></div>
 
             <div class="field-grid">
@@ -8099,6 +8117,21 @@ function renderApsEntry() {
     shooterSelect.innerHTML = shooterOptions;
     if (!activeShooters.some((s) => s.id === scoreDraft.shooterId)) scoreDraft.shooterId = activeShooters[0]?.id || "";
     shooterSelect.value = scoreDraft.shooterId;
+  }
+  const duplicateNotice = $("#apsDuplicateScoreNotice");
+  if (duplicateNotice) {
+    // Waarschuw meteen bij het kiezen van de schutter (niet pas bij opslaan):
+    // een tweede resultaat voor dezelfde schutter kan bedoeld zijn (parcours
+    // later overgedaan na eindewedstrijd), maar is vaker een vergeten
+    // schutterwissel die anders het vorige resultaat overschrijft.
+    const existingScore = !scoreDraft.editScoreId ? getApsScoreForShooter(scoreDraft.shooterId) : null;
+    if (existingScore) {
+      const shooterName = getShooter(scoreDraft.shooterId)?.name || "Deze schutter";
+      duplicateNotice.textContent = `Let op: ${shooterName} heeft al een APS-resultaat. Dit kan alleen kloppen als het parcours later vandaag is overgedaan (na eindewedstrijd). Anders: controleer of je de juiste schutter hebt geselecteerd — opslaan overschrijft anders het vorige resultaat.`;
+      duplicateNotice.hidden = false;
+    } else {
+      duplicateNotice.hidden = true;
+    }
   }
   const statusSelect = $("#apsStatus");
   if (statusSelect) {
