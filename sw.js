@@ -1,4 +1,4 @@
-const CACHE_NAME = "dsr-score-cache-v132";
+const CACHE_NAME = "dsr-score-cache-v133";
 const ASSETS = [
   "./",
   "index.html",
@@ -42,8 +42,12 @@ self.addEventListener("fetch", (event) => {
   if (isHtml) {
     // Netwerk-eerst voor de app zelf, zodat nieuwe versies altijd binnenkomen
     // zodra er internet is; valt terug op de cache als het netwerk faalt.
+    // cache: "no-store" is nodig omdat de server index.html met max-age=600
+    // serveert — zonder deze override kan een "verse" fetch binnen die 10
+    // minuten alsnog gewoon de oude HTTP-cache teruggeven, waardoor nieuwe
+    // deploys niet doorkomen ook al is de service worker zelf actief.
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
