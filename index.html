@@ -1010,6 +1010,26 @@ small {
   display: none;
 }
 
+/* Zelfde roze als de .22-markering elders in de app (rimfire-tag), voor
+   consistentie: interne competitie heeft geen APS-achtige "rood = fout"
+   waarschuwing nodig, een 2e/3e ronde na een fout of eindewedstrijd komt hier
+   vaker legitiem voor. */
+.duplicate-score-warning-pink {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 92, 170, 0.55);
+  border-radius: 16px;
+  background: rgba(255, 92, 170, 0.14);
+  color: #ff8ec4;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.duplicate-score-warning-pink[hidden] {
+  display: none;
+}
+
 .mini-action {
   min-height: 34px;
   border: 1px solid rgba(245, 197, 24, 0.5);
@@ -4704,6 +4724,8 @@ dialog .primary-action::after {
               </label>
             </div>
 
+            <p class="duplicate-score-warning-pink" id="internalDuplicateScoreNotice" hidden></p>
+
             <p class="internal-help" id="internalHelpText" hidden></p>
 
             <div class="field-grid internal-score-grid" id="internalScoreFields" hidden>
@@ -7135,6 +7157,12 @@ function getInternalStages() {
   }));
 }
 
+function getInternalScoreForShooterStage(shooterId, stageId) {
+  return state.scores.find(
+    (item) => item.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId && item.shooterId === shooterId && item.stageId === stageId,
+  );
+}
+
 function getMasterCardMaxShots() {
   return Math.max(1, Math.round(getInternalStageMaxPoints("stage-short") / 10));
 }
@@ -8429,6 +8457,21 @@ function renderScores() {
   $("#scoreStageField").hidden = !internalMode;
   $("#internalScoreFields").hidden = !internalMode;
   $("#scoreForm")?.classList.toggle("is-internal", internalMode);
+  const internalDuplicateNotice = $("#internalDuplicateScoreNotice");
+  if (internalDuplicateNotice) {
+    // Zelfde idee als de APS-waarschuwing: meteen zichtbaar bij het kiezen van
+    // schutter + onderdeel, niet pas bij opslaan. Bij interne competitie komt
+    // een "dubbele" score legitiem voor bij een correctie of een 2e/3e ronde na
+    // een foute score of eindewedstrijd — vandaar roze i.p.v. rood (geen fout).
+    const existingScore = internalMode && !isEditing ? getInternalScoreForShooterStage(scoreDraft.shooterId, internalStage.id) : null;
+    if (existingScore) {
+      const shooterName = getShooter(scoreDraft.shooterId)?.name || "Deze schutter";
+      internalDuplicateNotice.textContent = `Let op: ${shooterName} heeft al een score voor ${internalStage.label}. Dit kan kloppen bij een correctie of een volgende ronde na een foute score of eindewedstrijd. Anders: controleer of je de juiste schutter hebt geselecteerd — opslaan overschrijft anders de vorige score.`;
+      internalDuplicateNotice.hidden = false;
+    } else {
+      internalDuplicateNotice.hidden = true;
+    }
+  }
   const internalHelp = $("#internalHelpText");
   if (internalHelp) {
     internalHelp.hidden = !internalMode;
@@ -11315,12 +11358,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
     const signatureRequired = isInternalCompetitionClub();
     const existingScore =
       (scoreDraft.editScoreId && state.scores.find((item) => item.id === scoreDraft.editScoreId)) ||
-      state.scores.find(
-        (item) =>
-          item.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId &&
-          item.shooterId === scoreDraft.shooterId &&
-          item.stageId === stage.id,
-      );
+      getInternalScoreForShooterStage(scoreDraft.shooterId, stage.id);
     // Waarschuw als deze schutter al een score voor dit onderdeel heeft en dit
     // geen bewuste bewerking is (via de Wijzig-knop). Zo overschrijft de trainer
     // niet per ongeluk een score omdat hij vergat een nieuwe schutter te kiezen.
