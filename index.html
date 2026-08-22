@@ -528,8 +528,12 @@ small {
   font-weight: 900;
 }
 
-.primary-action span,
-.secondary-action span {
+/* Alleen spans die een icoon bevatten krijgen het vaste 34x34-vak (zodat het
+   SVG-icoon precies past); een span met platte tekst als knoplabel (bv.
+   "Resultaat opslaan") mag niet in dat kleine vak geknepen worden, anders
+   staat de tekst niet gecentreerd in de knop. */
+.primary-action span:has(svg),
+.secondary-action span:has(svg) {
   position: relative;
   z-index: 1;
   display: inline-grid;
@@ -6075,7 +6079,7 @@ function getModeCopy(clubId = currentClubId) {
       appName: "APS-DSR competitie",
       loginTitle: "APS-DSR competitie",
       eyebrow: "Nationale competitie",
-      homeTitle: "APS-DSR nationale competitie",
+      homeTitle: "DSR wedstrijd SVBB",
       homeSubtitle: "Nationaal klassement op basis van punten gedeeld door tijd.",
       allSessions: "Alle schutters",
       latestSession: "Alleen complete resultaten",
@@ -7005,7 +7009,7 @@ function describeScoreChanges(oldScore, newScore) {
 
 function scoreLogContext(score, shooter = getShooter(score?.shooterId)) {
   if (score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId) return getInternalStage(score.stageId).label;
-  if (score?.competitionId === APS_COMPETITION_CONFIG.competitionId) return "APS-DSR nationale competitie";
+  if (score?.competitionId === APS_COMPETITION_CONFIG.competitionId) return "DSR wedstrijd SVBB";
   const discipline = getScoreDiscipline(score, shooter);
   const round = Number(score?.round) || Number(score?.displayRound);
   return round ? `${discipline} · ronde ${round}` : discipline;
@@ -8996,7 +9000,7 @@ function buildApsIpadResultCards(data) {
       <div class="ipad-result-main">
         <div class="ipad-result-name">
           <strong>${escapeHtml(shooter.name)}</strong>
-          <small>APS-DSR nationale competitie</small>
+          <small>DSR wedstrijd SVBB</small>
         </div>
         <div class="ipad-result-position" aria-label="Positie in klassement">
           <div>
@@ -9142,7 +9146,7 @@ function renderIpadResultView() {
   if (!overlay || overlay.hidden || !body) return;
 
   const kicker = $("#ipadResultKicker");
-  if (kicker) kicker.textContent = isApsCompetitionClub() ? "APS-DSR nationale competitie" : "Interne competitie";
+  if (kicker) kicker.textContent = isApsCompetitionClub() ? "DSR wedstrijd SVBB" : "Interne competitie";
 
   if (isApsCompetitionClub()) {
     const apsData = getApsIpadResultData(getApsIpadResultShooterId());
