@@ -3271,21 +3271,28 @@ select:focus {
   }
 }
 
-/* Badge op de positiecirkel: welke plek de schutter zou halen als de beste
-   ronde had meegeteld i.p.v. alleen de eerste. Zelfde roze als de
+/* Groepeert de echte positiecirkel en de (optionele) roze hypothetische
+   badge als gewone, meestromende elementen naast elkaar — geen
+   position:absolute, zodat de kaart er op elk schermformaat (ook mobiel)
+   automatisch ruimte voor reserveert i.p.v. dat de badge erbuiten hangt. */
+.ipad-result-position-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(8px, 1.6vw, 16px);
+  flex: 0 0 auto;
+}
+
+/* Badge naast de positiecirkel: welke plek de schutter zou halen als de
+   beste ronde had meegeteld i.p.v. alleen de eerste. Zelfde roze als de
    .22-markering/extra-ronde-labels elders, met dezelfde hartslag-animatie. */
 .ipad-result-position-hypothetical {
-  position: absolute;
-  left: -34%;
-  top: 50%;
-  /* Verticaal centreren via margin i.p.v. transform: translateY, want de
-     hartslag-animatie hieronder zet zelf ook een transform (scale) — die zou
-     een translateY hier overschrijven i.p.v. combineren. */
-  margin-top: calc(-1 * clamp(68px, 9.5vw, 112px) / 2);
+  position: relative;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
-  /* Vaste eigen schaal (niet als % van de ouder) zodat het cijfer altijd
-     ruim past, ongeacht hoe groot de echte positiecirkel zelf uitvalt. */
+  /* Vaste eigen schaal zodat het cijfer altijd ruim past, ongeacht hoe groot
+     de echte positiecirkel zelf uitvalt. */
   width: clamp(68px, 9.5vw, 112px);
   height: clamp(68px, 9.5vw, 112px);
   border: 2px solid rgba(255, 92, 170, 0.65);
@@ -9403,11 +9410,7 @@ function buildIpadResultCards(data) {
           <small>${escapeHtml(groupLabel)}${shooter.optic ? ` · Optic -${opticScorePenalty}%` : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
           ${extraRoundsNote ? `<small class="ipad-extra-rounds-note">${extraRoundsNote} extra ronde ingevoerd, deze telt niet mee voor het eindresultaat</small>` : ""}
         </div>
-        <div class="ipad-result-position" aria-label="Positie in klassement">
-          <div>
-            <span>positie</span>
-            <strong>${positionText}</strong>
-          </div>
+        <div class="ipad-result-position-group">
           ${
             hypotheticalPosition > 0
               ? `<div class="ipad-result-position-hypothetical" aria-label="Zou positie ${hypotheticalPosition} zijn als de extra ronde had meegeteld">
@@ -9416,6 +9419,12 @@ function buildIpadResultCards(data) {
                  </div>`
               : ""
           }
+          <div class="ipad-result-position" aria-label="Positie in klassement">
+            <div>
+              <span>positie</span>
+              <strong>${positionText}</strong>
+            </div>
+          </div>
         </div>
       </div>
 
