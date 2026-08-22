@@ -1571,7 +1571,8 @@ select:focus {
   line-height: 1.25;
 }
 
-#scoreSignaturePad {
+#scoreSignaturePad,
+  #apsSignaturePad {
   width: 100%;
   height: 170px;
   border: 1px dashed rgba(245, 197, 24, 0.45);
@@ -2405,6 +2406,12 @@ select:focus {
   align-items: center;
   justify-content: flex-end;
   gap: clamp(14px, 1.6vw, 26px);
+}
+
+/* APS: clublogo helemaal links in de beamer-kop. */
+.beamer-overlay.is-aps-competition .beamer-brand {
+  justify-self: start;
+  justify-content: flex-start;
 }
 
 .beamer-brand img {
@@ -3999,7 +4006,8 @@ dialog .primary-action::after {
     padding: 20px;
   }
 
-  #scoreSignaturePad {
+  #scoreSignaturePad,
+  #apsSignaturePad {
     height: 220px;
   }
 
@@ -4098,7 +4106,8 @@ dialog .primary-action::after {
     flex-wrap: wrap;
   }
 
-  #scoreSignaturePad {
+  #scoreSignaturePad,
+  #apsSignaturePad {
     height: 260px;
   }
 
@@ -9496,6 +9505,7 @@ function renderBeamerBoard() {
   const internalMode = isInternalCompetitionClub();
   overlay.classList.toggle("is-internal-competition", internalMode);
   table.classList.toggle("is-internal-competition", internalMode);
+  overlay.classList.toggle("is-aps-competition", isApsCompetitionClub());
 
   if (isApsCompetitionClub()) {
     renderApsBeamerBody(table);
