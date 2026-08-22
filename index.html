@@ -8021,6 +8021,66 @@ function renderCompetition() {
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
 }
 
+function buildApsStageInputDom(target) {
+  let currentBaan = "";
+  target.innerHTML = apsStageConfig
+    .map((stage) => {
+      let banner = "";
+      if (stage.baan !== currentBaan) {
+        currentBaan = stage.baan;
+        banner = `<div class="aps-baan-title">${stage.baan === "kort" ? "Korte baan (stage 1-3)" : "Lange baan (stage 4-7)"}</div>`;
+      }
+      const controls = stage.items
+        .map(
+          (item) => `
+              <div class="long-stage-line" data-stage-id="${stage.id}" data-item-key="${item.key}">
+                <div class="long-stage-line__label">
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <small>${formatNumber(item.value, 0)} pt · max ${item.max}x</small>
+                </div>
+                <button class="long-stage-step" type="button" data-aps-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-aps-delta="-1" aria-label="${escapeHtml(item.label)} corrigeren">−</button>
+                <span class="long-stage-line__count">0 / ${item.max}</span>
+                <button class="long-stage-step" type="button" data-aps-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-aps-delta="1" aria-label="${escapeHtml(item.label)} toevoegen">+</button>
+              </div>`,
+        )
+        .join("");
+      const hitsNote = stage.maxHits
+        ? `<div class="aps-hits-note" data-stage-hits="${stage.id}">Totaal 0 / ${stage.maxHits} treffers</div>`
+        : "";
+      return `
+          ${banner}
+          <section class="long-stage-card" data-stage-card="${stage.id}">
+            <div class="long-stage-card__head">
+              <div>
+                <span>${escapeHtml(stage.label)}</span>
+                <strong>${escapeHtml(stage.title)}</strong>
+                <small>${escapeHtml(stage.note)}</small>
+              </div>
+              <div class="long-stage-card__score" data-stage-score="${stage.id}">0 / ${formatNumber(stage.maxPoints, 0)}</div>
+            </div>
+            ${controls}
+            ${hitsNote}
+          </section>`;
+    })
+    .join("");
+}
+
+function updateApsStageInputValues(target, stages) {
+  apsStageConfig.forEach((stage) => {
+    const scoreEl = target.querySelector(`[data-stage-score="${stage.id}"]`);
+    if (scoreEl) scoreEl.textContent = `${formatNumber(getApsStageScore(stage, stages), 0)} / ${formatNumber(stage.maxPoints, 0)}`;
+    stage.items.forEach((item) => {
+      const count = Number(stages[stage.id]?.[item.key]) || 0;
+      const countEl = target.querySelector(`.long-stage-line[data-stage-id="${stage.id}"][data-item-key="${item.key}"] .long-stage-line__count`);
+      if (countEl) countEl.textContent = `${count} / ${item.max}`;
+    });
+    if (stage.maxHits) {
+      const hitsEl = target.querySelector(`[data-stage-hits="${stage.id}"]`);
+      if (hitsEl) hitsEl.textContent = `Totaal ${getApsStageHits(stage, stages)} / ${stage.maxHits} treffers`;
+    }
+  });
+}
+
 function renderApsEntry() {
   const form = $("#apsScoreForm");
   if (!form) return;
@@ -8045,49 +8105,16 @@ function renderApsEntry() {
   scoreDraft.apsStages = stages;
   const target = $("#apsStageInput");
   if (target) {
-    let currentBaan = "";
-    target.innerHTML = apsStageConfig
-      .map((stage) => {
-        let banner = "";
-        if (stage.baan !== currentBaan) {
-          currentBaan = stage.baan;
-          banner = `<div class="aps-baan-title">${stage.baan === "kort" ? "Korte baan (stage 1-3)" : "Lange baan (stage 4-7)"}</div>`;
-        }
-        const stageScore = getApsStageScore(stage, stages);
-        const controls = stage.items
-          .map((item) => {
-            const count = Number(stages[stage.id]?.[item.key]) || 0;
-            return `
-              <div class="long-stage-line">
-                <div class="long-stage-line__label">
-                  <strong>${escapeHtml(item.label)}</strong>
-                  <small>${formatNumber(item.value, 0)} pt · max ${item.max}x</small>
-                </div>
-                <button class="long-stage-step" type="button" data-aps-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-aps-delta="-1" aria-label="${escapeHtml(item.label)} corrigeren">−</button>
-                <span class="long-stage-line__count">${count} / ${item.max}</span>
-                <button class="long-stage-step" type="button" data-aps-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-aps-delta="1" aria-label="${escapeHtml(item.label)} toevoegen">+</button>
-              </div>`;
-          })
-          .join("");
-        const hitsNote = stage.maxHits
-          ? `<div class="aps-hits-note">Totaal ${getApsStageHits(stage, stages)} / ${stage.maxHits} treffers</div>`
-          : "";
-        return `
-          ${banner}
-          <section class="long-stage-card">
-            <div class="long-stage-card__head">
-              <div>
-                <span>${escapeHtml(stage.label)}</span>
-                <strong>${escapeHtml(stage.title)}</strong>
-                <small>${escapeHtml(stage.note)}</small>
-              </div>
-              <div class="long-stage-card__score">${formatNumber(stageScore, 0)} / ${formatNumber(stage.maxPoints, 0)}</div>
-            </div>
-            ${controls}
-            ${hitsNote}
-          </section>`;
-      })
-      .join("");
+    // Bouw de knoppen maar één keer op. Bij elke re-render (o.a. de
+    // achtergrond-sync die nu elke 5s draait sinds APS ook echt synct) alleen
+    // de cijfers bijwerken, in plaats van alle knoppen te slopen en opnieuw op
+    // te bouwen — anders kan een tik midden in een herbouw verloren gaan
+    // (de knop onder de vinger bestaat dan even niet meer), wat traag aanvoelt.
+    if (target.dataset.built !== "1") {
+      buildApsStageInputDom(target);
+      target.dataset.built = "1";
+    }
+    updateApsStageInputValues(target, stages);
   }
   const timeField = $("#apsTime");
   if (timeField && document.activeElement !== timeField) timeField.value = scoreDraft.apsTime ?? "";
@@ -11922,6 +11949,7 @@ if (storedAuth?.role === "trainer" && !sessionStorage.getItem(TRAINER_SESSION_KE
 } else {
   showLoginGate();
 }
+window.__dsrTest = { startApp, getState: () => state, createId, render, markDirty };
 
     </script>
   </body>
