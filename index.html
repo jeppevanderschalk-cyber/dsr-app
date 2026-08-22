@@ -5817,6 +5817,7 @@ document.addEventListener(
     if (event.target.closest("[data-internal-step]")) return;
     if (event.target.closest("[data-master-card-score], [data-master-card-remove], [data-master-card-action]")) return;
     if (event.target.closest("[data-long-stage-step], [data-long-stage-bonus]")) return;
+    if (event.target.closest("[data-aps-step], [data-aps-penalty]")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
