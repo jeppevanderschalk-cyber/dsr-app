@@ -191,6 +191,11 @@ body:has(#view-home.is-active) .topbar {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Afronding ook op de afbeelding zelf (niet enkel via overflow:hidden op de
+     span): op iOS Safari kan een net gedecodeerde afbeelding bij de eerste
+     keer laden even buiten de afronding van de ouder om getekend worden,
+     wat als een vierkante flits rond het logo oogt. */
+  border-radius: 999px;
 }
 
 .app-logo.is-club-logo {
