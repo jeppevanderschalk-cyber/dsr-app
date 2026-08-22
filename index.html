@@ -11044,16 +11044,6 @@ document.addEventListener("click", (event) => {
     toggleLongCourseSheriffBonus();
   }
 
-  const apsStepButton = event.target.closest("[data-aps-step]");
-  if (apsStepButton) {
-    handleApsStep(apsStepButton);
-  }
-
-  const apsPenaltyButton = event.target.closest("[data-aps-penalty]");
-  if (apsPenaltyButton) {
-    handleApsPenaltyStep(Number(apsPenaltyButton.dataset.apsPenalty) || 0);
-  }
-
   const apsEditButton = event.target.closest("[data-aps-edit]");
   if (apsEditButton) {
     editApsScore(apsEditButton.dataset.apsEdit);
@@ -11071,6 +11061,28 @@ document.addEventListener("click", (event) => {
   }
 
 });
+
+// De APS-steppers reageren op pointerdown i.p.v. click: dat vuurt direct bij
+// aanraking, zonder de browservertraging waarmee tap-vs-scroll wordt bepaald.
+// preventDefault onderdrukt de erop volgende ghost-click, zodat er niet dubbel
+// wordt geteld.
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    const apsStepButton = event.target.closest("[data-aps-step]");
+    if (apsStepButton) {
+      event.preventDefault();
+      handleApsStep(apsStepButton);
+      return;
+    }
+    const apsPenaltyButton = event.target.closest("[data-aps-penalty]");
+    if (apsPenaltyButton) {
+      event.preventDefault();
+      handleApsPenaltyStep(Number(apsPenaltyButton.dataset.apsPenalty) || 0);
+    }
+  },
+  { passive: false },
+);
 
 $("#scoreForm").addEventListener("input", (event) => {
   if (["scoreShooter", "scoreDiscipline", "scoreStage", "scoreTime", "scoreFlexPoints", "scoreRawPoints", "scorePenaltyPoints"].includes(event.target.id)) {
