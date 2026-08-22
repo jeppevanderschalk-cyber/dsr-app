@@ -4810,12 +4810,8 @@ dialog .primary-action::after {
 
             <div class="field-grid">
               <label>
-                <span>Tijd korte baan (stage 1-3)</span>
-                <input id="apsShortTime" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
-              </label>
-              <label>
-                <span>Tijd lange baan (stage 4-7)</span>
-                <input id="apsLongTime" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
+                <span>Totale tijd hele parcours (stage 1-7)</span>
+                <input id="apsTime" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
               </label>
             </div>
 
@@ -5371,6 +5367,16 @@ const AUTH_CONFIG = {
     "acc4000223bcdfa348e0f3524fdf5028d2944f713f122b9f57f7a86f036dacb5",
   ],
   shooterHash: "daeb81b8d50edaaa11bfbf22fa040e093ab5cdf82b592f764daa82d93bc155e9",
+  // Club-specifieke trainer-wachtwoorden. Voor deze clubs geldt naast het
+  // algemene trainer-wachtwoord ook het eigen wachtwoord hieronder.
+  clubTrainerHashes: {
+    "APS-DSR": ["41bf2ad91aa733dede5100475b9e696f5c41d606d492c366ae3577f3cc09c987"], // APS-1
+  },
+  // Club-specifieke kijk-only (schutter) wachtwoorden. Naast het algemene
+  // schutter-wachtwoord geldt voor deze clubs ook het eigen wachtwoord.
+  clubShooterHashes: {
+    "APS-DSR": ["b42b5c6021d0c5c366e6060a2a71b638c067669f4d35d17d51ff681e7ebb10f6"], // APS-DSR!
+  },
 };
 const SYNC_CONFIG = {
   supabaseUrl: "https://ktpngngrqwuqbdpxiihf.supabase.co",
@@ -5605,9 +5611,7 @@ function calculateApsScore(input) {
   const totals = getApsTotals(stages);
   const penaltyCount = Math.max(0, Math.round(Number(input.apsPenaltyCount) || 0));
   const penaltyPoints = penaltyCount * APS_COMPETITION_CONFIG.penaltyPerViolation;
-  const shortTime = Math.max(0, parseDecimal(input.apsShortTime) || 0);
-  const longTime = Math.max(0, parseDecimal(input.apsLongTime) || 0);
-  const time = shortTime + longTime;
+  const time = Math.max(0, parseDecimal(input.apsTime) || 0);
   const shortPoints = blocksScore ? 0 : totals.shortPoints;
   const longPoints = blocksScore ? 0 : totals.longPoints;
   const rawPoints = shortPoints + longPoints;
@@ -5622,8 +5626,6 @@ function calculateApsScore(input) {
     rawPoints,
     penaltyCount,
     penaltyPoints,
-    shortTime,
-    longTime,
     time,
     net,
     hitfactor,
@@ -5654,7 +5656,7 @@ function getApsScoreForShooter(shooterId) {
 function isApsScoreCompleted(score) {
   if (!score) return false;
   if (getScoreStatusMeta(score.status).blocksScore) return true;
-  return Number(score.shortTime) > 0 && Number(score.longTime) > 0;
+  return Number(score.time) > 0;
 }
 
 function apsScoreToRankingItem(score, shooter) {
@@ -5662,7 +5664,7 @@ function apsScoreToRankingItem(score, shooter) {
   const longPoints = Number(score.longPoints) || 0;
   const penaltyPoints = Number(score.penaltyPoints) || 0;
   const net = Number(score.net) || Math.max(0, shortPoints + longPoints - penaltyPoints);
-  const totalTime = Number(score.time) || (Number(score.shortTime) || 0) + (Number(score.longTime) || 0);
+  const totalTime = Number(score.time) || 0;
   const hitfactor = Number(score.hitfactor) || (totalTime > 0 ? net / totalTime : 0);
   const completed = isApsScoreCompleted(score);
   return {
@@ -5675,8 +5677,6 @@ function apsScoreToRankingItem(score, shooter) {
     penaltyCount: Number(score.penaltyCount) || 0,
     netPoints: net,
     points: net,
-    shortTime: Number(score.shortTime) || 0,
-    longTime: Number(score.longTime) || 0,
     time: totalTime,
     hitfactor,
     overallScore: hitfactor,
@@ -6962,8 +6962,7 @@ function createEmptyDraft() {
     longCourseHits: createEmptyLongCourseHits(),
     longCourseStages: createEmptyLongCourseStages(),
     apsStages: createEmptyApsStages(),
-    apsShortTime: "",
-    apsLongTime: "",
+    apsTime: "",
     apsPenaltyCount: 0,
     notes: "",
     status: "normal",
@@ -8052,10 +8051,8 @@ function renderApsEntry() {
       })
       .join("");
   }
-  const shortTimeField = $("#apsShortTime");
-  if (shortTimeField && document.activeElement !== shortTimeField) shortTimeField.value = scoreDraft.apsShortTime ?? "";
-  const longTimeField = $("#apsLongTime");
-  if (longTimeField && document.activeElement !== longTimeField) longTimeField.value = scoreDraft.apsLongTime ?? "";
+  const timeField = $("#apsTime");
+  if (timeField && document.activeElement !== timeField) timeField.value = scoreDraft.apsTime ?? "";
   const penaltyLabel = $("#apsPenaltyCountLabel");
   if (penaltyLabel) penaltyLabel.textContent = String(Math.max(0, Math.round(Number(scoreDraft.apsPenaltyCount) || 0)));
   const calc = calculateApsScore(scoreDraft);
@@ -8133,8 +8130,7 @@ function editApsScore(shooterId) {
   scoreDraft = createEmptyDraft();
   scoreDraft.shooterId = shooterId;
   scoreDraft.apsStages = normalizeApsStages(score.apsStages);
-  scoreDraft.apsShortTime = score.shortTime ?? "";
-  scoreDraft.apsLongTime = score.longTime ?? "";
+  scoreDraft.apsTime = score.time ?? "";
   scoreDraft.apsPenaltyCount = Number(score.penaltyCount) || 0;
   scoreDraft.status = score.status || "normal";
   scoreDraft.editScoreId = score.id;
@@ -11351,7 +11347,7 @@ $("#apsScoreForm")?.addEventListener("submit", (event) => {
     return;
   }
   if (!statusMeta.blocksScore && calc.time <= 0) {
-    showToast("Vul een geldige tijd in voor de korte én lange baan");
+    showToast("Vul een geldige totaaltijd in voor het hele parcours");
     return;
   }
   const existingScore =
@@ -11379,8 +11375,6 @@ $("#apsScoreForm")?.addEventListener("submit", (event) => {
     maxPoints: apsTotalMaxPoints,
     penaltyCount: calc.penaltyCount,
     penaltyPoints: calc.penaltyPoints,
-    shortTime: calc.shortTime,
-    longTime: calc.longTime,
     time: calc.time,
     net: calc.net,
     hitfactor: calc.hitfactor,
@@ -11413,12 +11407,8 @@ $("#apsStatus")?.addEventListener("change", (event) => {
   scoreDraft.status = event.target.value;
   renderApsEntry();
 });
-$("#apsShortTime")?.addEventListener("input", (event) => {
-  scoreDraft.apsShortTime = event.target.value;
-  renderApsEntry();
-});
-$("#apsLongTime")?.addEventListener("input", (event) => {
-  scoreDraft.apsLongTime = event.target.value;
+$("#apsTime")?.addEventListener("input", (event) => {
+  scoreDraft.apsTime = event.target.value;
   renderApsEntry();
 });
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
@@ -11771,13 +11761,15 @@ $("#loginForm").addEventListener("submit", async (event) => {
   $("#loginClub").value = clubId;
   const enteredPassword = $("#loginPassword").value;
   const hash = await sha256Hex(enteredPassword);
-  if (AUTH_CONFIG.trainerHashes.includes(hash)) {
+  const clubTrainerHashes = AUTH_CONFIG.clubTrainerHashes?.[clubId] || [];
+  if (AUTH_CONFIG.trainerHashes.includes(hash) || clubTrainerHashes.includes(hash)) {
     sessionTrainerPassword = enteredPassword;
     storeAuth("trainer", clubId, enteredPassword);
     startApp("trainer", clubId);
     return;
   }
-  if (hash === AUTH_CONFIG.shooterHash) {
+  const clubShooterHashes = AUTH_CONFIG.clubShooterHashes?.[clubId] || [];
+  if (hash === AUTH_CONFIG.shooterHash || clubShooterHashes.includes(hash)) {
     storeAuth("shooter", clubId);
     startApp("shooter", clubId);
     return;
