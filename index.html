@@ -940,6 +940,22 @@ small {
   text-transform: uppercase;
 }
 
+/* Extra ronde (2e/3e) na een foute score of eindewedstrijd: blijft zichtbaar,
+   telt niet mee voor de eindstand. Zelfde roze als de .22-markering elders. */
+.score-round-row.is-extra-round {
+  border-color: rgba(255, 92, 170, 0.4);
+  background: linear-gradient(170deg, rgba(255, 92, 170, 0.14), rgba(255, 92, 170, 0.04));
+}
+
+.score-round-row.is-extra-round span,
+.score-round-row.is-extra-round small {
+  color: #ff8ec4;
+}
+
+.score-round-row.is-extra-round strong {
+  color: #ff8ec4;
+}
+
 .score-round-row strong {
   color: var(--yellow);
   font-size: 1.35rem;
@@ -2987,6 +3003,11 @@ select:focus {
   background: linear-gradient(90deg, rgba(255, 92, 170, 0.36), rgba(255, 92, 170, 0.1));
 }
 
+/* Extra ronde (2e/3e, telt niet mee voor de eindstand): zelfde roze. */
+.beamer-extra-rounds {
+  color: #ff8ec4;
+}
+
 .beamer-table.is-internal-competition .beamer-row.is-rimfire:not(.beamer-head) {
   background: rgba(255, 255, 255, 0.025);
 }
@@ -3183,6 +3204,12 @@ select:focus {
   color: rgba(255, 255, 255, 0.58);
   font-size: clamp(1rem, 2vw, 1.45rem);
   font-weight: 900;
+}
+
+/* Extra ronde (2e/3e, na een foute score of eindewedstrijd): zichtbaar, telt
+   niet mee voor de eindstand. Zelfde roze als de .22-markering elders. */
+.ipad-result-name .ipad-extra-rounds-note {
+  color: #ff8ec4;
 }
 
 .ipad-result-position {
@@ -7163,6 +7190,15 @@ function getInternalScoreForShooterStage(shooterId, stageId) {
   );
 }
 
+// Alle rondes van een schutter voor dit onderdeel, oudste eerst. Ronde 1
+// (index 0) telt mee voor de eindstand; latere rondes blijven zichtbaar maar
+// tellen niet mee (zie getInternalCompetitionRanking).
+function getInternalRoundsForShooterStage(shooterId, stageId) {
+  return state.scores
+    .filter((item) => item.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId && item.shooterId === shooterId && item.stageId === stageId)
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
 function getMasterCardMaxShots() {
   return Math.max(1, Math.round(getInternalStageMaxPoints("stage-short") / 10));
 }
@@ -7731,17 +7767,28 @@ function getInternalCompetitionRanking(filters = {}) {
   const activeShooters = state.shooters.filter((shooter) => shooter.active || getInternalCompetitionScores().some((score) => score.shooterId === shooter.id));
   const scores = getInternalCompetitionScores();
   const scoresByShooterStage = new Map();
+  const extraRoundsByShooterStage = new Map();
   const dynamicFastestTimeByStage = new Map();
 
+  // Op createdAt (niet updatedAt): een latere wijziging via Wijzig mag de
+  // volgorde niet veranderen. Per schutter+onderdeel telt alleen de eerst
+  // ingevoerde score mee voor de eindstand; latere rondes (na een foute score
+  // of eindewedstrijd) blijven bewaard en zichtbaar, maar tellen niet mee.
   scores
     .slice()
-    .sort((a, b) => String(a.updatedAt || a.createdAt).localeCompare(String(b.updatedAt || b.createdAt)))
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
     .forEach((score) => {
       const canonicalStageId = getCanonicalInternalStageId(score.stageId);
       const key = `${score.shooterId}:${canonicalStageId}`;
       const current = scoresByShooterStage.get(key);
       if (current && score.stageId !== canonicalStageId) {
         scoresByShooterStage.set(key, combineInternalStageScores(current, score, canonicalStageId));
+        return;
+      }
+      if (current) {
+        const extras = extraRoundsByShooterStage.get(key) || [];
+        extras.push(score);
+        extraRoundsByShooterStage.set(key, extras);
         return;
       }
       scoresByShooterStage.set(key, { ...score, stageId: canonicalStageId, maxPoints: getInternalStage(canonicalStageId).maxPoints });
@@ -7772,6 +7819,7 @@ function getInternalCompetitionRanking(filters = {}) {
       let hasDq = false;
       const stageResults = getInternalStages().map((stage) => {
         const score = scoresByShooterStage.get(`${shooter.id}:${stage.id}`);
+        const extraRounds = extraRoundsByShooterStage.get(`${shooter.id}:${stage.id}`) || [];
         const isCompleted = Boolean(score);
         if (isCompleted) completedStages += 1;
         if (score?.status === "dq") hasDq = true;
@@ -7785,6 +7833,7 @@ function getInternalCompetitionRanking(filters = {}) {
           return {
             stage,
             score,
+            extraRounds,
             completed: isCompleted,
             points: score?.net || 0,
             time: 0,
@@ -7805,6 +7854,7 @@ function getInternalCompetitionRanking(filters = {}) {
         return {
           stage,
           score,
+          extraRounds,
           completed: isCompleted,
           points: score?.net || 0,
           time: score?.time || 0,
@@ -7845,6 +7895,7 @@ function getInternalCompetitionRanking(filters = {}) {
         totalDynamicTime,
         status: hasDq ? "DQ" : completedStages < INTERNAL_COMPETITION_CONFIG.stages.length ? "Voorlopig" : "Compleet",
         stageResults,
+        extraRoundsCount: stageResults.reduce((sum, result) => sum + result.extraRounds.length, 0),
       };
     })
     .filter((item) => !completeOnly || item.completedStages === item.totalStages);
@@ -8466,7 +8517,8 @@ function renderScores() {
     const existingScore = internalMode && !isEditing ? getInternalScoreForShooterStage(scoreDraft.shooterId, internalStage.id) : null;
     if (existingScore) {
       const shooterName = getShooter(scoreDraft.shooterId)?.name || "Deze schutter";
-      internalDuplicateNotice.textContent = `Let op: ${shooterName} heeft al een score voor ${internalStage.label}. Dit kan kloppen bij een correctie of een volgende ronde na een foute score of eindewedstrijd. Anders: controleer of je de juiste schutter hebt geselecteerd — opslaan overschrijft anders de vorige score.`;
+      const roundNumber = getInternalRoundsForShooterStage(scoreDraft.shooterId, internalStage.id).length + 1;
+      internalDuplicateNotice.textContent = `Let op: ${shooterName} heeft al een score voor ${internalStage.label}. Opslaan wordt ronde ${roundNumber} — die blijft zichtbaar maar telt niet mee voor het eindresultaat (alleen de eerste ronde telt). Kloppend bij een correctie of een volgende ronde na een foute score of eindewedstrijd; anders: controleer of je de juiste schutter hebt geselecteerd.`;
       internalDuplicateNotice.hidden = false;
     } else {
       internalDuplicateNotice.hidden = true;
@@ -8938,6 +8990,29 @@ function renderInternalScoreProgress() {
                       <button class="delete-button compact-delete" type="button" data-delete-score-round="${result.score.id}" aria-label="Onderdeel verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
                     </div>
                   </div>
+                  ${result.extraRounds
+                    .map(
+                      (extra, extraIndex) => `
+                        <div class="score-round-row is-extra-round">
+                          <span>${index + 1}. ${result.stage.label} · ronde ${extraIndex + 2}</span>
+                          <div class="score-round-value">
+                            <strong>${formatNumber(extra.net, 0)} pt</strong>
+                            <em>${formatScoreRoundMetrics(extra)}</em>
+                          </div>
+                          <small>Telt niet mee voor eindresultaat${extra.status && extra.status !== "normal" ? ` · ${getScoreStatusMeta(extra.status).label}` : ""}</small>
+                          <div class="score-row-actions">
+                            <button class="mini-action" type="button" data-edit-score="${extra.id}" data-trainer-only>Wijzig</button>
+                            ${
+                              extra.signatureDataUrl
+                                ? `<button class="mini-action" type="button" data-view-signature="${extra.id}">Handtekening</button>`
+                                : ""
+                            }
+                            <button class="delete-button compact-delete" type="button" data-delete-score-round="${extra.id}" aria-label="Extra ronde verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+                          </div>
+                        </div>
+                      `,
+                    )
+                    .join("")}
                 `,
               )
               .join("")}
@@ -9172,6 +9247,12 @@ function buildIpadResultCards(data) {
   const longTimeText = longCompleted && longResult.time > 0 ? `${formatNumber(longResult.time, 2)} sec` : "—";
   const statusText = item?.status === "Voorlopig" ? "Voorl." : item?.status || "Voorl.";
   const groupLabel = `${discipline} · ${getInternalClassLabel(level)}`;
+  const extraRoundsNote = [
+    shortResult?.extraRounds?.length ? `Korte baan +${shortResult.extraRounds.length} ronde${shortResult.extraRounds.length > 1 ? "s" : ""}` : "",
+    longResult?.extraRounds?.length ? `Lange baan +${longResult.extraRounds.length} ronde${longResult.extraRounds.length > 1 ? "s" : ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return `
     <section class="ipad-result-card">
@@ -9179,6 +9260,7 @@ function buildIpadResultCards(data) {
         <div class="ipad-result-name">
           <strong>${escapeHtml(shooter.name)}</strong>
           <small>${escapeHtml(groupLabel)}${shooter.optic ? ` · Optic -${opticScorePenalty}%` : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
+          ${extraRoundsNote ? `<small class="ipad-extra-rounds-note">${extraRoundsNote} extra ingevoerd (telt niet mee voor eindresultaat)</small>` : ""}
         </div>
         <div class="ipad-result-position" aria-label="Positie in klassement">
           <div>
@@ -9308,6 +9390,7 @@ function getBeamerRows() {
         dynamicContribution: item?.dynamicContribution || 0,
         completedStages: item?.completedStages || 0,
         totalStages: item?.totalStages || INTERNAL_COMPETITION_CONFIG.stages.length,
+        extraRoundsCount: item?.extraRoundsCount || 0,
         status: item?.status || "Voorlopig",
         entries: item?.entries || 0,
         savedTrainingCount: item?.savedTrainingCount || 0,
@@ -9737,7 +9820,7 @@ function renderBeamerBoard() {
             : "—";
         const latestText = latest ? formatNumber(latest.hitfactor, 3) : "—";
         const internalScoreText = `${formatNumber(row.precisionContribution, 1)} / ${formatNumber(row.dynamicContribution, 1)}`;
-        const internalStageText = `${row.completedStages}/${row.totalStages} · ${row.status}`;
+        const internalStageText = `${row.completedStages}/${row.totalStages} · ${row.status}${row.extraRoundsCount ? ` <b class="beamer-extra-rounds">+${row.extraRoundsCount} extra</b>` : ""}`;
         return `
           <div class="beamer-row${podiumClass}${rimfireRowClass}">
             <span class="beamer-rank">${row.levelPosition || "—"}</span>
@@ -11356,29 +11439,31 @@ $("#scoreForm").addEventListener("submit", (event) => {
       return;
     }
     const signatureRequired = isInternalCompetitionClub();
-    const existingScore =
-      (scoreDraft.editScoreId && state.scores.find((item) => item.id === scoreDraft.editScoreId)) ||
-      getInternalScoreForShooterStage(scoreDraft.shooterId, stage.id);
-    // Waarschuw als deze schutter al een score voor dit onderdeel heeft en dit
-    // geen bewuste bewerking is (via de Wijzig-knop). Zo overschrijft de trainer
-    // niet per ongeluk een score omdat hij vergat een nieuwe schutter te kiezen.
-    if (existingScore && !scoreDraft.editScoreId) {
+    // Bewerken via de Wijzig-knop overschrijft die specifieke ronde. Een
+    // schutter+onderdeel opnieuw kiezen zonder Wijzig maakt altijd een NIEUWE
+    // ronde aan (nooit overschrijven) — alleen de eerst ingevoerde ronde telt
+    // mee voor de eindstand, latere rondes blijven zichtbaar maar tellen niet
+    // mee (zie getInternalCompetitionRanking).
+    const editingRecord = scoreDraft.editScoreId ? state.scores.find((item) => item.id === scoreDraft.editScoreId) : null;
+    const isNewRound = !editingRecord && Boolean(getInternalScoreForShooterStage(scoreDraft.shooterId, stage.id));
+    if (isNewRound) {
       const shooterName = getShooter(scoreDraft.shooterId)?.name || "Deze schutter";
-      const overwriteConfirmed = window.confirm(
-        `${shooterName} heeft al een score voor ${stage.label}.\n\nSelecteer een nieuwe schutter, of klik op OK om de bestaande score te overschrijven.`,
+      const roundNumber = getInternalRoundsForShooterStage(scoreDraft.shooterId, stage.id).length + 1;
+      const confirmed = window.confirm(
+        `${shooterName} heeft al een score voor ${stage.label}.\n\nDit wordt ronde ${roundNumber}. De eerste score blijft tellen voor het eindresultaat; deze ronde blijft zichtbaar maar telt niet mee.\n\nDoorgaan?`,
       );
-      if (!overwriteConfirmed) {
-        showToast("Selecteer een nieuwe schutter");
+      if (!confirmed) {
+        showToast("Selecteer een nieuwe schutter of onderdeel");
         return;
       }
     }
-    const signatureDataUrl = signatureRequired ? getScoreSignatureDataUrl() : existingScore?.signatureDataUrl || "";
+    const signatureDataUrl = signatureRequired ? getScoreSignatureDataUrl() : editingRecord?.signatureDataUrl || "";
     if (signatureRequired && !signatureDataUrl) {
       showToast("Laat de schutter eerst tekenen voor akkoord");
       return;
     }
     const savedScore = {
-      id: existingScore?.id || createId("score"),
+      id: editingRecord?.id || createId("score"),
       competitionId: INTERNAL_COMPETITION_CONFIG.competitionId,
       shooterId: scoreDraft.shooterId,
       stageId: stage.id,
@@ -11408,14 +11493,14 @@ $("#scoreForm").addEventListener("submit", (event) => {
       reshootAvailable: statusMeta.reshootAvailable,
       notes: scoreDraft.notes || "",
       signatureDataUrl,
-      signedAt: signatureRequired ? new Date().toISOString() : existingScore?.signedAt || "",
-      agreementText: signatureDataUrl ? existingScore?.agreementText || "Score en tijd akkoord door schutter" : "",
-      createdAt: existingScore?.createdAt || new Date().toISOString(),
-      updatedAt: existingScore ? new Date().toISOString() : "",
+      signedAt: signatureRequired ? new Date().toISOString() : editingRecord?.signedAt || "",
+      agreementText: signatureDataUrl ? editingRecord?.agreementText || "Score en tijd akkoord door schutter" : "",
+      createdAt: editingRecord?.createdAt || new Date().toISOString(),
+      updatedAt: editingRecord ? new Date().toISOString() : "",
     };
 
-    if (existingScore) {
-      const changes = describeScoreChanges(existingScore, savedScore);
+    if (editingRecord) {
+      const changes = describeScoreChanges(editingRecord, savedScore);
       if (changes.length) {
         logChange({
           action: "edit",
@@ -11424,8 +11509,14 @@ $("#scoreForm").addEventListener("submit", (event) => {
           changes,
         });
       }
-      state.scores = state.scores.map((score) => (score.id === existingScore.id ? savedScore : score));
+      state.scores = state.scores.map((score) => (score.id === editingRecord.id ? savedScore : score));
     } else {
+      logChange({
+        action: "create",
+        shooter: getShooter(savedScore.shooterId)?.name,
+        context: scoreLogContext(savedScore),
+        changes: [`nieuwe ronde · netto ${formatNumber(savedScore.net, 0)} pt${isNewRound ? " · telt niet mee voor eindresultaat" : ""}`],
+      });
       state.scores.push(savedScore);
     }
     markDirty();
@@ -11436,7 +11527,7 @@ $("#scoreForm").addEventListener("submit", (event) => {
     scoreDraft.stageId = nextStageId;
     clearScoreSignature();
     render();
-    showToast(existingScore ? "Score bijgewerkt" : "Score opgeslagen");
+    showToast(editingRecord ? "Score bijgewerkt" : isNewRound ? "Nieuwe ronde opgeslagen (telt niet mee voor eindresultaat)" : "Score opgeslagen");
     return;
   }
 
