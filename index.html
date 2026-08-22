@@ -55,6 +55,13 @@ html {
   min-height: 100%;
   background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
   touch-action: manipulation;
+  /* iOS Safari kan tekst los van de opgegeven CSS-grootte laten "meegroeien"
+     op bredere/liggende schermen (vooral iPad) — dat laat tekst uit precies
+     passende vakjes (zoals de roze positie-badge) lopen terwijl het op
+     mobiel wél past. Zet uit zodat lettergrootte altijd exact is wat de CSS
+     zegt. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -3269,14 +3276,14 @@ select:focus {
    .22-markering/extra-ronde-labels elders, met dezelfde hartslag-animatie. */
 .ipad-result-position-hypothetical {
   position: absolute;
-  right: -10%;
-  bottom: -6%;
+  right: -8%;
+  bottom: -4%;
   display: grid;
   place-items: center;
-  width: 62%;
-  min-width: 0;
-  min-height: 0;
-  aspect-ratio: 1;
+  /* Vaste eigen schaal (niet als % van de ouder) zodat het cijfer altijd
+     ruim past, ongeacht hoe groot de echte positiecirkel zelf uitvalt. */
+  width: clamp(68px, 9.5vw, 112px);
+  height: clamp(68px, 9.5vw, 112px);
   border: 2px solid rgba(255, 92, 170, 0.65);
   border-radius: 999px;
   background: linear-gradient(165deg, #ff9ecf, #ff5caa);
