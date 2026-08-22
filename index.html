@@ -9328,6 +9328,75 @@ function formatBeamerRoundScore(score) {
   `;
 }
 
+function renderApsBeamerBody(table) {
+  const formula = $("#beamerFormula");
+  if (formula) formula.hidden = true;
+  const rows = getApsCompetitionRanking({ completeOnly: false });
+  const rowsPerPage = getBeamerRowsPerPage();
+  const pages = [];
+  for (let i = 0; i < rows.length; i += rowsPerPage) pages.push(rows.slice(i, i + rowsPerPage));
+  if (!pages.length) pages.push([]);
+  if (beamerPaging.index >= pages.length) beamerPaging.index = 0;
+  if (beamerPaging.index < 0) beamerPaging.index = pages.length - 1;
+  const activePage = pages[beamerPaging.index] || [];
+  table.classList.toggle("is-dense", rowsPerPage <= 9);
+  table.classList.remove("is-ultra-dense", "is-split", "is-mega");
+
+  const header = `
+    <div class="beamer-row beamer-head">
+      <span>#</span>
+      <span>Schutter</span>
+      <span>Eindscore</span>
+      <span>Netto / tijd</span>
+      <span>Kort / Lang</span>
+    </div>
+  `;
+  const rowsHtml = activePage
+    .map((row) => {
+      const pos = rows.indexOf(row) + 1;
+      const podiumClass = pos <= 3 ? ` podium-${pos}` : "";
+      const blocked = row.statusKey && row.statusKey !== "normal";
+      const timeText = row.time > 0 ? `${formatNumber(row.time, 2)} s` : "—";
+      return `
+        <div class="beamer-row${podiumClass}">
+          <span class="beamer-rank">${blocked ? row.status : pos}</span>
+          <strong>${escapeHtml(row.shooter.name)}${row.completed ? "" : " · onvolledig"}</strong>
+          <span class="beamer-score">${formatNumber(row.hitfactor, 3)}</span>
+          <span>${formatNumber(row.netPoints, 0)} pt · ${timeText}</span>
+          <span>${formatNumber(row.shortPoints, 0)} / ${formatNumber(row.longPoints, 0)}</span>
+        </div>
+      `;
+    })
+    .join("");
+
+  table.innerHTML = rows.length
+    ? `
+      <section class="beamer-level-group">
+        <div class="beamer-level-title">
+          <strong>Nationaal klassement</strong>
+          <span>${rows.length} schutters</span>
+        </div>
+        ${header}
+        ${rowsHtml}
+      </section>
+    `
+    : `<div class="empty">Nog geen APS-resultaten.</div>`;
+
+  const pager = $("#beamerPager");
+  if (pager) {
+    const multi = pages.length > 1;
+    pager.hidden = !multi;
+    if (multi) {
+      pager.innerHTML = `
+        <span class="beamer-pager-label">Pagina ${beamerPaging.index + 1} / ${pages.length}</span>
+        <span class="beamer-pager-dots" aria-hidden="true">${pages
+          .map((_, index) => `<i class="${index === beamerPaging.index ? "is-active" : ""}"></i>`)
+          .join("")}</span>
+      `;
+    }
+  }
+}
+
 function renderBeamerBoard() {
   const overlay = $("#beamerOverlay");
   if (!overlay || overlay.hidden) return;
@@ -9365,6 +9434,11 @@ function renderBeamerBoard() {
   const internalMode = isInternalCompetitionClub();
   overlay.classList.toggle("is-internal-competition", internalMode);
   table.classList.toggle("is-internal-competition", internalMode);
+
+  if (isApsCompetitionClub()) {
+    renderApsBeamerBody(table);
+    return;
+  }
 
   if (beamerMode === "rounds") {
     const formula = $("#beamerFormula");
