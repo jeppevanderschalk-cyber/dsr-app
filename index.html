@@ -1218,41 +1218,23 @@ select:focus {
 }
 
 .master-card-stepper {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
 }
 
-.master-card-stepper button {
-  min-height: 58px;
+.master-card-stepper[hidden] {
+  display: none;
 }
 
-.master-card-stepper button[data-master-card-score] {
-  background: #111215;
-  color: var(--yellow-hi);
-  font-size: 1.2rem;
+.master-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.master-card-stepper button[data-master-card-score="10"] {
-  background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
-  color: var(--accent-ink);
-}
-
-.master-card-stepper button[data-master-card-score="0"] {
-  border-color: rgba(255, 107, 93, 0.45);
-  color: #ff867a;
-}
-
-.master-card-stepper button[data-master-card-remove] {
-  border-color: rgba(255, 107, 93, 0.4);
-  background: rgba(255, 107, 93, 0.14);
-  color: #fff;
-  font-size: 1rem;
-}
-
-.master-card-stepper button[data-master-card-action] {
-  grid-column: span 2;
+.master-card-actions .mini-action {
   min-height: 48px;
-  color: var(--muted);
-  font-size: 0.92rem;
 }
 
 .master-card-summary {
@@ -1421,9 +1403,16 @@ select:focus {
 }
 
 .long-stage-step[data-long-step="1"],
-.long-stage-step[data-aps-delta="1"] {
+.long-stage-step[data-aps-delta="1"],
+.long-stage-step[data-master-card-score] {
   background: linear-gradient(165deg, var(--yellow-hi), var(--yellow-lo));
   color: var(--accent-ink);
+}
+
+.long-stage-step[data-master-card-score="0"] {
+  background: rgba(255, 107, 93, 0.18);
+  border-color: rgba(255, 107, 93, 0.5);
+  color: #ff9a90;
 }
 
 .internal-score-grid.is-long-course #scoreRawPointsLabel,
@@ -4721,22 +4710,7 @@ dialog .primary-action::after {
               <label>
                 <span id="scoreRawPointsLabel">Behaalde punten</span>
                 <input id="scoreRawPoints" type="number" min="0" step="1" inputmode="numeric" placeholder="0" />
-                <div id="masterCardStepper" class="internal-point-stepper master-card-stepper" aria-label="Meesterkaart telling" hidden>
-                  <button type="button" data-master-card-score="0">Mis</button>
-                  <button type="button" data-master-card-score="6">6</button>
-                  <button type="button" data-master-card-score="7">7</button>
-                  <button type="button" data-master-card-score="8">8</button>
-                  <button type="button" data-master-card-score="9">9</button>
-                  <button type="button" data-master-card-score="10">10</button>
-                  <button type="button" data-master-card-remove="0">-Mis</button>
-                  <button type="button" data-master-card-remove="6">-6</button>
-                  <button type="button" data-master-card-remove="7">-7</button>
-                  <button type="button" data-master-card-remove="8">-8</button>
-                  <button type="button" data-master-card-remove="9">-9</button>
-                  <button type="button" data-master-card-remove="10">-10</button>
-                  <button type="button" data-master-card-action="undo">Laatste terug</button>
-                  <button type="button" data-master-card-action="clear">Kaart wissen</button>
-                </div>
+                <div id="masterCardStepper" class="master-card-stepper" aria-label="Meesterkaart telling" hidden></div>
                 <small id="masterCardSummary" class="master-card-summary" hidden></small>
                 <div id="internalPointStepper" class="internal-point-stepper" aria-label="Punten snel invoeren">
                   <button type="button" data-internal-step="rawPoints" data-step-value="-100">-100</button>
@@ -7382,6 +7356,59 @@ function renderMasterCardSummary(calc) {
   return `${hits.length}/${getMasterCardMaxShots()} schoten · ${counts} · totaal ${formatNumber(total, 0)} / ${formatNumber(maxPoints, 0)} · korte baan ${contribution}`;
 }
 
+// Van hoog naar laag, net als de APS-stage-knoppen (10-treffer bovenaan).
+const masterCardStepperOrder = [10, 9, 8, 7, 6, 0];
+
+function buildMasterCardStepperDom(target) {
+  target.innerHTML = `
+    <section class="long-stage-card">
+      ${masterCardStepperOrder
+        .map((value) => {
+          const label = value === 0 ? "Mis" : `${value}-treffer`;
+          return `
+            <div class="long-stage-line">
+              <div class="long-stage-line__label">
+                <strong>${label}</strong>
+                <small>${value} pt · max <span data-master-card-max="${value}">0</span>x</small>
+              </div>
+              <button class="long-stage-step" type="button" data-master-card-remove="${value}" aria-label="${label} corrigeren">−</button>
+              <span class="long-stage-line__count" data-master-card-count="${value}">0 / 0</span>
+              <button class="long-stage-step" type="button" data-master-card-score="${value}" aria-label="${label} toevoegen">+</button>
+            </div>`;
+        })
+        .join("")}
+      <div class="aps-hits-note" id="masterCardHitsNote">Totaal 0 / 0 schoten</div>
+      <div class="master-card-actions">
+        <button class="mini-action" type="button" data-master-card-action="undo">Laatste terug</button>
+        <button class="mini-action" type="button" data-master-card-action="clear">Kaart wissen</button>
+      </div>
+    </section>`;
+}
+
+function updateMasterCardStepperValues(target) {
+  const hits = Array.isArray(scoreDraft.cardHits) ? scoreDraft.cardHits : [];
+  const maxShots = getMasterCardMaxShots();
+  masterCardStepperOrder.forEach((value) => {
+    const count = hits.filter((hit) => hit === value).length;
+    const countEl = target.querySelector(`[data-master-card-count="${value}"]`);
+    if (countEl) countEl.textContent = `${count} / ${maxShots}`;
+    const maxEl = target.querySelector(`[data-master-card-max="${value}"]`);
+    if (maxEl) maxEl.textContent = String(maxShots);
+  });
+  const hitsNote = target.querySelector("#masterCardHitsNote");
+  if (hitsNote) hitsNote.textContent = `Totaal ${hits.length} / ${maxShots} schoten`;
+}
+
+function renderMasterCardStepper() {
+  const target = $("#masterCardStepper");
+  if (!target) return;
+  if (target.dataset.built !== "1") {
+    buildMasterCardStepperDom(target);
+    target.dataset.built = "1";
+  }
+  updateMasterCardStepperValues(target);
+}
+
 function syncLongCourseScoreFromStages() {
   const totals = getLongCourseStageTotals(scoreDraft.longCourseStages);
   scoreDraft.rawPoints = String(totals.total);
@@ -8432,6 +8459,7 @@ function renderScores() {
   $("#scoreRawPoints").required = false;
   $("#scorePenaltyPoints").required = false;
   $("#masterCardSummary").textContent = renderMasterCardSummary(calc);
+  if (internalMode && precisionStage) renderMasterCardStepper();
   if (internalMode && !precisionStage) renderLongCourseStageInput(calc);
 
   if (internalMode) {
