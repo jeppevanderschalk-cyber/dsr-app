@@ -5398,13 +5398,13 @@ const AUTH_CONFIG = {
     "acc4000223bcdfa348e0f3524fdf5028d2944f713f122b9f57f7a86f036dacb5",
   ],
   shooterHash: "daeb81b8d50edaaa11bfbf22fa040e093ab5cdf82b592f764daa82d93bc155e9",
-  // Club-specifieke trainer-wachtwoorden. Voor deze clubs geldt naast het
-  // algemene trainer-wachtwoord ook het eigen wachtwoord hieronder.
-  clubTrainerHashes: {
-    "APS-DSR": ["41bf2ad91aa733dede5100475b9e696f5c41d606d492c366ae3577f3cc09c987"], // APS-1
-  },
+  // Club-specifieke trainer-wachtwoorden (naast het algemene). Bewust leeg: de
+  // APS-trainer gebruikt het algemene trainer-wachtwoord, want alleen dat wordt
+  // ook server-side (Supabase save-score) geaccepteerd en synct daardoor.
+  clubTrainerHashes: {},
   // Club-specifieke kijk-only (schutter) wachtwoorden. Naast het algemene
   // schutter-wachtwoord geldt voor deze clubs ook het eigen wachtwoord.
+  // (Kijkers halen alleen op; dat vereist geen server-wachtwoord.)
   clubShooterHashes: {
     "APS-DSR": ["b42b5c6021d0c5c366e6060a2a71b638c067669f4d35d17d51ff681e7ebb10f6"], // APS-DSR!
   },
