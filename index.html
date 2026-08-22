@@ -9385,8 +9385,8 @@ function buildIpadResultCards(data) {
   const statusText = item?.status === "Voorlopig" ? "Voorl." : item?.status || "Voorl.";
   const groupLabel = `${discipline} · ${getInternalClassLabel(level)}`;
   const extraRoundsNote = [
-    shortResult?.extraRounds?.length ? `Korte baan +${shortResult.extraRounds.length} ronde${shortResult.extraRounds.length > 1 ? "s" : ""}` : "",
-    longResult?.extraRounds?.length ? `Lange baan +${longResult.extraRounds.length} ronde${longResult.extraRounds.length > 1 ? "s" : ""}` : "",
+    shortResult?.extraRounds?.length ? `Korte baan +${shortResult.extraRounds.length}` : "",
+    longResult?.extraRounds?.length ? `Lange baan +${longResult.extraRounds.length}` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -9397,7 +9397,7 @@ function buildIpadResultCards(data) {
         <div class="ipad-result-name">
           <strong>${escapeHtml(shooter.name)}</strong>
           <small>${escapeHtml(groupLabel)}${shooter.optic ? ` · Optic -${opticScorePenalty}%` : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
-          ${extraRoundsNote ? `<small class="ipad-extra-rounds-note">${extraRoundsNote} extra ingevoerd (telt niet mee voor eindresultaat)</small>` : ""}
+          ${extraRoundsNote ? `<small class="ipad-extra-rounds-note">${extraRoundsNote} extra ronde ingevoerd, deze telt niet mee voor het eindresultaat</small>` : ""}
         </div>
         <div class="ipad-result-position" aria-label="Positie in klassement">
           <div>
