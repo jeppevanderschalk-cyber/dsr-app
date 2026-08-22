@@ -1,4 +1,4 @@
-const CACHE_NAME = "dsr-score-cache-v131";
+const CACHE_NAME = "dsr-score-cache-v132";
 const ASSETS = [
   "./",
   "index.html",
@@ -9,10 +9,10 @@ const ASSETS = [
   "svbb-beamer-logo-compact.png",
   "svbb-login-logo-v6.png",
   "svbb-competition-login-logo.png",
-  "svbb-app-icon-v6-32.png",
-  "svbb-app-icon-v6-180.png",
-  "svbb-app-icon-v6-192.png",
-  "svbb-app-icon-v6-512.png",
+  "svbb-app-icon-v5-32.png",
+  "svbb-app-icon-v5-180.png",
+  "svbb-app-icon-v5-192.png",
+  "svbb-app-icon-v5-512.png",
 ];
 
 self.addEventListener("install", (event) => {
