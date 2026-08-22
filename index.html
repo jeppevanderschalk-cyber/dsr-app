@@ -5860,6 +5860,7 @@ function loadState() {
 
 function mergeData(base, saved) {
   const internalClub = normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
+  const apsClub = normalizeClubCode(currentClubId) === "APS-DSR";
   const shooters = Array.isArray(saved.shooters)
     ? saved.shooters.map((shooter) => ({
         ...shooter,
@@ -5875,6 +5876,18 @@ function mergeData(base, saved) {
   const scores = Array.isArray(saved.scores)
     ? saved.scores.map((score) => {
         const internalScore = internalClub && Boolean(score.stageId || score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId);
+        // Herken ook bestaande APS-resultaten aan hun apsStages (niet alleen aan
+        // competitionId): anders werden hier competitionId/stageId/rawPoints/etc.
+        // van al opgeslagen APS-resultaten bij elke merge (o.a. de sync-poll)
+        // teruggezet naar leeg/0, waardoor ze uit het APS-klassement verdwenen
+        // en het leek alsof scores niet synchroniseerden tussen apparaten.
+        const apsScore =
+          apsClub &&
+          Boolean(
+            (score.apsStages && typeof score.apsStages === "object" && Object.keys(score.apsStages).length) ||
+              score.competitionId === APS_COMPETITION_CONFIG.competitionId,
+          );
+        const competitionScore = internalScore || apsScore;
         return {
           ...score,
           flexPoints: Math.max(0, Number(score.flexPoints) || 0),
@@ -5883,21 +5896,35 @@ function mergeData(base, saved) {
           round: Number(score.round) > 0 ? Math.min(15, Number(score.round)) : undefined,
           discipline: internalScore
             ? "Interne competitie"
-            : normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
-          competitionId: internalScore ? score.competitionId || INTERNAL_COMPETITION_CONFIG.competitionId : "",
-          stageId: internalScore ? score.stageId || "" : "",
-          scoringType: internalScore ? score.scoringType || "" : "",
-          inputMode: internalScore ? score.inputMode || "" : "",
-          rawPoints: internalScore ? Math.max(0, Number(score.rawPoints) || 0) : 0,
-          maxPoints: internalScore ? Math.max(0, Number(score.maxPoints) || 0) : 0,
+            : apsScore
+              ? "APS-DSR"
+              : normalizeDiscipline(score.discipline || shooters.find((shooter) => shooter.id === score.shooterId)?.discipline),
+          competitionId: internalScore
+            ? score.competitionId || INTERNAL_COMPETITION_CONFIG.competitionId
+            : apsScore
+              ? score.competitionId || APS_COMPETITION_CONFIG.competitionId
+              : "",
+          stageId: internalScore
+            ? score.stageId || ""
+            : apsScore
+              ? score.stageId || APS_COMPETITION_CONFIG.courseStageId
+              : "",
+          scoringType: internalScore ? score.scoringType || "" : apsScore ? "hitfactor" : "",
+          inputMode: competitionScore ? score.inputMode || "direct" : "",
+          rawPoints: apsScore
+            ? Math.max(0, Number(score.rawPoints) || (Number(score.shortPoints) || 0) + (Number(score.longPoints) || 0))
+            : internalScore
+              ? Math.max(0, Number(score.rawPoints) || 0)
+              : 0,
+          maxPoints: apsScore ? apsTotalMaxPoints : internalScore ? Math.max(0, Number(score.maxPoints) || 0) : 0,
           percentage: internalScore ? Number(score.percentage) || 0 : 0,
           cardHits: internalScore && Array.isArray(score.cardHits) ? score.cardHits.map(Number).filter(Number.isFinite) : [],
           longCourseHits: internalScore ? normalizeLongCourseHits(score.longCourseHits) : createEmptyLongCourseHits(),
           longCourseStages: internalScore ? normalizeLongCourseStages(score.longCourseStages) : createEmptyLongCourseStages(),
           legacy: Boolean(score.legacy || (internalClub && !score.stageId)),
-          signatureDataUrl: internalScore && typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
-          signedAt: internalScore ? score.signedAt || "" : "",
-          agreementText: internalScore ? score.agreementText || "" : "",
+          signatureDataUrl: competitionScore && typeof score.signatureDataUrl === "string" ? score.signatureDataUrl : "",
+          signedAt: competitionScore ? score.signedAt || "" : "",
+          agreementText: competitionScore ? score.agreementText || "" : "",
         };
       })
     : [];
