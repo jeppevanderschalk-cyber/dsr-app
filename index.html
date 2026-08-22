@@ -1407,6 +1407,67 @@ select:focus {
   box-shadow: 0 18px 48px rgba(245, 197, 24, 0.12);
 }
 
+.aps-baan-title {
+  margin: 10px 0 2px;
+  color: var(--yellow);
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aps-baan-title:first-child {
+  margin-top: 0;
+}
+
+.aps-hits-note {
+  padding: 4px 2px 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.aps-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.aps-result-row + .aps-result-row {
+  margin-top: 8px;
+}
+
+.aps-result-row.is-incomplete {
+  opacity: 0.72;
+}
+
+.aps-result-row__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.aps-result-row__main strong {
+  font-size: 0.98rem;
+}
+
+.aps-result-row__main small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.aps-result-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .long-course-total-card span {
   color: var(--muted);
   font-size: 0.82rem;
@@ -4576,7 +4637,7 @@ dialog .primary-action::after {
             </button>
           </div>
 
-          <form id="scoreForm" class="score-form" data-trainer-only>
+          <form id="scoreForm" class="score-form" data-trainer-only data-aps-hidden>
             <div class="field-grid">
               <label>
                 <span>Schutter</span>
@@ -4737,11 +4798,63 @@ dialog .primary-action::after {
             </button>
           </form>
 
+          <form id="apsScoreForm" class="score-form" data-trainer-only data-aps-only hidden>
+            <div class="field-grid">
+              <label>
+                <span>Schutter</span>
+                <select id="apsScoreShooter"></select>
+              </label>
+            </div>
+
+            <div id="apsStageInput" class="long-course-stage-input" aria-label="APS baan per stage invoeren"></div>
+
+            <div class="field-grid">
+              <label>
+                <span>Tijd korte baan (stage 1-3)</span>
+                <input id="apsShortTime" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
+              </label>
+              <label>
+                <span>Tijd lange baan (stage 4-7)</span>
+                <input id="apsLongTime" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" />
+              </label>
+            </div>
+
+            <section class="long-stage-card" aria-label="Overtredingen">
+              <div class="long-stage-line">
+                <div class="long-stage-line__label">
+                  <strong>Overtredingen</strong>
+                  <small>−10 punten per overtreding</small>
+                </div>
+                <button class="long-stage-step" type="button" data-aps-penalty="-1" aria-label="Overtreding verwijderen">−</button>
+                <span class="long-stage-line__count" id="apsPenaltyCountLabel">0</span>
+                <button class="long-stage-step" type="button" data-aps-penalty="1" aria-label="Overtreding toevoegen">+</button>
+              </div>
+            </section>
+
+            <div class="field-grid">
+              <label>
+                <span>Status</span>
+                <select id="apsStatus"></select>
+              </label>
+            </div>
+
+            <section class="long-course-total-card" id="apsTotalCard" aria-label="APS eindscore">
+              <span>Nationale eindscore</span>
+              <strong id="apsTotalHitfactor">0,000</strong>
+              <small id="apsTotalBreakdown"></small>
+            </section>
+
+            <button class="primary-action full-width" id="apsScoreSubmitButton" type="submit">
+              <span>Resultaat opslaan</span>
+            </button>
+          </form>
+
           <section class="section-block">
             <div class="section-heading">
               <h3>Progressie per schutter</h3>
             </div>
             <div class="list" id="recentScores"></div>
+            <div class="list" id="apsRecentScores" hidden></div>
           </section>
         </section>
 
@@ -5221,7 +5334,7 @@ dialog .primary-action::after {
       <div class="ipad-result-shell">
         <header class="ipad-result-header">
           <div>
-            <p class="ipad-result-kicker">Interne competitie</p>
+            <p class="ipad-result-kicker" id="ipadResultKicker">Interne competitie</p>
             <h2>Jouw resultaat</h2>
           </div>
           <button class="icon-button ipad-result-close" id="ipadResultCloseButton" type="button" aria-label="iPad view sluiten" title="Sluiten">
@@ -5397,6 +5510,224 @@ const INTERNAL_COMPETITION_CONFIG = {
     { id: "stage-long", label: "Lange baan - stage 3 t/m 7", scoringType: "hitfactor", maxPoints: longCourseMaxPoints, weight: 100 },
   ],
 };
+
+// ---------------------------------------------------------------------------
+// APS-DSR nationale competitie (volledig losstaand van de interne competitie).
+// Eén doorlopende baan van 7 stages: korte baan (1-3) en lange baan (4-7) zijn
+// aan elkaar gekoppeld tot één resultaat. Beide banen tellen tijd mee.
+// Eindscore = (korte punten + lange punten - overtredingen*10) / (korte tijd +
+// lange tijd). Alles wordt als één scorerecord per schutter opgeslagen.
+// ---------------------------------------------------------------------------
+const APS_COMPETITION_CONFIG = {
+  competitionId: "aps-dsr-v1",
+  courseStageId: "aps-course",
+  penaltyPerViolation: 10,
+};
+const apsStageConfig = [
+  { id: "stage1", baan: "kort", label: "Stage 1", title: "Liggend", note: "20 bowling pins, 10 punten per pin.", maxPoints: 200, items: [{ key: "pins", label: "Bowling pins", value: 10, max: 20 }] },
+  { id: "stage2", baan: "kort", label: "Stage 2", title: "Stepping stones", note: "3×3 doelen, 3 treffers per doel, 10 punten per treffer.", maxPoints: 270, items: [{ key: "hits", label: "Treffers", value: 10, max: 27 }] },
+  { id: "stage3", baan: "kort", label: "Stage 3", title: "Tunnel", note: "2 skeletten, 40 onderdelen, 10 punten per onderdeel.", maxPoints: 400, items: [{ key: "parts", label: "Onderdelen", value: 10, max: 40 }] },
+  { id: "stage4", baan: "lang", label: "Stage 4", title: "Mijnkar", note: "50 doelen, 10 punten per doel.", maxPoints: 500, items: [{ key: "targets", label: "Doelen", value: 10, max: 50 }] },
+  { id: "stage5", baan: "lang", label: "Stage 5", title: "Meesterkaarten", note: "8 kaarten × 2 treffers (max 16), waarde 6 t/m 10.", maxPoints: 160, maxHits: 16, items: [
+    { key: "v10", label: "10-treffer", value: 10, max: 16 },
+    { key: "v9", label: "9-treffer", value: 9, max: 16 },
+    { key: "v8", label: "8-treffer", value: 8, max: 16 },
+    { key: "v7", label: "7-treffer", value: 7, max: 16 },
+    { key: "v6", label: "6-treffer", value: 6, max: 16 },
+  ] },
+  { id: "stage6", baan: "lang", label: "Stage 6", title: "Kleiduiven", note: "10 kleiduiven, 10 punten per stuk.", maxPoints: 100, items: [{ key: "clays", label: "Kleiduiven", value: 10, max: 10 }] },
+  { id: "stage7", baan: "lang", label: "Stage 7", title: "Doelen", note: "10 doelen, 10 punten per stuk.", maxPoints: 100, items: [{ key: "targets", label: "Doelen", value: 10, max: 10 }] },
+];
+const apsShortMaxPoints = apsStageConfig.filter((s) => s.baan === "kort").reduce((sum, s) => sum + s.maxPoints, 0); // 870
+const apsLongMaxPoints = apsStageConfig.filter((s) => s.baan === "lang").reduce((sum, s) => sum + s.maxPoints, 0); // 860
+const apsTotalMaxPoints = apsShortMaxPoints + apsLongMaxPoints; // 1730
+
+function createEmptyApsStages() {
+  const stages = {};
+  apsStageConfig.forEach((stage) => {
+    stages[stage.id] = {};
+    stage.items.forEach((item) => {
+      stages[stage.id][item.key] = 0;
+    });
+  });
+  return stages;
+}
+
+function normalizeApsStages(value) {
+  const source = value && typeof value === "object" ? value : {};
+  const normalized = createEmptyApsStages();
+  apsStageConfig.forEach((stage) => {
+    const stageSource = source[stage.id] && typeof source[stage.id] === "object" ? source[stage.id] : {};
+    stage.items.forEach((item) => {
+      const count = Math.round(Number(stageSource[item.key]) || 0);
+      normalized[stage.id][item.key] = Math.min(item.max, Math.max(0, count));
+    });
+    // Stage 5: totaal aantal treffers over alle waardes is gemaximeerd (8 kaarten
+    // × 2 treffers = 16). Snoei zo nodig van de laagste waarde af.
+    if (stage.maxHits) {
+      let total = stage.items.reduce((sum, item) => sum + normalized[stage.id][item.key], 0);
+      for (let i = stage.items.length - 1; i >= 0 && total > stage.maxHits; i--) {
+        const key = stage.items[i].key;
+        const trim = Math.min(normalized[stage.id][key], total - stage.maxHits);
+        normalized[stage.id][key] -= trim;
+        total -= trim;
+      }
+    }
+  });
+  return normalized;
+}
+
+function getApsStageScore(stage, stages) {
+  const points = stage.items.reduce((sum, item) => sum + (Number(stages[stage.id]?.[item.key]) || 0) * item.value, 0);
+  return Math.min(stage.maxPoints, points);
+}
+
+function getApsStageHits(stage, stages) {
+  return stage.items.reduce((sum, item) => sum + (Number(stages[stage.id]?.[item.key]) || 0), 0);
+}
+
+function getApsTotals(stages) {
+  const normalized = normalizeApsStages(stages);
+  let shortPoints = 0;
+  let longPoints = 0;
+  apsStageConfig.forEach((stage) => {
+    const stageScore = getApsStageScore(stage, normalized);
+    if (stage.baan === "kort") shortPoints += stageScore;
+    else longPoints += stageScore;
+  });
+  return { shortPoints, longPoints, total: shortPoints + longPoints };
+}
+
+function calculateApsScore(input) {
+  const status = scoreStatusOptions[input.status] ? input.status : "normal";
+  const blocksScore = getScoreStatusMeta(status).blocksScore;
+  const stages = normalizeApsStages(input.apsStages);
+  const totals = getApsTotals(stages);
+  const penaltyCount = Math.max(0, Math.round(Number(input.apsPenaltyCount) || 0));
+  const penaltyPoints = penaltyCount * APS_COMPETITION_CONFIG.penaltyPerViolation;
+  const shortTime = Math.max(0, parseDecimal(input.apsShortTime) || 0);
+  const longTime = Math.max(0, parseDecimal(input.apsLongTime) || 0);
+  const time = shortTime + longTime;
+  const shortPoints = blocksScore ? 0 : totals.shortPoints;
+  const longPoints = blocksScore ? 0 : totals.longPoints;
+  const rawPoints = shortPoints + longPoints;
+  const net = blocksScore ? 0 : Math.max(0, rawPoints - penaltyPoints);
+  const hitfactor = !blocksScore && time > 0 ? net / time : 0;
+  return {
+    competitionId: APS_COMPETITION_CONFIG.competitionId,
+    stageId: APS_COMPETITION_CONFIG.courseStageId,
+    apsStages: stages,
+    shortPoints,
+    longPoints,
+    rawPoints,
+    penaltyCount,
+    penaltyPoints,
+    shortTime,
+    longTime,
+    time,
+    net,
+    hitfactor,
+    status,
+  };
+}
+
+function getApsCourseScores() {
+  return state.scores.filter(
+    (score) => score.competitionId === APS_COMPETITION_CONFIG.competitionId && score.stageId === APS_COMPETITION_CONFIG.courseStageId,
+  );
+}
+
+function getApsScoreForShooter(shooterId) {
+  let latest = null;
+  let latestTs = "";
+  for (const score of getApsCourseScores()) {
+    if (score.shooterId !== shooterId) continue;
+    const ts = syncItemTimestamp(score);
+    if (!latest || ts > latestTs) {
+      latest = score;
+      latestTs = ts;
+    }
+  }
+  return latest;
+}
+
+function isApsScoreCompleted(score) {
+  if (!score) return false;
+  if (getScoreStatusMeta(score.status).blocksScore) return true;
+  return Number(score.shortTime) > 0 && Number(score.longTime) > 0;
+}
+
+function apsScoreToRankingItem(score, shooter) {
+  const shortPoints = Number(score.shortPoints) || 0;
+  const longPoints = Number(score.longPoints) || 0;
+  const penaltyPoints = Number(score.penaltyPoints) || 0;
+  const net = Number(score.net) || Math.max(0, shortPoints + longPoints - penaltyPoints);
+  const totalTime = Number(score.time) || (Number(score.shortTime) || 0) + (Number(score.longTime) || 0);
+  const hitfactor = Number(score.hitfactor) || (totalTime > 0 ? net / totalTime : 0);
+  const completed = isApsScoreCompleted(score);
+  return {
+    shooter,
+    scoreId: score.id,
+    discipline: "APS-DSR",
+    shortPoints,
+    longPoints,
+    penaltyPoints,
+    penaltyCount: Number(score.penaltyCount) || 0,
+    netPoints: net,
+    points: net,
+    shortTime: Number(score.shortTime) || 0,
+    longTime: Number(score.longTime) || 0,
+    time: totalTime,
+    hitfactor,
+    overallScore: hitfactor,
+    completed,
+    status: getScoreStatusMeta(score.status).label,
+    statusKey: score.status || "normal",
+    entries: 1,
+  };
+}
+
+function getApsCompetitionRanking(filters = {}) {
+  const completeOnly = Boolean(filters.completeOnly);
+  const items = [];
+  state.shooters.forEach((shooter) => {
+    const score = getApsScoreForShooter(shooter.id);
+    if (!score) return;
+    const item = apsScoreToRankingItem(score, shooter);
+    if (completeOnly && !item.completed) return;
+    items.push(item);
+  });
+  items.sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? -1 : 1;
+    return b.hitfactor - a.hitfactor;
+  });
+  return items;
+}
+
+function getApsIpadResultShooterId() {
+  let latest = null;
+  let latestTs = "";
+  for (const score of getApsCourseScores()) {
+    if (!isApsScoreCompleted(score)) continue;
+    const ts = syncItemTimestamp(score);
+    if (!latest || ts > latestTs) {
+      latest = score;
+      latestTs = ts;
+    }
+  }
+  return latest?.shooterId || "";
+}
+
+function getApsIpadResultData(shooterId = "") {
+  if (!isApsCompetitionClub() || !shooterId) return null;
+  const shooter = getShooter(shooterId);
+  if (!shooter) return null;
+  const group = getApsCompetitionRanking({ completeOnly: false });
+  const item = group.find((entry) => entry.shooter.id === shooter.id) || null;
+  const position = group.findIndex((entry) => entry.shooter.id === shooter.id) + 1;
+  return { shooter, group, item, position, topThree: group.slice(0, 3) };
+}
+
 const liveSyncIntervalMs = 5000;
 const scoreStatusOptions = {
   normal: { label: "Normaal", detail: "Score telt mee", blocksScore: false, reshootAvailable: false },
@@ -5655,6 +5986,16 @@ function isInternalCompetitionClub() {
   return normalizeClubCode(currentClubId) === "INTERNE-COMPETITIE";
 }
 
+function isApsCompetitionClub() {
+  return normalizeClubCode(currentClubId) === "APS-DSR";
+}
+
+// Beide competitie-logins tonen de wedstrijd-UI (deelnemers, score-invoer,
+// klassement, beamer, iPad). De interne scoring blijft apart.
+function isCompetitionModeClub() {
+  return isInternalCompetitionClub() || isApsCompetitionClub();
+}
+
 function getEditingScore() {
   return scoreDraft.editScoreId ? state.scores.find((score) => score.id === scoreDraft.editScoreId) : null;
 }
@@ -5673,7 +6014,40 @@ function isSvbbClub() {
 }
 
 function getModeCopy(clubId = currentClubId) {
-  const isCompetition = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  const code = normalizeClubCode(clubId);
+  if (code === "APS-DSR") {
+    return {
+      appName: "APS-DSR competitie",
+      loginTitle: "APS-DSR competitie",
+      eyebrow: "Nationale competitie",
+      homeTitle: "APS-DSR nationale competitie",
+      homeSubtitle: "Nationaal klassement op basis van punten gedeeld door tijd.",
+      allSessions: "Alle schutters",
+      latestSession: "Alleen complete resultaten",
+      sessionSelectLabel: "Volledigheid filter",
+      rankingScopeNotice:
+        "APS-DSR gebruikt één doorlopende baan (7 stages). Eindscore = (korte + lange punten − overtredingen×10) ÷ (korte + lange tijd).",
+      savedLive: "laatste resultaat live",
+      savedStored: "laatste opgeslagen resultaat",
+      savedCount: "resultaten bewaard",
+      currentSession: "huidige competitie",
+      highScoreNotice: "Opgeslagen beste resultaten per competitie. Trainers kunnen losse resultaten verwijderen.",
+      highScoreEmpty: "Nog geen resultaten opgeslagen.",
+      progressTitle: "APS-resultaten",
+      progressText: "Automatisch gevuld vanuit opgeslagen resultaten.",
+      scoreRoundsTitle: "Resultaten",
+      resetTitle: "Competitie",
+      resetNotice: "Wist de losse APS-resultaten.",
+      resetButton: "Nieuwe competitie starten",
+      resetEmpty: "Geen resultaten om te wissen",
+      resetConfirm: "Nieuwe competitie starten? Alle losse APS-resultaten worden gewist.",
+      resetDone: "Nieuwe competitie gestart",
+      pdfTitle: "APS-DSR resultaten",
+      pdfFilePrefix: "aps-dsr-resultaten",
+      donationText: "Donatie score-app - IBAN NL89INGB0796202257 t.n.v. J. van der Schalk",
+    };
+  }
+  const isCompetition = code === "INTERNE-COMPETITIE";
   return isCompetition
     ? {
         appName: "SVBB competitie",
@@ -5809,7 +6183,7 @@ function updateBrandLogos(clubId = currentClubId) {
 function applyModeCopy(clubId = currentClubId) {
   const copy = getModeCopy(clubId);
   const code = normalizeClubCode(clubId);
-  const isCompetition = code === "INTERNE-COMPETITIE";
+  const isCompetition = code === "INTERNE-COMPETITIE" || code === "APS-DSR";
   const isGuest = code === "GAST-GEBRUIKER";
   document.title = copy.appName;
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", copy.appName);
@@ -5831,7 +6205,7 @@ function applyModeCopy(clubId = currentClubId) {
   $("#trainingResetNotice").textContent = copy.resetNotice;
   $("#resetTrainingButton").textContent = copy.resetButton;
   $("#rankDiscipline").hidden = false;
-  $("#rankSort").hidden = normalizeClubCode(clubId) === "INTERNE-COMPETITIE";
+  $("#rankSort").hidden = isCompetition;
 }
 
 function getSignatureCanvas() {
@@ -6587,6 +6961,10 @@ function createEmptyDraft() {
     cardHits: [],
     longCourseHits: createEmptyLongCourseHits(),
     longCourseStages: createEmptyLongCourseStages(),
+    apsStages: createEmptyApsStages(),
+    apsShortTime: "",
+    apsLongTime: "",
+    apsPenaltyCount: 0,
     notes: "",
     status: "normal",
     editScoreId: "",
@@ -7580,9 +7958,11 @@ function renderSelects() {
 function renderHome() {
   $("#homeParticipants").textContent = state.shooters.filter((shooter) => shooter.active).length;
   $("#homeScores").textContent = state.scores.length;
-  const topItems = isInternalCompetitionClub()
-    ? getInternalCompetitionRanking({ completeOnly: false }).slice(0, 3)
-    : getRanking({ discipline: "all", level: "all" }).sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3);
+  const topItems = isApsCompetitionClub()
+    ? getApsCompetitionRanking({ completeOnly: false }).slice(0, 3)
+    : isInternalCompetitionClub()
+      ? getInternalCompetitionRanking({ completeOnly: false }).slice(0, 3)
+      : getRanking({ discipline: "all", level: "all" }).sort((a, b) => b.hitfactor - a.hitfactor).slice(0, 3);
   $("#homeRanking").innerHTML = renderRankingItems(topItems, true);
 }
 
@@ -7602,6 +7982,183 @@ function renderCompetition() {
         })
         .join("")
     : `<div class="empty">Nog geen schutters. Voeg eerst een schutter toe.</div>`;
+}
+
+function renderApsEntry() {
+  const form = $("#apsScoreForm");
+  if (!form) return;
+  const activeShooters = getActiveShootersForSelection();
+  const shooterOptions = activeShooters.length
+    ? activeShooters.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("")
+    : `<option value="">Geen schutters</option>`;
+  const shooterSelect = $("#apsScoreShooter");
+  if (shooterSelect) {
+    shooterSelect.innerHTML = shooterOptions;
+    if (!activeShooters.some((s) => s.id === scoreDraft.shooterId)) scoreDraft.shooterId = activeShooters[0]?.id || "";
+    shooterSelect.value = scoreDraft.shooterId;
+  }
+  const statusSelect = $("#apsStatus");
+  if (statusSelect) {
+    statusSelect.innerHTML = Object.entries(scoreStatusOptions)
+      .map(([key, meta]) => `<option value="${key}">${escapeHtml(meta.label)}</option>`)
+      .join("");
+    statusSelect.value = scoreStatusOptions[scoreDraft.status] ? scoreDraft.status : "normal";
+  }
+  const stages = normalizeApsStages(scoreDraft.apsStages);
+  scoreDraft.apsStages = stages;
+  const target = $("#apsStageInput");
+  if (target) {
+    let currentBaan = "";
+    target.innerHTML = apsStageConfig
+      .map((stage) => {
+        let banner = "";
+        if (stage.baan !== currentBaan) {
+          currentBaan = stage.baan;
+          banner = `<div class="aps-baan-title">${stage.baan === "kort" ? "Korte baan (stage 1-3)" : "Lange baan (stage 4-7)"}</div>`;
+        }
+        const stageScore = getApsStageScore(stage, stages);
+        const controls = stage.items
+          .map((item) => {
+            const count = Number(stages[stage.id]?.[item.key]) || 0;
+            return `
+              <div class="long-stage-line">
+                <div class="long-stage-line__label">
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <small>${formatNumber(item.value, 0)} pt · max ${item.max}x</small>
+                </div>
+                <button class="long-stage-step" type="button" data-aps-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-aps-delta="-1" aria-label="${escapeHtml(item.label)} corrigeren">−</button>
+                <span class="long-stage-line__count">${count} / ${item.max}</span>
+                <button class="long-stage-step" type="button" data-aps-step data-stage-id="${stage.id}" data-item-key="${item.key}" data-aps-delta="1" aria-label="${escapeHtml(item.label)} toevoegen">+</button>
+              </div>`;
+          })
+          .join("");
+        const hitsNote = stage.maxHits
+          ? `<div class="aps-hits-note">Totaal ${getApsStageHits(stage, stages)} / ${stage.maxHits} treffers</div>`
+          : "";
+        return `
+          ${banner}
+          <section class="long-stage-card">
+            <div class="long-stage-card__head">
+              <div>
+                <span>${escapeHtml(stage.label)}</span>
+                <strong>${escapeHtml(stage.title)}</strong>
+                <small>${escapeHtml(stage.note)}</small>
+              </div>
+              <div class="long-stage-card__score">${formatNumber(stageScore, 0)} / ${formatNumber(stage.maxPoints, 0)}</div>
+            </div>
+            ${controls}
+            ${hitsNote}
+          </section>`;
+      })
+      .join("");
+  }
+  const shortTimeField = $("#apsShortTime");
+  if (shortTimeField && document.activeElement !== shortTimeField) shortTimeField.value = scoreDraft.apsShortTime ?? "";
+  const longTimeField = $("#apsLongTime");
+  if (longTimeField && document.activeElement !== longTimeField) longTimeField.value = scoreDraft.apsLongTime ?? "";
+  const penaltyLabel = $("#apsPenaltyCountLabel");
+  if (penaltyLabel) penaltyLabel.textContent = String(Math.max(0, Math.round(Number(scoreDraft.apsPenaltyCount) || 0)));
+  const calc = calculateApsScore(scoreDraft);
+  const hf = $("#apsTotalHitfactor");
+  if (hf) hf.textContent = formatNumber(calc.hitfactor, 3);
+  const bd = $("#apsTotalBreakdown");
+  if (bd) {
+    bd.textContent = `Kort ${formatNumber(calc.shortPoints, 0)}/${apsShortMaxPoints} · Lang ${formatNumber(calc.longPoints, 0)}/${apsLongMaxPoints} · straf ${formatNumber(calc.penaltyPoints, 0)} · netto ${formatNumber(calc.net, 0)} pt · tijd ${calc.time > 0 ? formatNumber(calc.time, 2) + " sec" : "—"}`;
+  }
+  const submitLabel = form.querySelector("#apsScoreSubmitButton span");
+  if (submitLabel) submitLabel.textContent = scoreDraft.editScoreId ? "Resultaat bijwerken" : "Resultaat opslaan";
+}
+
+function renderApsRecentScores() {
+  const list = $("#apsRecentScores");
+  if (!list) return;
+  const ranking = getApsCompetitionRanking({ completeOnly: false });
+  list.innerHTML = ranking.length
+    ? ranking
+        .map(
+          (item, index) => `
+            <article class="aps-result-row${item.completed ? "" : " is-incomplete"}">
+              <div class="aps-result-row__main">
+                <strong>${index + 1}. ${escapeHtml(item.shooter.name)}</strong>
+                <small>Eindscore ${formatNumber(item.hitfactor, 3)} · netto ${formatNumber(item.netPoints, 0)} pt · tijd ${item.time > 0 ? formatNumber(item.time, 2) + " sec" : "—"}${item.completed ? "" : " · onvolledig"}</small>
+              </div>
+              <div class="aps-result-row__actions">
+                <button class="mini-action" type="button" data-aps-edit="${item.shooter.id}" data-trainer-only>Wijzig</button>
+                <button class="delete-button compact-delete" type="button" data-aps-delete="${item.scoreId}" aria-label="${escapeHtml(item.shooter.name)} resultaat verwijderen" title="Verwijderen" data-trainer-only>${iconX}</button>
+              </div>
+            </article>`,
+        )
+        .join("")
+    : `<div class="empty">Nog geen APS-resultaten opgeslagen.</div>`;
+}
+
+function handleApsStep(button) {
+  if (!requireTrainer()) return;
+  const stage = apsStageConfig.find((s) => s.id === button.dataset.stageId);
+  if (!stage) return;
+  const item = stage.items.find((i) => i.key === button.dataset.itemKey);
+  if (!item) return;
+  const delta = Number(button.dataset.apsDelta) || 0;
+  const stages = normalizeApsStages(scoreDraft.apsStages);
+  const current = Number(stages[stage.id][item.key]) || 0;
+  let next = Math.min(item.max, Math.max(0, current + delta));
+  if (delta > 0 && stage.maxHits) {
+    const others = getApsStageHits(stage, stages) - current;
+    if (others + next > stage.maxHits) {
+      next = Math.max(current, stage.maxHits - others);
+      if (next === current) {
+        showToast(`Maximaal ${stage.maxHits} treffers in ${stage.title}`);
+        return;
+      }
+    }
+  }
+  stages[stage.id][item.key] = next;
+  scoreDraft.apsStages = stages;
+  triggerHapticFeedback();
+  renderApsEntry();
+}
+
+function handleApsPenaltyStep(delta) {
+  if (!requireTrainer()) return;
+  const current = Math.max(0, Math.round(Number(scoreDraft.apsPenaltyCount) || 0));
+  scoreDraft.apsPenaltyCount = Math.max(0, current + delta);
+  triggerHapticFeedback();
+  renderApsEntry();
+}
+
+function editApsScore(shooterId) {
+  if (!requireTrainer()) return;
+  const score = getApsScoreForShooter(shooterId);
+  if (!score) return;
+  scoreDraft = createEmptyDraft();
+  scoreDraft.shooterId = shooterId;
+  scoreDraft.apsStages = normalizeApsStages(score.apsStages);
+  scoreDraft.apsShortTime = score.shortTime ?? "";
+  scoreDraft.apsLongTime = score.longTime ?? "";
+  scoreDraft.apsPenaltyCount = Number(score.penaltyCount) || 0;
+  scoreDraft.status = score.status || "normal";
+  scoreDraft.editScoreId = score.id;
+  render();
+  $("#apsScoreForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  showToast("APS-resultaat geopend om te wijzigen");
+}
+
+function deleteApsScore(scoreId) {
+  if (!requireTrainer()) return;
+  const score = state.scores.find((s) => s.id === scoreId);
+  if (!score) return;
+  const shooter = getShooter(score.shooterId);
+  if (!window.confirm(`${shooter?.name || "Deze schutter"} — APS-resultaat verwijderen?`)) return;
+  recordDeletion(score.id);
+  state.scores = state.scores.filter((s) => s.id !== score.id);
+  if (scoreDraft.editScoreId === score.id) {
+    const keepShooter = scoreDraft.shooterId;
+    scoreDraft = createEmptyDraft();
+    scoreDraft.shooterId = keepShooter;
+  }
+  markDirty();
+  render();
+  showToast("APS-resultaat verwijderd");
 }
 
 function renderInternalFeedback(calc, precisionStage) {
@@ -7654,6 +8211,18 @@ function updateSignatureStatus() {
 }
 
 function renderScores() {
+  const apsMode = isApsCompetitionClub();
+  const recentList = $("#recentScores");
+  if (recentList) recentList.hidden = apsMode;
+  const apsRecentList = $("#apsRecentScores");
+  if (apsRecentList) apsRecentList.hidden = !apsMode;
+  if (apsMode) {
+    renderApsEntry();
+    renderApsRecentScores();
+    const ipadButton = $("#ipadResultButton");
+    if (ipadButton) ipadButton.hidden = false;
+    return;
+  }
   const internalMode = isInternalScoreMode();
   const internalStage = getInternalStage(scoreDraft.stageId);
   const precisionStage = internalMode && internalStage.scoringType === "precision";
@@ -8198,6 +8767,10 @@ function renderRanking() {
   const level = $("#rankLevel").value || "all";
   const scope = $("#rankScope").value || "all";
   const sort = $("#rankSort").value || "hitfactor";
+  if (isApsCompetitionClub()) {
+    $("#rankingList").innerHTML = renderRankingItems(getApsCompetitionRanking({ completeOnly: scope === "latest" }), false);
+    return;
+  }
   if (isInternalCompetitionClub()) {
     $("#rankingList").innerHTML = renderRankingItems(getInternalCompetitionRanking({ discipline, level, completeOnly: scope === "latest" }), false);
     return;
@@ -8214,6 +8787,7 @@ function renderRanking() {
 }
 
 function getSortedRankingItems(filters = {}) {
+  if (isApsCompetitionClub()) return getApsCompetitionRanking({ completeOnly: false });
   if (isInternalCompetitionClub()) return getInternalCompetitionRanking({ ...filters, completeOnly: false });
   return getRanking(filters).sort((a, b) => b.hitfactor - a.hitfactor);
 }
@@ -8243,6 +8817,7 @@ function latestInternalScoreForStage(stageId) {
 // schutter en slaat op; dat wordt pas zichtbaar zodra de lange baan is
 // opgeslagen, zodat elke schutter zijn totaal na alle stages te zien krijgt.
 function getIpadResultShooterId() {
+  if (isApsCompetitionClub()) return getApsIpadResultShooterId();
   return latestInternalScoreForStage("stage-long")?.shooterId || "";
 }
 
@@ -8268,6 +8843,80 @@ function getInternalIpadResultData(shooterId = "") {
     longResult,
     topThree: group.slice(0, 3),
   };
+}
+
+function buildApsIpadResultCards(data) {
+  const { shooter, item, position, topThree } = data;
+  const positionText = position > 0 ? `#${position}` : "—";
+  const scoreText = item ? formatNumber(item.hitfactor, 3) : "0,000";
+  const shortText = item ? `${formatNumber(item.shortPoints, 0)} / ${apsShortMaxPoints}` : "—";
+  const longText = item ? `${formatNumber(item.longPoints, 0)} / ${apsLongMaxPoints}` : "—";
+  const penaltyText = item && item.penaltyPoints ? `−${formatNumber(item.penaltyPoints, 0)}` : "0";
+  const timeText = item && item.time > 0 ? `${formatNumber(item.time, 2)} sec` : "—";
+  const statusText = item?.status || "—";
+  return `
+    <section class="ipad-result-card">
+      <div class="ipad-result-main">
+        <div class="ipad-result-name">
+          <strong>${escapeHtml(shooter.name)}</strong>
+          <small>APS-DSR nationale competitie</small>
+        </div>
+        <div class="ipad-result-position" aria-label="Positie in klassement">
+          <div>
+            <span>positie</span>
+            <strong>${positionText}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="ipad-result-metrics">
+        <div class="ipad-result-metric">
+          <span>Eindscore (HF)</span>
+          <strong>${scoreText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Korte baan</span>
+          <strong>${shortText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Lange baan</span>
+          <strong>${longText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Straf</span>
+          <strong>${penaltyText}</strong>
+        </div>
+        <div class="ipad-result-metric">
+          <span>Totale tijd</span>
+          <strong>${timeText}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="ipad-result-card ipad-result-podium">
+      <h3>Top 3 nationaal</h3>
+      <div class="ipad-result-podium-list">
+        ${
+          topThree.length
+            ? topThree
+                .map(
+                  (entry, index) => `
+                    <div class="ipad-result-podium-row${entry.shooter.id === shooter.id ? " is-current" : ""}">
+                      <span>${index + 1}</span>
+                      <div>
+                        <strong>${escapeHtml(entry.shooter.name)}</strong>
+                        <small>Netto ${formatNumber(entry.netPoints, 0)} pt · tijd ${entry.time > 0 ? formatNumber(entry.time, 2) + " sec" : "—"}${entry.completed ? "" : " · onvolledig"}</small>
+                      </div>
+                      <span>${formatNumber(entry.hitfactor, 3)}</span>
+                    </div>
+                  `,
+                )
+                .join("")
+            : `<div class="empty">Nog geen stand in dit klassement.</div>`
+        }
+      </div>
+    </section>
+  `;
 }
 
 function buildIpadResultCards(data) {
@@ -8355,6 +9004,17 @@ function renderIpadResultView() {
   const body = $("#ipadResultBody");
   if (!overlay || overlay.hidden || !body) return;
 
+  const kicker = $("#ipadResultKicker");
+  if (kicker) kicker.textContent = isApsCompetitionClub() ? "APS-DSR nationale competitie" : "Interne competitie";
+
+  if (isApsCompetitionClub()) {
+    const apsData = getApsIpadResultData(getApsIpadResultShooterId());
+    body.innerHTML = apsData
+      ? buildApsIpadResultCards(apsData)
+      : `<div class="empty">Wachten op afronding van de baan… zodra een schutter alle 7 stages heeft afgerond, verschijnt hier het eindresultaat.</div>`;
+    return;
+  }
+
   const data = getInternalIpadResultData(getIpadResultShooterId());
   if (!data) {
     body.innerHTML = `<div class="empty">Wachten op afronding van de lange baan… zodra een schutter alle stages heeft afgerond, verschijnt hier zijn of haar eindresultaat.</div>`;
@@ -8365,8 +9025,8 @@ function renderIpadResultView() {
 }
 
 function openIpadResultView() {
-  if (!isInternalCompetitionClub()) {
-    showToast("iPad view is alleen voor Interne competitie");
+  if (!isCompetitionModeClub()) {
+    showToast("iPad view is alleen voor de competitie");
     return;
   }
   // De weergave toont het eindresultaat van de schutter die als laatste de
@@ -8824,6 +9484,7 @@ async function closeBeamerBoard() {
 
 function renderRankingItems(items, compact) {
   if (!items.length) return `<div class="empty">Nog geen klassement beschikbaar.</div>`;
+  if (isApsCompetitionClub()) return renderApsRankingItems(items, compact);
   if (isInternalCompetitionClub()) return renderInternalRankingItems(items, compact);
 
   const maxHitfactor = Math.max(...items.map((item) => item.hitfactor), 1);
@@ -8851,6 +9512,33 @@ function renderRankingItems(items, compact) {
       `;
       },
     )
+    .join("");
+}
+
+function renderApsRankingItems(items, compact) {
+  const maxScore = Math.max(...items.map((item) => item.hitfactor), 1);
+  return items
+    .map((item, index) => {
+      const progress = Math.min(100, Math.max(0, (item.hitfactor / maxScore) * 100));
+      const leaderClass = index === 0 ? " is-leader" : "";
+      const podiumClass = index < 3 ? ` podium-${index + 1}` : "";
+      const blocked = item.statusKey && item.statusKey !== "normal";
+      const meta = `Netto ${formatNumber(item.netPoints, 0)} pt · Kort ${formatNumber(item.shortPoints, 0)} · Lang ${formatNumber(item.longPoints, 0)}${item.penaltyPoints ? ` · straf −${formatNumber(item.penaltyPoints, 0)}` : ""} · tijd ${item.time > 0 ? formatNumber(item.time, 2) + " sec" : "—"}${item.completed ? "" : " · onvolledig"}`;
+      return `
+        <article class="${compact ? "list-item" : "rank-item internal-rank-item"}${leaderClass}${podiumClass}">
+          <span class="rank-number">${blocked ? item.status : index + 1}</span>
+          <div class="rank-main">
+            <strong>${escapeHtml(item.shooter.name)}</strong>
+            <small>${escapeHtml(meta)}</small>
+          </div>
+          <div class="rank-score">
+            <strong>${formatNumber(item.hitfactor, 3)}</strong>
+            <span class="rank-progress" aria-hidden="true"><i style="width: ${progress}%"></i></span>
+            <small>HF</small>
+          </div>
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -9415,13 +10103,29 @@ function applyRolePermissions() {
     });
   });
 
+  const apsMode = isApsCompetitionClub();
+  $$("[data-aps-only]").forEach((element) => {
+    const hidden = readOnly || !apsMode;
+    element.hidden = hidden;
+    element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
+      control.disabled = hidden;
+    });
+  });
+  $$("[data-aps-hidden]").forEach((element) => {
+    const hidden = readOnly || apsMode;
+    element.hidden = hidden;
+    element.querySelectorAll?.("button, input, select, textarea").forEach((control) => {
+      control.disabled = hidden;
+    });
+  });
+
   const roundsBeamerButton = $("#roundsBeamerButton");
   if (roundsBeamerButton) roundsBeamerButton.hidden = !isSvbbClub();
 
   // Live iPad-weergave is bewust ook voor het read-only kijk-toestel (schutter)
   // zichtbaar, zodat een losse iPad de score-invoer van de mobiel kan volgen.
   const ipadFollowButton = $("#ipadFollowButton");
-  if (ipadFollowButton) ipadFollowButton.hidden = !internalCompetition;
+  if (ipadFollowButton) ipadFollowButton.hidden = !isCompetitionModeClub();
 }
 
 let editingShooterId = null;
@@ -10241,6 +10945,26 @@ document.addEventListener("click", (event) => {
     toggleLongCourseSheriffBonus();
   }
 
+  const apsStepButton = event.target.closest("[data-aps-step]");
+  if (apsStepButton) {
+    handleApsStep(apsStepButton);
+  }
+
+  const apsPenaltyButton = event.target.closest("[data-aps-penalty]");
+  if (apsPenaltyButton) {
+    handleApsPenaltyStep(Number(apsPenaltyButton.dataset.apsPenalty) || 0);
+  }
+
+  const apsEditButton = event.target.closest("[data-aps-edit]");
+  if (apsEditButton) {
+    editApsScore(apsEditButton.dataset.apsEdit);
+  }
+
+  const apsDeleteButton = event.target.closest("[data-aps-delete]");
+  if (apsDeleteButton) {
+    deleteApsScore(apsDeleteButton.dataset.apsDelete);
+  }
+
 	  const statusButton = event.target.closest("[data-score-status]");
   if (statusButton) {
     if (!requireTrainer()) return;
@@ -10542,6 +11266,87 @@ $("#beamerCloseButton").addEventListener("click", closeBeamerBoard);
 $("#ipadResultButton").addEventListener("click", openIpadResultView);
 $("#ipadFollowButton")?.addEventListener("click", openIpadResultView);
 $("#ipadResultCloseButton").addEventListener("click", closeIpadResultView);
+
+$("#apsScoreForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!requireTrainer()) return;
+  const calc = calculateApsScore(scoreDraft);
+  const statusMeta = getScoreStatusMeta(calc.status);
+  if (!scoreDraft.shooterId) {
+    showToast("Kies een schutter");
+    return;
+  }
+  if (!statusMeta.blocksScore && calc.time <= 0) {
+    showToast("Vul een geldige tijd in voor de korte én lange baan");
+    return;
+  }
+  const existingScore =
+    (scoreDraft.editScoreId && state.scores.find((item) => item.id === scoreDraft.editScoreId)) ||
+    getApsScoreForShooter(scoreDraft.shooterId);
+  if (existingScore && !scoreDraft.editScoreId) {
+    const shooterName = getShooter(scoreDraft.shooterId)?.name || "Deze schutter";
+    if (!window.confirm(`${shooterName} heeft al een APS-resultaat.\n\nKlik op OK om het te overschrijven.`)) {
+      showToast("Kies een andere schutter");
+      return;
+    }
+  }
+  const savedScore = {
+    id: existingScore?.id || createId("score"),
+    competitionId: APS_COMPETITION_CONFIG.competitionId,
+    shooterId: scoreDraft.shooterId,
+    stageId: APS_COMPETITION_CONFIG.courseStageId,
+    scoringType: "hitfactor",
+    inputMode: "direct",
+    discipline: "APS-DSR",
+    apsStages: calc.apsStages,
+    shortPoints: calc.shortPoints,
+    longPoints: calc.longPoints,
+    rawPoints: calc.rawPoints,
+    maxPoints: apsTotalMaxPoints,
+    penaltyCount: calc.penaltyCount,
+    penaltyPoints: calc.penaltyPoints,
+    shortTime: calc.shortTime,
+    longTime: calc.longTime,
+    time: calc.time,
+    net: calc.net,
+    hitfactor: calc.hitfactor,
+    round: 1,
+    status: calc.status,
+    reshootAvailable: statusMeta.reshootAvailable,
+    notes: "",
+    createdAt: existingScore?.createdAt || new Date().toISOString(),
+    updatedAt: existingScore ? new Date().toISOString() : "",
+  };
+  if (existingScore) {
+    state.scores = state.scores.map((score) => (score.id === existingScore.id ? savedScore : score));
+  } else {
+    state.scores.push(savedScore);
+  }
+  markDirty();
+  const nextShooterId = scoreDraft.shooterId;
+  scoreDraft = createEmptyDraft();
+  scoreDraft.shooterId = nextShooterId;
+  render();
+  showToast(existingScore ? "APS-resultaat bijgewerkt" : "APS-resultaat opgeslagen");
+});
+
+$("#apsScoreShooter")?.addEventListener("change", (event) => {
+  scoreDraft.shooterId = event.target.value;
+  scoreDraft.editScoreId = "";
+  renderApsEntry();
+});
+$("#apsStatus")?.addEventListener("change", (event) => {
+  scoreDraft.status = event.target.value;
+  renderApsEntry();
+});
+$("#apsShortTime")?.addEventListener("input", (event) => {
+  scoreDraft.apsShortTime = event.target.value;
+  renderApsEntry();
+});
+$("#apsLongTime")?.addEventListener("input", (event) => {
+  scoreDraft.apsLongTime = event.target.value;
+  renderApsEntry();
+});
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
 $("#resetInternalCompetitionButton").addEventListener("click", resetInternalCompetitionScores);
