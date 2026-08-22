@@ -3264,6 +3264,74 @@ select:focus {
   }
 }
 
+/* Badge op de positiecirkel: welke plek de schutter zou halen als de beste
+   ronde had meegeteld i.p.v. alleen de eerste. Zelfde roze als de
+   .22-markering/extra-ronde-labels elders, met dezelfde hartslag-animatie. */
+.ipad-result-position-hypothetical {
+  position: absolute;
+  right: -8%;
+  bottom: -8%;
+  display: grid;
+  place-items: center;
+  width: 54%;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid rgba(255, 92, 170, 0.65);
+  border-radius: 999px;
+  background: linear-gradient(165deg, #ff9ecf, #ff5caa);
+  color: #2a0016;
+  box-shadow: 0 12px 30px rgba(255, 92, 170, 0.4);
+  text-align: center;
+  transform-origin: center;
+  animation: ipad-position-heartbeat 1.6s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+.ipad-result-position-hypothetical::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 0 rgba(255, 92, 170, 0.55);
+  pointer-events: none;
+  animation: ipad-position-pulse-ring-pink 1.6s ease-out infinite;
+  animation-delay: 0.2s;
+}
+
+@keyframes ipad-position-pulse-ring-pink {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 92, 170, 0.55); }
+  55%  { box-shadow: 0 0 0 16px rgba(255, 92, 170, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 92, 170, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ipad-result-position-hypothetical,
+  .ipad-result-position-hypothetical::after {
+    animation: none;
+  }
+}
+
+.ipad-result-position-hypothetical span {
+  display: block;
+  color: rgba(0, 0, 0, 0.55);
+  font-size: clamp(0.4rem, 0.65vw, 0.52rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.ipad-result-position-hypothetical strong {
+  display: block;
+  margin-top: 1px;
+  font-size: clamp(1.05rem, 2.3vw, 1.75rem);
+  line-height: 0.85;
+  font-weight: 900;
+}
+
 .ipad-result-position span {
   display: block;
   color: rgba(0, 0, 0, 0.62);
@@ -7760,6 +7828,22 @@ function getCurrentTrainingRanking(filters = {}) {
   });
 }
 
+// Zelfde bijdrage-formule als in getInternalCompetitionRanking, maar herbruikbaar
+// voor een willekeurige score (o.a. om de hypothetische bijdrage van een extra
+// ronde te bepalen zonder de echte eindstand te beïnvloeden).
+function getInternalStageContribution(stage, score, dynamicFastestTimeByStage) {
+  if (!score) return { contribution: 0 };
+  if (stage.scoringType === "precision") {
+    const percentage = Math.min(100, ((score.net || 0) / stage.maxPoints) * 100);
+    return { contribution: (percentage / 100) * getPrecisionStageWeight() };
+  }
+  const precisionPercentage = Math.min(100, ((score.net || 0) / stage.maxPoints) * 100);
+  const fastestTime = dynamicFastestTimeByStage.get(stage.id) || 0;
+  const speedPercentage = score.time > 0 && fastestTime > 0 ? Math.min(100, (fastestTime / score.time) * 100) : 0;
+  const percentage = precisionPercentage * 0.7 + speedPercentage * 0.3;
+  return { contribution: (Math.min(100, percentage) / 100) * INTERNAL_COMPETITION_CONFIG.dynamicWeight * (stage.weight / 100) };
+}
+
 function getInternalCompetitionRanking(filters = {}) {
   const completeOnly = Boolean(filters.completeOnly);
   const level = filters.level || "all";
@@ -7872,6 +7956,22 @@ function getInternalCompetitionRanking(filters = {}) {
       const scoreMultiplier = getShooterScoreMultiplier(shooter);
       const overallScore = baseOverallScore * scoreMultiplier;
 
+      // Puur ter info (iPad-weergave): welke eindscore zou deze schutter halen
+      // als per onderdeel niet de eerste, maar de beste ronde had meegeteld?
+      // Telt niet mee voor de echte eindstand.
+      const hypotheticalContribution = stageResults.reduce((sum, result) => {
+        if (!result.extraRounds.length) return sum + result.contribution;
+        const best = [result.score, ...result.extraRounds].reduce(
+          (bestResult, candidate) => {
+            const candidateResult = getInternalStageContribution(result.stage, candidate, dynamicFastestTimeByStage);
+            return candidateResult.contribution > bestResult.contribution ? candidateResult : bestResult;
+          },
+          { contribution: 0 },
+        );
+        return sum + best.contribution;
+      }, 0);
+      const hypotheticalOverallScore = hasDq ? 0 : Math.min(100, hypotheticalContribution) * scoreMultiplier;
+
       return {
         shooter,
         discipline: getShooterInternalDiscipline(shooter),
@@ -7896,6 +7996,7 @@ function getInternalCompetitionRanking(filters = {}) {
         status: hasDq ? "DQ" : completedStages < INTERNAL_COMPETITION_CONFIG.stages.length ? "Voorlopig" : "Compleet",
         stageResults,
         extraRoundsCount: stageResults.reduce((sum, result) => sum + result.extraRounds.length, 0),
+        hypotheticalOverallScore,
       };
     })
     .filter((item) => !completeOnly || item.completedStages === item.totalStages);
@@ -9146,6 +9247,25 @@ function getInternalIpadResultData(shooterId = "") {
   const position = group.findIndex((entry) => entry.shooter.id === shooter.id) + 1;
   const shortResult = item?.stageResults?.find((result) => result.stage.id === "stage-short") || null;
   const longResult = item?.stageResults?.find((result) => result.stage.id === "stage-long") || null;
+  // Puur ter info: welke positie zou deze schutter halen als de beste ronde
+  // per onderdeel had meegeteld i.p.v. alleen de eerste? Alleen tonen als dat
+  // een betere plek oplevert (anders is het niet interessant).
+  let hypotheticalPosition = 0;
+  if (item && item.extraRoundsCount > 0 && item.hypotheticalOverallScore > item.overallScore) {
+    const rescored = group.map((entry) =>
+      entry.shooter.id === shooter.id ? { ...entry, overallScore: entry.hypotheticalOverallScore } : entry,
+    );
+    rescored.sort((a, b) => {
+      if (a.status === "DQ" && b.status !== "DQ") return 1;
+      if (b.status === "DQ" && a.status !== "DQ") return -1;
+      if (b.overallScore !== a.overallScore) return b.overallScore - a.overallScore;
+      if (b.precisionContribution !== a.precisionContribution) return b.precisionContribution - a.precisionContribution;
+      if (b.dynamicContribution !== a.dynamicContribution) return b.dynamicContribution - a.dynamicContribution;
+      return a.totalDynamicTime - b.totalDynamicTime;
+    });
+    const newIndex = rescored.findIndex((entry) => entry.shooter.id === shooter.id) + 1;
+    if (newIndex > 0 && newIndex < position) hypotheticalPosition = newIndex;
+  }
   return {
     shooter,
     discipline,
@@ -9153,6 +9273,7 @@ function getInternalIpadResultData(shooterId = "") {
     group,
     item,
     position,
+    hypotheticalPosition,
     shortResult,
     longResult,
     topThree: group.slice(0, 3),
@@ -9234,7 +9355,7 @@ function buildApsIpadResultCards(data) {
 }
 
 function buildIpadResultCards(data) {
-  const { shooter, discipline, level, item, position, shortResult, longResult, topThree } = data;
+  const { shooter, discipline, level, item, position, hypotheticalPosition, shortResult, longResult, topThree } = data;
   const shortCompleted = Boolean(shortResult?.completed);
   const longCompleted = Boolean(longResult?.completed);
   const positionText = position > 0 ? `#${position}` : "—";
@@ -9267,6 +9388,16 @@ function buildIpadResultCards(data) {
             <span>positie</span>
             <strong>${positionText}</strong>
           </div>
+          ${
+            hypotheticalPosition > 0
+              ? `<div class="ipad-result-position-hypothetical" aria-label="Zou positie ${hypotheticalPosition} zijn als de extra ronde had meegeteld">
+                   <div>
+                     <span>zou zijn</span>
+                     <strong>#${hypotheticalPosition}</strong>
+                   </div>
+                 </div>`
+              : ""
+          }
         </div>
       </div>
 
