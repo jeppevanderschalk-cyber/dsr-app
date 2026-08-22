@@ -4849,6 +4849,19 @@ dialog .primary-action::after {
               <small id="apsTotalBreakdown"></small>
             </section>
 
+            <section class="signature-panel" id="apsSignaturePanel">
+              <div class="signature-heading">
+                <div>
+                  <strong>Akkoord schutter</strong>
+                  <small id="apsSignatureStatusText">Verplicht: laat de schutter hier tekenen voor akkoord van score en tijd.</small>
+                </div>
+                <button class="mini-action" id="apsClearSignatureButton" type="button">Wissen</button>
+              </div>
+              <canvas id="apsSignaturePad" aria-label="Handtekening APS-resultaat akkoord"></canvas>
+            </section>
+
+            <p class="edit-score-notice" id="apsEditScoreNotice" hidden>Je wijzigt een opgeslagen resultaat. Laat de schutter opnieuw tekenen en sla opnieuw op.</p>
+
             <button class="primary-action full-width" id="apsScoreSubmitButton" type="submit">
               <span>Resultaat opslaan</span>
             </button>
@@ -6218,7 +6231,7 @@ function applyModeCopy(clubId = currentClubId) {
 }
 
 function getSignatureCanvas() {
-  return $("#scoreSignaturePad");
+  return isApsCompetitionClub() ? $("#apsSignaturePad") : $("#scoreSignaturePad");
 }
 
 function resizeSignatureCanvas() {
@@ -6308,16 +6321,18 @@ function getScoreSignatureDataUrl() {
   return output.toDataURL("image/jpeg", 0.82);
 }
 
-function setupSignaturePad() {
-  const canvas = getSignatureCanvas();
-  if (!canvas || signaturePad.initialized) return;
-  signaturePad.initialized = true;
-
+function bindSignatureCanvas(canvas) {
+  if (!canvas || canvas.dataset.sigBound) return;
+  canvas.dataset.sigBound = "1";
+  const pointFrom = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
   const startDrawing = (event) => {
-    if (!isInternalCompetitionClub() || !isTrainer()) return;
+    if (!isCompetitionModeClub() || !isTrainer()) return;
     event.preventDefault();
     resizeSignatureCanvas();
-    const point = getSignaturePoint(event);
+    const point = pointFrom(event);
     const context = canvas.getContext("2d");
     signaturePad.drawing = true;
     signaturePad.hasInk = true;
@@ -6326,27 +6341,31 @@ function setupSignaturePad() {
     canvas.setPointerCapture?.(event.pointerId);
     updateSignatureStatus();
   };
-
   const draw = (event) => {
     if (!signaturePad.drawing) return;
     event.preventDefault();
-    const point = getSignaturePoint(event);
+    const point = pointFrom(event);
     const context = canvas.getContext("2d");
     context.lineTo(point.x, point.y);
     context.stroke();
   };
-
   const stopDrawing = (event) => {
     if (!signaturePad.drawing) return;
     event.preventDefault();
     signaturePad.drawing = false;
     canvas.releasePointerCapture?.(event.pointerId);
   };
-
   canvas.addEventListener("pointerdown", startDrawing);
   canvas.addEventListener("pointermove", draw);
   canvas.addEventListener("pointerup", stopDrawing);
   canvas.addEventListener("pointercancel", stopDrawing);
+}
+
+function setupSignaturePad() {
+  if (signaturePad.initialized) return;
+  signaturePad.initialized = true;
+  bindSignatureCanvas($("#scoreSignaturePad"));
+  bindSignatureCanvas($("#apsSignaturePad"));
   window.addEventListener("resize", resizeSignatureCanvas);
 }
 
@@ -6953,6 +6972,7 @@ function describeScoreChanges(oldScore, newScore) {
 
 function scoreLogContext(score, shooter = getShooter(score?.shooterId)) {
   if (score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId) return getInternalStage(score.stageId).label;
+  if (score?.competitionId === APS_COMPETITION_CONFIG.competitionId) return "APS-DSR nationale competitie";
   const discipline = getScoreDiscipline(score, shooter);
   const round = Number(score?.round) || Number(score?.displayRound);
   return round ? `${discipline} · ronde ${round}` : discipline;
@@ -8067,6 +8087,11 @@ function renderApsEntry() {
   updateApsTotals();
   const submitLabel = form.querySelector("#apsScoreSubmitButton span");
   if (submitLabel) submitLabel.textContent = scoreDraft.editScoreId ? "Resultaat bijwerken" : "Resultaat opslaan";
+  const apsEditNotice = $("#apsEditScoreNotice");
+  if (apsEditNotice) apsEditNotice.hidden = !scoreDraft.editScoreId;
+  setupSignaturePad();
+  requestAnimationFrame(resizeSignatureCanvas);
+  updateSignatureStatus();
 }
 
 // Werkt alleen de eindscore-samenvatting bij (zonder de hele lijst te herbouwen).
@@ -8137,6 +8162,7 @@ function handleApsStep(button) {
   if (scoreEl) scoreEl.textContent = `${formatNumber(getApsStageScore(stage, stages), 0)} / ${formatNumber(stage.maxPoints, 0)}`;
   const hitsNote = card?.querySelector(".aps-hits-note");
   if (hitsNote && stage.maxHits) hitsNote.textContent = `Totaal ${getApsStageHits(stage, stages)} / ${stage.maxHits} treffers`;
+  clearScoreSignatureAfterChange();
   updateApsTotals();
 }
 
@@ -8149,6 +8175,7 @@ function handleApsPenaltyStep(delta) {
   triggerHapticFeedback();
   const penaltyLabel = $("#apsPenaltyCountLabel");
   if (penaltyLabel) penaltyLabel.textContent = String(next);
+  clearScoreSignatureAfterChange();
   updateApsTotals();
 }
 
@@ -8163,9 +8190,11 @@ function editApsScore(shooterId) {
   scoreDraft.apsPenaltyCount = Number(score.penaltyCount) || 0;
   scoreDraft.status = score.status || "normal";
   scoreDraft.editScoreId = score.id;
+  // De wijziging vereist een nieuwe handtekening: wis de vorige.
+  clearScoreSignature();
   render();
   $("#apsScoreForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  showToast("APS-resultaat geopend om te wijzigen");
+  showToast("APS-resultaat geopend. Laat de schutter opnieuw tekenen voor de wijziging.");
 }
 
 function deleteApsScore(scoreId) {
@@ -8224,13 +8253,21 @@ function getInternalFeedbackNoteText(precisionStage) {
 }
 
 function updateSignatureStatus() {
+  const signed = signaturePad.hasInk;
   const panel = $("#scoreSignaturePanel");
   const statusText = $("#signatureStatusText");
-  const signed = signaturePad.hasInk;
   if (panel && !panel.hidden) panel.classList.toggle("is-signed", signed);
   if (statusText) {
     statusText.textContent = signed
       ? "Getekend ✓ — je kunt de score opslaan."
+      : "Verplicht: laat de schutter hier tekenen voor akkoord van score en tijd.";
+  }
+  const apsPanel = $("#apsSignaturePanel");
+  const apsStatusText = $("#apsSignatureStatusText");
+  if (apsPanel && !apsPanel.hidden) apsPanel.classList.toggle("is-signed", signed);
+  if (apsStatusText) {
+    apsStatusText.textContent = signed
+      ? "Getekend ✓ — je kunt het resultaat opslaan."
       : "Verplicht: laat de schutter hier tekenen voor akkoord van score en tijd.";
   }
 }
@@ -11401,6 +11438,11 @@ $("#apsScoreForm")?.addEventListener("submit", (event) => {
       return;
     }
   }
+  const signatureDataUrl = getScoreSignatureDataUrl();
+  if (!signatureDataUrl) {
+    showToast("Laat de schutter eerst tekenen voor akkoord");
+    return;
+  }
   const savedScore = {
     id: existingScore?.id || createId("score"),
     competitionId: APS_COMPETITION_CONFIG.competitionId,
@@ -11423,18 +11465,35 @@ $("#apsScoreForm")?.addEventListener("submit", (event) => {
     status: calc.status,
     reshootAvailable: statusMeta.reshootAvailable,
     notes: "",
+    signatureDataUrl,
+    signedAt: new Date().toISOString(),
+    agreementText: "Resultaat en tijd akkoord door schutter",
     createdAt: existingScore?.createdAt || new Date().toISOString(),
     updatedAt: existingScore ? new Date().toISOString() : "",
   };
   if (existingScore) {
+    const changes = describeScoreChanges(existingScore, savedScore);
+    logChange({
+      action: "edit",
+      shooter: getShooter(savedScore.shooterId)?.name,
+      context: scoreLogContext(savedScore),
+      changes: changes.length ? [...changes, "opnieuw getekend"] : ["opnieuw getekend"],
+    });
     state.scores = state.scores.map((score) => (score.id === existingScore.id ? savedScore : score));
   } else {
+    logChange({
+      action: "create",
+      shooter: getShooter(savedScore.shooterId)?.name,
+      context: scoreLogContext(savedScore),
+      changes: [`nieuw resultaat · netto ${formatNumber(savedScore.net, 0)} pt · tijd ${formatNumber(savedScore.time, 2)} sec · getekend`],
+    });
     state.scores.push(savedScore);
   }
   markDirty();
   const nextShooterId = scoreDraft.shooterId;
   scoreDraft = createEmptyDraft();
   scoreDraft.shooterId = nextShooterId;
+  clearScoreSignature();
   render();
   showToast(existingScore ? "APS-resultaat bijgewerkt" : "APS-resultaat opgeslagen");
 });
@@ -11442,15 +11501,22 @@ $("#apsScoreForm")?.addEventListener("submit", (event) => {
 $("#apsScoreShooter")?.addEventListener("change", (event) => {
   scoreDraft.shooterId = event.target.value;
   scoreDraft.editScoreId = "";
+  clearScoreSignature();
   renderApsEntry();
 });
 $("#apsStatus")?.addEventListener("change", (event) => {
   scoreDraft.status = event.target.value;
+  clearScoreSignatureAfterChange();
   renderApsEntry();
 });
 $("#apsTime")?.addEventListener("input", (event) => {
   scoreDraft.apsTime = event.target.value;
-  renderApsEntry();
+  clearScoreSignatureAfterChange();
+  updateApsTotals();
+});
+$("#apsClearSignatureButton")?.addEventListener("click", () => {
+  if (!requireTrainer()) return;
+  clearScoreSignature();
 });
 $("#progressPdfButton").addEventListener("click", downloadProgressPdf);
 $("#resetTrainingButton").addEventListener("click", resetTrainingScores);
