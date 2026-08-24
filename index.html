@@ -3214,9 +3214,9 @@ select:focus {
 }
 
 /* Extra ronde (2e/3e, na een foute score of eindewedstrijd): zichtbaar, telt
-   niet mee voor de eindstand. Zelfde roze als de .22-markering elders. */
+   niet mee voor de eindstand. */
 .ipad-result-name .ipad-extra-rounds-note {
-  color: #ff8ec4;
+  color: #ff8a8a;
 }
 
 .ipad-result-position {
@@ -3271,23 +3271,23 @@ select:focus {
   }
 }
 
-/* Groepeert de echte positiecirkel en de (optionele) roze hypothetische
-   badge als gewone, meestromende elementen naast elkaar — geen
-   position:absolute, zodat de kaart er op elk schermformaat (ook mobiel)
-   automatisch ruimte voor reserveert i.p.v. dat de badge erbuiten hangt. */
+/* Groepeert de echte positiecirkel en de (optionele) rode hypothetische
+   badge. Beide blijven gewone, meestromende flex-items (geen
+   position:absolute), zodat de kaart er op elk schermformaat (ook mobiel)
+   automatisch ruimte voor reserveert. De negatieve margin op de badge trekt
+   'm net wat over de gele cirkel heen i.p.v. er los naast te staan. */
 .ipad-result-position-group {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: clamp(8px, 1.6vw, 16px);
   flex: 0 0 auto;
 }
 
-/* Badge naast de positiecirkel: welke plek de schutter zou halen als de
-   beste ronde had meegeteld i.p.v. alleen de eerste. Zelfde roze als de
-   .22-markering/extra-ronde-labels elders, met dezelfde hartslag-animatie. */
+/* Badge die net wat over de positiecirkel heen valt: welke plek de schutter
+   zou halen als de beste ronde had meegeteld i.p.v. alleen de eerste. */
 .ipad-result-position-hypothetical {
   position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -3295,18 +3295,20 @@ select:focus {
      de echte positiecirkel zelf uitvalt. */
   width: clamp(68px, 9.5vw, 112px);
   height: clamp(68px, 9.5vw, 112px);
-  border: 2px solid rgba(255, 92, 170, 0.65);
+  /* Trekt de badge over de gele cirkel heen (die erna in de flex-rij komt). */
+  margin-right: calc(-1 * clamp(68px, 9.5vw, 112px) * 0.3);
+  border: 2px solid rgba(255, 90, 90, 0.65);
   border-radius: 999px;
-  background: linear-gradient(165deg, #ff9ecf, #ff5caa);
-  color: #2a0016;
-  box-shadow: 0 12px 30px rgba(255, 92, 170, 0.4);
+  background: linear-gradient(165deg, #ff8a8a, #ff5c4d);
+  color: #2a0000;
+  box-shadow: 0 12px 30px rgba(255, 90, 90, 0.4);
   text-align: center;
   transform-origin: center;
   animation: ipad-position-heartbeat 1.6s ease-in-out infinite;
   animation-delay: 0.2s;
 }
 
-/* "Zou zijn"-label als los pilletje boven de roze cirkel, zodat de cirkel
+/* "Zou zijn"-label als los pilletje boven de rode cirkel, zodat de cirkel
    zelf alleen het positienummer hoeft te tonen (altijd goed leesbaar,
    ongeacht hoe klein de badge op het scherm uitvalt). */
 .ipad-result-position-hypothetical-tag {
@@ -3316,7 +3318,7 @@ select:focus {
   transform: translateX(-50%);
   padding: 0.2em 0.6em;
   border-radius: 999px;
-  background: #ff5caa;
+  background: #ff5c4d;
   color: #fff;
   font-size: clamp(0.5rem, 0.85vw, 0.66rem);
   font-weight: 900;
@@ -3324,7 +3326,7 @@ select:focus {
   line-height: 1.4;
   white-space: nowrap;
   text-transform: uppercase;
-  box-shadow: 0 4px 12px rgba(255, 92, 170, 0.45);
+  box-shadow: 0 4px 12px rgba(255, 90, 90, 0.45);
 }
 
 .ipad-result-position-hypothetical::after {
@@ -3332,16 +3334,16 @@ select:focus {
   position: absolute;
   inset: -2px;
   border-radius: 999px;
-  box-shadow: 0 0 0 0 rgba(255, 92, 170, 0.55);
+  box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.55);
   pointer-events: none;
-  animation: ipad-position-pulse-ring-pink 1.6s ease-out infinite;
+  animation: ipad-position-pulse-ring-red 1.6s ease-out infinite;
   animation-delay: 0.2s;
 }
 
-@keyframes ipad-position-pulse-ring-pink {
-  0%   { box-shadow: 0 0 0 0 rgba(255, 92, 170, 0.55); }
-  55%  { box-shadow: 0 0 0 16px rgba(255, 92, 170, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 92, 170, 0); }
+@keyframes ipad-position-pulse-ring-red {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 90, 90, 0.55); }
+  55%  { box-shadow: 0 0 0 16px rgba(255, 90, 90, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 90, 90, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
