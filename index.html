@@ -5937,6 +5937,11 @@ const iconPencil = `
 let currentClubId = normalizeClubCode(localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
 let state = loadState();
 let scoreDraft = createEmptyDraft();
+// Onthoudt of de iPad-weergave automatisch geopend werd na het opslaan van
+// een lange-baan score, zodat closeIpadResultView() alleen dán het
+// scoreformulier leegmaakt voor de volgende schutter (en niet wanneer een
+// trainer 'm gewoon handmatig even opent om de stand te checken).
+let ipadViewAutoOpenedAfterSave = false;
 let lastButtonTouchAt = 0;
 let syncTimer = 0;
 let syncPollTimer = 0;
@@ -9532,6 +9537,20 @@ function openIpadResultView() {
 function closeIpadResultView() {
   const overlay = $("#ipadResultOverlay");
   if (overlay) overlay.hidden = true;
+  if (ipadViewAutoOpenedAfterSave) {
+    ipadViewAutoOpenedAfterSave = false;
+    // Terug naar het scoreformulier, klaar om de volgende schutter te kiezen.
+    // Het formulier valt bij een lege keuze zelf terug op de eerst
+    // beschikbare actieve schutter (zie renderSelects) — sla daarom expliciet
+    // een andere schutter dan de zojuist afgeronde over, anders lijkt het
+    // alsof dezelfde schutter geselecteerd bleef staan.
+    const justCompletedShooterId = scoreDraft.shooterId;
+    scoreDraft = createEmptyDraft();
+    const nextShooter = getActiveShootersForSelection().find((shooter) => shooter.id !== justCompletedShooterId);
+    if (nextShooter) scoreDraft.shooterId = nextShooter.id;
+    clearScoreSignature();
+    render();
+  }
 }
 
 function getBeamerRows() {
@@ -11702,6 +11721,13 @@ $("#scoreForm").addEventListener("submit", (event) => {
     clearScoreSignature();
     render();
     showToast(editingRecord ? "Score bijgewerkt" : isNewRound ? "Nieuwe ronde opgeslagen (telt niet mee voor eindresultaat)" : "Score opgeslagen");
+    // Na het opslaan van een lange-baan score (het sluitstuk van een
+    // schutter) meteen het resultaat tonen. Niet bij het wijzigen van een
+    // bestaande score — dan blijft de trainer liever op het formulier.
+    if (!editingRecord && stage.scoringType === "hitfactor") {
+      ipadViewAutoOpenedAfterSave = true;
+      openIpadResultView();
+    }
     return;
   }
 
