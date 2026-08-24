@@ -12357,6 +12357,25 @@ document.addEventListener("visibilitychange", refreshWhenVisible);
 window.addEventListener("focus", refreshWhenVisible);
 window.addEventListener("online", refreshWhenVisible);
 
+// iOS Safari houdt position:fixed-elementen (o.a. de onderste menubalk) niet
+// betrouwbaar aan de onderkant van het zichtbare scherm wanneer het
+// toetsenbord open staat (bijv. bij een tekstveld zoals "Opmerkingen") — de
+// balk lijkt dan met de pagina mee te scrollen i.p.v. vast te blijven staan.
+// Dit komt doordat position:fixed uitgaat van de layout-viewport, terwijl het
+// toetsenbord alleen de visuele viewport verkleint. Volg daarom expliciet de
+// visualViewport en compenseer het verschil.
+if (window.visualViewport) {
+  const pinBottomNavToVisualViewport = () => {
+    const nav = document.querySelector(".bottom-nav");
+    if (!nav) return;
+    const vv = window.visualViewport;
+    const gap = window.innerHeight - (vv.height + vv.offsetTop);
+    nav.style.transform = `translateX(-50%) translateY(${gap > 0.5 ? -gap : 0}px)`;
+  };
+  window.visualViewport.addEventListener("resize", pinBottomNavToVisualViewport);
+  window.visualViewport.addEventListener("scroll", pinBottomNavToVisualViewport);
+}
+
 $("#copyIbanButton").addEventListener("click", async () => {
   const donationText = getModeCopy().donationText;
   try {
