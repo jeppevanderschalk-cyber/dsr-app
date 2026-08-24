@@ -3010,9 +3010,9 @@ select:focus {
   background: linear-gradient(90deg, rgba(255, 92, 170, 0.36), rgba(255, 92, 170, 0.1));
 }
 
-/* Extra ronde (2e/3e, telt niet mee voor de eindstand): zelfde roze. */
+/* Extra ronde (2e/3e, telt niet mee voor de eindstand). */
 .beamer-extra-rounds {
-  color: #ff8ec4;
+  color: #ff3b30;
 }
 
 .beamer-table.is-internal-competition .beamer-row.is-rimfire:not(.beamer-head) {
@@ -3295,8 +3295,12 @@ select:focus {
      de echte positiecirkel zelf uitvalt. */
   width: clamp(68px, 9.5vw, 112px);
   height: clamp(68px, 9.5vw, 112px);
-  /* Trekt de badge over de gele cirkel heen (die erna in de flex-rij komt). */
+  /* Trekt de badge over de gele cirkel heen (die erna in de flex-rij komt) en
+     schuift 'm iets naar beneden, zodat hij op de "20:00 uur"-positie
+     (linksonder) van de gele cirkel valt i.p.v. recht ernaast. De overlap
+     (30% van de eigen breedte) blijft gelijk aan hoe het al was. */
   margin-right: calc(-1 * clamp(68px, 9.5vw, 112px) * 0.3);
+  top: 16%;
   border: 2px solid rgba(255, 45, 32, 0.8);
   border-radius: 999px;
   background: linear-gradient(165deg, #ff5540, #c8102e);
@@ -4209,72 +4213,6 @@ dialog .primary-action::after {
   }
 }
 
-@media (min-width: 760px) and (max-width: 1099px) and (orientation: portrait) {
-  body {
-    padding: 18px 0;
-  }
-
-  .app-shell {
-    width: min(calc(100% - 28px), 760px);
-    min-height: calc(100dvh - 36px);
-    border-radius: 34px;
-  }
-
-  .content {
-    padding-inline: 34px;
-  }
-
-  .score-form {
-    gap: 18px;
-  }
-
-  .score-form > .field-grid:nth-of-type(3) {
-    grid-template-columns: 1fr;
-  }
-
-  #recentScores {
-    grid-template-columns: 1fr;
-  }
-
-  .score-round-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-  }
-
-  .score-round-row > strong,
-  .score-round-value {
-    justify-self: end;
-  }
-
-  .score-round-row small,
-  .score-round-row .score-row-actions {
-    grid-column: 1 / -1;
-  }
-
-  .score-round-row small {
-    text-align: left;
-  }
-
-  .score-round-value em {
-    font-size: 0.68rem;
-  }
-
-  .score-row-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-
-  #scoreSignaturePad,
-  #apsSignaturePad {
-    height: 260px;
-  }
-
-  .bottom-nav {
-    width: min(calc(100% - 28px), 760px);
-    border-radius: 0 0 34px 34px;
-  }
-}
-
 @media (min-width: 760px) and (max-width: 1099px) {
   body,
   body.home-active {
@@ -4358,6 +4296,76 @@ dialog .primary-action::after {
 
   dialog {
     width: min(calc(100% - 72px), 560px);
+  }
+}
+
+/* Staat na de algemene 760-1099px-regel hierboven, met opzet: dit blok moet
+   'm overschrijven voor liggende iPads (o.a. de smallere .app-shell/.bottom-nav
+   breedte), anders wint de latere regel in de bron en blijft de pagina — ook
+   het score-invoerformulier — onnodig breed/uitgerekt staan in portretstand. */
+@media (min-width: 760px) and (max-width: 1099px) and (orientation: portrait) {
+  body {
+    padding: 18px 0;
+  }
+
+  .app-shell {
+    width: min(calc(100% - 28px), 760px);
+    min-height: calc(100dvh - 36px);
+    border-radius: 34px;
+  }
+
+  .content {
+    padding-inline: 34px;
+  }
+
+  .score-form {
+    gap: 18px;
+  }
+
+  .score-form > .field-grid:nth-of-type(3) {
+    grid-template-columns: 1fr;
+  }
+
+  #recentScores {
+    grid-template-columns: 1fr;
+  }
+
+  .score-round-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .score-round-row > strong,
+  .score-round-value {
+    justify-self: end;
+  }
+
+  .score-round-row small,
+  .score-round-row .score-row-actions {
+    grid-column: 1 / -1;
+  }
+
+  .score-round-row small {
+    text-align: left;
+  }
+
+  .score-round-value em {
+    font-size: 0.68rem;
+  }
+
+  .score-row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #scoreSignaturePad,
+  #apsSignaturePad {
+    height: 260px;
+  }
+
+  .bottom-nav {
+    width: min(calc(100% - 28px), 760px);
+    border-radius: 0 0 34px 34px;
   }
 }
 
