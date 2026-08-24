@@ -9410,7 +9410,7 @@ function buildIpadResultCards(data) {
         <div class="ipad-result-name">
           <strong>${escapeHtml(shooter.name)}</strong>
           <small>${escapeHtml(groupLabel)}${shooter.optic ? ` · Optic -${opticScorePenalty}%` : ""} · ${escapeHtml(getShooterCaliber(shooter))}</small>
-          ${extraRoundsNote ? `<small class="ipad-extra-rounds-note">${extraRoundsNote} extra ronde ingevoerd, deze telt niet mee voor het eindresultaat</small>` : ""}
+          ${extraRoundsNote ? `<small class="ipad-extra-rounds-note">${extraRoundsNote} extra ronde, deze telt niet mee in het eindresultaat</small>` : ""}
         </div>
         <div class="ipad-result-position-group">
           ${
