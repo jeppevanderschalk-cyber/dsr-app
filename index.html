@@ -4614,6 +4614,80 @@ dialog .primary-action::after {
   }
 }
 
+/* Landscape-iPads zijn vaak breder dan 1100px (Pro 11" ~1194px, Pro 12.9"
+   ~1366px) en vallen daardoor in de "desktop"-laag hierboven, die de
+   onderbalk omzet in een verticale zijbalk voor een breed, muis-bediend
+   scherm. Op een iPad in liggende stand is er domweg niet genoeg hoogte voor
+   6 items in die zijbalk, waardoor de onderste knoppen (half) wegvallen.
+   pointer:coarse (aanraakscherm, geen muis) onderscheidt dit betrouwbaar van
+   een echt breed desktopvenster: dáár blijft de zijbalk gewoon staan, hier
+   komt de vertrouwde, al bewezen werkende onderbalk terug. */
+@media (min-width: 1100px) and (pointer: coarse) {
+  .app-shell {
+    display: block;
+    overflow: visible;
+  }
+
+  .topbar {
+    grid-column: auto;
+  }
+
+  .content {
+    grid-column: auto;
+    max-height: none;
+    overflow-y: visible;
+    padding: 34px 48px calc(116px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    grid-column: auto;
+    grid-row: auto;
+    align-self: auto;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    width: min(100%, 980px);
+    min-height: 0;
+    padding: 12px 10px calc(18px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    flex-direction: row;
+    border-top: 1px solid var(--line);
+    border-right: 0;
+    border-radius: 0 0 34px 34px;
+    background: rgba(19, 19, 21, 0.92);
+  }
+
+  .bottom-nav button {
+    min-height: 54px;
+    border-radius: 0;
+  }
+
+  .bottom-nav button::before {
+    top: -14px;
+    left: auto;
+    width: 34px;
+    height: 3px;
+    transform: none;
+    border-radius: 0 0 4px 4px;
+  }
+
+  .nav-icon,
+  .nav-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .bottom-nav button small {
+    font-size: 0.72rem;
+  }
+
+  .toast {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
 @media (max-width: 390px) {
   .topbar {
     padding-inline: 18px;
