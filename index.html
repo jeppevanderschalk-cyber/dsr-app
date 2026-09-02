@@ -201,8 +201,14 @@ body:has(#view-home.is-active) .topbar {
   /* Afronding ook op de afbeelding zelf (niet enkel via overflow:hidden op de
      span): op iOS Safari kan een net gedecodeerde afbeelding bij de eerste
      keer laden even buiten de afronding van de ouder om getekend worden,
-     wat als een vierkante flits rond het logo oogt. */
+     wat als een vierkante flits rond het logo oogt. clip-path erbij als
+     tweede, onafhankelijke afrondingsroute: border-radius alleen bleek deze
+     race op zichzelf niet altijd te winnen (met name met filter erbij, zie
+     is-club-logo hieronder), clip-path gebruikt in WebKit een ander
+     renderpad en blijkt dat frame wel altijd al af te ronden. */
   border-radius: 999px;
+  clip-path: circle(50%);
+  -webkit-clip-path: circle(50%);
 }
 
 .app-logo.is-club-logo {
@@ -210,11 +216,16 @@ body:has(#view-home.is-active) .topbar {
   height: 106px;
   background: transparent;
   box-shadow: none;
+  /* Bewust overflow:visible (niet hidden): de drop-shadow van de img hieronder
+     moet buiten de cirkel mogen uitsteken. De afronding zelf komt dus alleen
+     nog van border-radius + clip-path op de img zelf, niet van deze span. */
   overflow: visible;
 }
 
 .app-logo.is-club-logo img {
   border-radius: 999px;
+  clip-path: circle(50%);
+  -webkit-clip-path: circle(50%);
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.24));
 }
 
@@ -2174,7 +2185,7 @@ select:focus {
 
 .tab-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   padding: 6px;
   border-radius: var(--radius);
@@ -2560,7 +2571,20 @@ select:focus {
 .beamer-rounds-wrap {
   min-height: 0;
   overflow: auto;
-  flex: 1;
+  /* Standaard (mobiel) niet geforceerd de volle overlay-hoogte laten opeisen:
+     bij weinig schutters/rondes bleef de tabel anders altijd de hele
+     beschikbare (op een telefoon vaak veel te hoge) ruimte claimen, met een
+     groot leeg gat tot de opmerkingen-sectie eronder tot gevolg. Alleen zijn
+     eigen inhoud innemen -- met scroll zodra het echt niet past -- laat de
+     opmerkingen er meteen op aansluiten. Vanaf 760px (zie hieronder) blijft
+     de bestaande volle-hoogte beamer/projectorweergave ongewijzigd.  */
+  flex: 0 1 auto;
+}
+
+@media (min-width: 760px) {
+  .beamer-rounds-wrap {
+    flex: 1;
+  }
 }
 
 .beamer-rounds-table {
@@ -2582,6 +2606,15 @@ select:focus {
 .beamer-rounds-table td:first-child {
   text-align: left;
   color: #fff;
+  /* Schutternaam blijft in beeld tijdens horizontaal scrollen door de
+     rondekolommen (op smalle schermen past lang niet elke ronde naast
+     elkaar) -- zonder dit verlies je bij het scrollen het overzicht van
+     wiens rij je bekijkt. Op brede schermen is er doorgaans geen
+     horizontale overflow, dus heeft dit daar geen zichtbaar effect. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: rgba(12, 12, 14, 0.96);
 }
 
 .beamer-rounds-table thead th {
@@ -2593,6 +2626,12 @@ select:focus {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   z-index: 1;
+}
+
+.beamer-rounds-table thead th:first-child {
+  /* Boven zowel de eigen kolom (links vast) als de andere sticky headers
+     (boven vast) moeten blijven staan. */
+  z-index: 2;
 }
 
 .beamer-rounds-table tbody td {
@@ -5155,78 +5194,6 @@ dialog .primary-action::after {
           </section>
         </section>
 
-        <section class="view" id="view-timer" aria-labelledby="timer-title">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Timer</p>
-              <h2 id="timer-title">Schottimer</h2>
-            </div>
-            <button class="icon-button" id="timerResetButton" type="button" aria-label="Timer wissen" title="Timer wissen" data-trainer-only>
-              <span aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /></svg>
-              </span>
-            </button>
-          </div>
-
-          <section class="timer-panel" data-trainer-only>
-            <label>
-              <span>Schutter</span>
-              <select id="timerShooter"></select>
-            </label>
-
-            <div class="timer-settings">
-              <label class="timer-toggle">
-                <span>
-                  <strong>Willekeurige start</strong>
-                  <small>Starttoon klinkt 1,5–4 sec na Start (IPSC)</small>
-                </span>
-                <input id="timerRandomStart" class="switch" type="checkbox" />
-              </label>
-              <label>
-                <span>Par-tijd (sec)</span>
-                <input id="timerPar" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Geen" />
-              </label>
-            </div>
-
-            <div class="timer-face">
-              <small id="timerStatus">Klaar</small>
-              <strong id="timerDisplay">0,00</strong>
-              <span id="timerPeak">Geluid 0%</span>
-            </div>
-
-            <div class="timer-actions">
-              <button class="timer-start-button" id="timerStartButton" type="button">Start</button>
-              <button class="secondary-action" id="timerStopButton" type="button" disabled>Stop</button>
-            </div>
-
-            <div class="timer-stats">
-              <article>
-                <span id="timerShotCount">0</span>
-                <small>schoten</small>
-              </article>
-              <article>
-                <span id="timerLastShot">0,00</span>
-                <small>laatste</small>
-              </article>
-              <article>
-                <span id="timerLastSplit">0,00</span>
-                <small>split</small>
-              </article>
-            </div>
-
-            <button class="primary-action full-width" id="timerApplyButton" type="button" disabled>
-              Tijd naar scoreformulier
-            </button>
-          </section>
-
-          <section class="section-block">
-            <div class="section-heading">
-              <h3>Schoten</h3>
-            </div>
-            <div class="timer-shot-list" id="timerShotList"></div>
-          </section>
-        </section>
-
         <section class="view" id="view-ranking" aria-labelledby="ranking-title">
           <div class="section-heading">
             <div>
@@ -5289,6 +5256,7 @@ dialog .primary-action::after {
 
           <div class="tab-strip" role="tablist" aria-label="Meer opties">
             <button class="is-active" type="button" data-more-tab="shooters">Leden</button>
+            <button type="button" data-more-tab="timer">Timer</button>
             <button type="button" data-more-tab="progress">Rondes</button>
             <button type="button" data-more-tab="dashboard">Analyse</button>
             <button type="button" data-more-tab="settings">Set-up</button>
@@ -5309,6 +5277,78 @@ dialog .primary-action::after {
               <h3>Hi-score geschiedenis</h3>
               <p class="notice" id="highScoreNotice">Opgeslagen beste scores per training. Trainers kunnen losse hi-scores verwijderen.</p>
               <div class="high-score-history" id="highScoreHistory"></div>
+            </section>
+          </section>
+
+          <section class="more-panel" id="more-timer" aria-labelledby="timer-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Timer</p>
+                <h2 id="timer-title">Schottimer</h2>
+              </div>
+              <button class="icon-button" id="timerResetButton" type="button" aria-label="Timer wissen" title="Timer wissen" data-trainer-only>
+                <span aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /></svg>
+                </span>
+              </button>
+            </div>
+
+            <section class="timer-panel" data-trainer-only>
+              <label>
+                <span>Schutter</span>
+                <select id="timerShooter"></select>
+              </label>
+
+              <div class="timer-settings">
+                <label class="timer-toggle">
+                  <span>
+                    <strong>Willekeurige start</strong>
+                    <small>Starttoon klinkt 1,5–4 sec na Start (IPSC)</small>
+                  </span>
+                  <input id="timerRandomStart" class="switch" type="checkbox" />
+                </label>
+                <label>
+                  <span>Par-tijd (sec)</span>
+                  <input id="timerPar" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Geen" />
+                </label>
+              </div>
+
+              <div class="timer-face">
+                <small id="timerStatus">Klaar</small>
+                <strong id="timerDisplay">0,00</strong>
+                <span id="timerPeak">Geluid 0%</span>
+              </div>
+
+              <div class="timer-actions">
+                <button class="timer-start-button" id="timerStartButton" type="button">Start</button>
+                <button class="secondary-action" id="timerStopButton" type="button" disabled>Stop</button>
+              </div>
+
+              <div class="timer-stats">
+                <article>
+                  <span id="timerShotCount">0</span>
+                  <small>schoten</small>
+                </article>
+                <article>
+                  <span id="timerLastShot">0,00</span>
+                  <small>laatste</small>
+                </article>
+                <article>
+                  <span id="timerLastSplit">0,00</span>
+                  <small>split</small>
+                </article>
+              </div>
+
+              <button class="primary-action full-width" id="timerApplyButton" type="button" disabled>
+                Tijd naar scoreformulier
+              </button>
+            </section>
+
+            <section class="section-block">
+              <div class="section-heading">
+                <h3>Schoten</h3>
+              </div>
+              <div class="timer-shot-list" id="timerShotList"></div>
             </section>
           </section>
 
@@ -5514,16 +5554,6 @@ dialog .primary-action::after {
             </svg>
           </span>
           <small>Scores</small>
-        </button>
-        <button type="button" data-nav="timer" aria-label="Timer">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="13" r="8" />
-              <path d="M12 13 16 9" />
-              <path d="M9 2h6" />
-            </svg>
-          </span>
-          <small>Timer</small>
         </button>
         <button type="button" data-nav="ranking" aria-label="Klassement">
           <span class="nav-icon" aria-hidden="true">
