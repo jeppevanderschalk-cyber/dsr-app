@@ -2612,16 +2612,32 @@ select:focus {
   letter-spacing: 0.01em;
 }
 
-.beamer-rounds-table tbody td.is-best {
-  color: #0b0b0c;
-  background: var(--yellow);
-  border-radius: 10px;
-  box-shadow: 0 0 14px rgba(245, 197, 24, 0.55);
+/* Goud/zilver/brons voor de 3 hoogste scores in de rondes-weergave — zelfde
+   verloop als de podiumcirkels in het klassement, voor de schutter zelf i.p.v.
+   voor een losse ronde-cel. */
+.beamer-medal {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 7px;
+  border-radius: 999px;
+  color: #09090a;
+  font-size: 0.7rem;
+  font-weight: 900;
+  vertical-align: middle;
 }
 
-.beamer-rounds-table tbody td.is-best .beamer-round-score strong,
-.beamer-rounds-table tbody td.is-best .beamer-round-score small {
-  color: #0b0b0c;
+.beamer-medal-1 {
+  background: linear-gradient(145deg, #ffe58a, #f5c518 55%, #b88700);
+}
+
+.beamer-medal-2 {
+  background: linear-gradient(145deg, #f4f4f5, #bfc3ca 55%, #777d86);
+}
+
+.beamer-medal-3 {
+  background: linear-gradient(145deg, #f1c08a, #c7803d 55%, #8b4a1d);
 }
 
 .beamer-notes {
@@ -9810,25 +9826,35 @@ function getBeamerRoundsData() {
   );
   const rounds = Array.from({ length: maxRound }, (_, index) => index + 1);
 
-  const rows = shooters
-    .map((shooter) => {
-      const shooterEntries = entries.filter((entry) => entry.shooterId === shooter.id);
-      const bestHitfactor = shooterEntries.length ? Math.max(...shooterEntries.map((entry) => entry.hitfactor || 0)) : 0;
-      const cells = rounds.map((round) => {
-        const score = shooterEntries
-          .filter((entry) => Number(entry.displayRound) === round)
-          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-        const isBest = Boolean(score) && bestHitfactor > 0 && Math.abs(score.hitfactor - bestHitfactor) < 0.0005;
-        return {
-          round,
-          score,
-          isBest,
-          html: score ? formatBeamerRoundScore(score) : "—",
-        };
-      });
-      return { shooter, cells, bestHitfactor, entryCount: shooterEntries.length };
-    })
-    .sort((a, b) => b.bestHitfactor - a.bestHitfactor || a.shooter.name.localeCompare(b.shooter.name, "nl"));
+  // Volgorde blijft zoals de schutters geregistreerd staan (niet herschikt op
+  // score): zo blijft voor iedereen duidelijk wie waar in de beurt-volgorde
+  // staat, ook nadat de eerste ronde al gescoord is.
+  const rows = shooters.map((shooter) => {
+    const shooterEntries = entries.filter((entry) => entry.shooterId === shooter.id);
+    const bestHitfactor = shooterEntries.length ? Math.max(...shooterEntries.map((entry) => entry.hitfactor || 0)) : 0;
+    const cells = rounds.map((round) => {
+      const score = shooterEntries
+        .filter((entry) => Number(entry.displayRound) === round)
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+      return {
+        round,
+        score,
+        html: score ? formatBeamerRoundScore(score) : "—",
+      };
+    });
+    return { shooter, cells, bestHitfactor, entryCount: shooterEntries.length };
+  });
+
+  // Goud/zilver/brons voor de 3 hoogste scores, los van de weergavevolgorde
+  // hierboven.
+  rows
+    .filter((row) => row.entryCount > 0)
+    .slice()
+    .sort((a, b) => b.bestHitfactor - a.bestHitfactor)
+    .slice(0, 3)
+    .forEach((row, index) => {
+      row.medal = index + 1;
+    });
 
   const notes = entries
     .filter((entry) => entry.notes && entry.notes.trim())
@@ -9860,13 +9886,8 @@ function renderBeamerRoundsBody() {
               .map(
                 (row) => `
                   <tr>
-                    <th>${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</th>
-                    ${row.cells
-                      .map(
-                        (cell) =>
-                          `<td class="${cell.isBest ? "is-best" : ""}">${cell.html}</td>`,
-                      )
-                      .join("")}
+                    <th>${row.medal ? `<span class="beamer-medal beamer-medal-${row.medal}" aria-label="${row.medal}e plek">${row.medal}</span>` : ""}${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</th>
+                    ${row.cells.map((cell) => `<td>${cell.html}</td>`).join("")}
                   </tr>
                 `,
               )
