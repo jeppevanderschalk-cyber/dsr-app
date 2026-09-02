@@ -10766,7 +10766,11 @@ function renderBeamerShootOutBody() {
         })()
       : "";
 
+  // Nieuwste ronde bovenaan: op de beamer wil je het laatste resultaat altijd
+  // meteen zien, zonder te hoeven scrollen langs alle al gespeelde rondes.
   const rounds = shootOut.rounds
+    .slice()
+    .reverse()
     .map((round) => {
       const completed = round.matches.filter((match) => match.status === "completed").length;
       return `
