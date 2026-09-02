@@ -3,15 +3,21 @@ import assert from "node:assert/strict";
 import {
   completeMatch,
   createShootOut,
+  determineMatchWinner,
   getNextPendingMatch,
   hasCompletedDependentMatches,
   isValidParticipantCount,
+  mergeShootOut,
   rebuildFromCorrectedMatch,
   validateScore,
 } from "./shootout-domain.mjs";
 
 const participants = (count) => Array.from({ length: count }, (_, index) => ({ id: `s${index + 1}`, name: `Schutter ${index + 1}` }));
-const winPending = (shootOut, scoreA = 10, scoreB = 5) => completeMatch(shootOut, getNextPendingMatch(shootOut).id, { scoreA, scoreB });
+// Standaard: s1 was de aangewezen snelste en heeft ook de hoogste score.
+const winPending = (shootOut, scoreA = 10, scoreB = 5, fasterShooterId) => {
+  const match = getNextPendingMatch(shootOut);
+  return completeMatch(shootOut, match.id, { scoreA, scoreB, fasterShooterId: fasterShooterId || match.shooterA.shooterId });
+};
 
 test("alleen machten van twee vanaf 2 zijn geldig", () => {
   assert.equal(isValidParticipantCount(2), true);
@@ -47,28 +53,43 @@ test("acht deelnemers bouwen kwartfinale, halve finale en finale", () => {
   assert.equal(shootOut.status, "completed");
 });
 
-test("gelijke basisscore vereist een beslissende score", () => {
+test("aangewezen snelste wint bij gelijke score", () => {
   const shootOut = createShootOut(participants(2));
   const match = getNextPendingMatch(shootOut);
-  assert.throws(() => completeMatch(shootOut, match.id, { scoreA: 10, scoreB: 10 }), /Gelijke score/);
-  const completed = completeMatch(shootOut, match.id, { scoreA: 10, scoreB: 10 }, [{ scoreA: 3, scoreB: 4 }]);
+  const completed = completeMatch(shootOut, match.id, { scoreA: 8, scoreB: 8, fasterShooterId: "s2" });
   assert.equal(completed.winnerId, "s2");
 });
 
-test("meerdere gelijke beslissingsrondes blijven bewaard", () => {
+test("aangewezen snelste wint ook met minder treffers, zolang het niet minder is dan de ander", () => {
+  const match = {
+    shooterA: { shooterId: "s1" },
+    shooterB: { shooterId: "s2" },
+    scoreA: 9,
+    scoreB: 9,
+    fasterShooterId: "s1",
+  };
+  assert.equal(determineMatchWinner(match), "s1");
+});
+
+test("snelste verliest alsnog als hij een doel heeft gemist en de ander meer treffers heeft", () => {
   const shootOut = createShootOut(participants(2));
   const match = getNextPendingMatch(shootOut);
-  const completed = completeMatch(
-    shootOut,
-    match.id,
-    { scoreA: 8, scoreB: 8 },
-    [
-      { scoreA: 2, scoreB: 2 },
-      { scoreA: 5, scoreB: 4 },
-    ],
-  );
-  assert.equal(completed.rounds[0].matches[0].tieBreaks.length, 2);
+  // s1 was sneller (aangewezen), maar miste een doel: 8 treffers tegen 10 van s2.
+  const completed = completeMatch(shootOut, match.id, { scoreA: 8, scoreB: 10, fasterShooterId: "s1" });
+  assert.equal(completed.winnerId, "s2");
+});
+
+test("snelste wint gewoon als hij evenveel of meer treffers heeft dan de ander", () => {
+  const shootOut = createShootOut(participants(2));
+  const match = getNextPendingMatch(shootOut);
+  const completed = completeMatch(shootOut, match.id, { scoreA: 10, scoreB: 8, fasterShooterId: "s1" });
   assert.equal(completed.winnerId, "s1");
+});
+
+test("zonder aangewezen snelste schutter is er geen winnaar", () => {
+  const shootOut = createShootOut(participants(2));
+  const match = getNextPendingMatch(shootOut);
+  assert.throws(() => completeMatch(shootOut, match.id, { scoreA: 10, scoreB: 8 }), /Kies welke schutter/);
 });
 
 test("correctie verwijdert afhankelijke vervolgrondes", () => {
@@ -91,4 +112,14 @@ test("scorevalidatie blokkeert leeg, tekst, negatief en boven maximum", () => {
   assert.equal(validateScore("tekst").valid, false);
   assert.equal(validateScore(-1).valid, false);
   assert.equal(validateScore(1001).valid, false);
+});
+
+test("mergeShootOut kiest de shootOut met de nieuwste eigen tijdstempel, niet die van de hele state", () => {
+  const older = { id: "so-1", updatedAt: "2026-01-01T10:00:00.000Z", status: "active" };
+  const newer = { id: "so-1", updatedAt: "2026-01-01T10:05:00.000Z", status: "active" };
+  assert.equal(mergeShootOut(newer, older).updatedAt, newer.updatedAt);
+  assert.equal(mergeShootOut(older, newer).updatedAt, newer.updatedAt);
+  assert.equal(mergeShootOut(null, newer).updatedAt, newer.updatedAt);
+  assert.equal(mergeShootOut(newer, null).updatedAt, newer.updatedAt);
+  assert.equal(mergeShootOut(null, null), null);
 });

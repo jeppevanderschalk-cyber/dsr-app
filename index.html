@@ -1395,27 +1395,55 @@ select:focus {
   gap: 12px;
 }
 
-.shootout-duel-grid,
-.shootout-tiebreak-grid {
+.shootout-duel-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.shootout-duel-grid input,
-.shootout-tiebreak-grid input {
+.shootout-duel-grid input {
   min-height: 68px;
   font-size: 1.35rem;
   text-align: center;
 }
 
-.shootout-tiebreak-card {
+.shootout-faster-picker {
   display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid rgba(245, 197, 24, 0.28);
-  border-radius: 16px;
-  background: rgba(245, 197, 24, 0.06);
+  gap: 8px;
+}
+
+.shootout-faster-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shootout-faster-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.025);
+  font-weight: 900;
+  text-align: center;
+}
+
+.shootout-faster-option.is-checked {
+  border-color: rgba(245, 197, 24, 0.6);
+  background: rgba(245, 197, 24, 0.14);
+  color: var(--yellow);
+}
+
+.shootout-faster-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .shootout-error {
@@ -1436,8 +1464,7 @@ select:focus {
 
 @media (max-width: 420px) {
   .shootout-actions,
-  .shootout-duel-grid,
-  .shootout-tiebreak-grid {
+  .shootout-duel-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -2895,6 +2922,73 @@ select:focus {
 
 .beamer-medal-3 {
   background: linear-gradient(145deg, #f1c08a, #c7803d 55%, #8b4a1d);
+}
+
+.beamer-shootout-winner {
+  display: grid;
+  gap: 4px;
+  padding: clamp(10px, 1.4vh, 18px) clamp(12px, 1.6vw, 20px);
+  margin-bottom: 10px;
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  border-radius: 16px;
+  background: rgba(245, 197, 24, 0.12);
+}
+
+.beamer-shootout-winner span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.beamer-shootout-winner strong {
+  color: var(--yellow);
+  font-size: clamp(1.4rem, 2.4vw, 2.4rem);
+}
+
+.beamer-shootout-match {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(8px, 1vw, 16px);
+  padding: clamp(8px, 1vh, 14px) clamp(10px, 1.2vw, 16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: clamp(0.62rem, 0.95vw, 1.05rem);
+  font-weight: 850;
+}
+
+.beamer-shootout-match.is-next {
+  background: rgba(245, 197, 24, 0.08);
+}
+
+.beamer-shootout-name {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.85);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.beamer-shootout-name:last-child {
+  text-align: right;
+}
+
+.beamer-shootout-name.is-winner {
+  color: var(--yellow);
+}
+
+.beamer-shootout-score {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.beamer-shootout-score small {
+  display: block;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.6em;
+  font-weight: 800;
 }
 
 /* Eigen beste ronde van een schutter (los van de goud/zilver/brons-medaille
@@ -5909,6 +6003,7 @@ import {
   getNextPendingMatch,
   hasCompletedDependentMatches,
   isValidParticipantCount,
+  mergeShootOut,
   normalizeShootOut,
   rebuildFromCorrectedMatch,
   validateScore,
@@ -6326,7 +6421,7 @@ let scoreEntryMode = "regular";
 let shootOutSelectedIds = [];
 let shootOutShowBracket = false;
 let shootOutSaving = false;
-let shootOutDuelDraft = { matchId: "", scoreA: "", scoreB: "", tieBreaks: [] };
+let shootOutDuelDraft = { matchId: "", scoreA: "", scoreB: "", fasterShooterId: "" };
 // Onthoudt of de iPad-weergave automatisch geopend werd na het opslaan van
 // een lange-baan score, zodat closeIpadResultView() alleen dán het
 // scoreformulier leegmaakt voor de volgende schutter (en niet wanneer een
@@ -6343,7 +6438,7 @@ let currentRole = "";
 let sessionTrainerPassword = ""; // alleen in memory, nooit opgeslagen
 let shotTimer = createShotTimerState();
 let beamerPaging = { index: 0, timer: 0 };
-let beamerMode = "ranking"; // "ranking" | "rounds"
+let beamerMode = "ranking"; // "ranking" | "rounds" | "shootout"
 const BEAMER_PAGE_INTERVAL_MS = 9000;
 let signaturePad = {
   initialized: false,
@@ -7070,6 +7165,12 @@ function mergeSyncStates(localState, remoteState) {
     progressEntries: mergeColl("progressEntries"),
     changeLog: mergeChangeLogs(localState.changeLog, remoteState.changeLog),
     liveFocus: mergeLiveFocus(localState.liveFocus, remoteState.liveFocus),
+    // Zonder dit veld hier expliciet te mergen volgt shootOut blind de
+    // hele-state-tijdstempel via de spread hierboven: een heel ongerelateerde
+    // wijziging op een ander apparaat kan dan een net bevestigd duel-resultaat
+    // laten verdwijnen. mergeShootOut vergelijkt de eigen updatedAt van de
+    // Shoot Out zelf, net als mergeLiveFocus dat voor de live-focus doet.
+    shootOut: mergeShootOut(localState.shootOut, remoteState.shootOut),
     deletedIds,
     updatedAt: localNewer ? localAt : remoteAt,
   };
@@ -9033,42 +9134,30 @@ function resetShootOutDuelDraft(match = null) {
     matchId: match?.id || "",
     scoreA: match?.scoreA ?? "",
     scoreB: match?.scoreB ?? "",
-    tieBreaks: Array.isArray(match?.tieBreaks)
-      ? match.tieBreaks.map((item) => ({ scoreA: String(item.scoreA), scoreB: String(item.scoreB) }))
-      : [],
+    fasterShooterId: match?.fasterShooterId || "",
   };
 }
 
+// Er wordt geen tijd gemeten: de baancommandant wijst per duel aan wie als
+// eerste klaar was. Die schutter wint, TENZIJ hij/zij een doel heeft gemist
+// en de andere (langzamere) schutter meer treffers heeft -- dan wint de
+// andere schutter alsnog. Zelfde regel als determineMatchWinner() in
+// shootout-domain.mjs, maar dan op de nog-niet-opgeslagen conceptwaarden
+// voor live UI-feedback.
 function getShootOutDraftWinner(match, draft = shootOutDuelDraft) {
   const scoreA = validateScore(draft.scoreA);
   const scoreB = validateScore(draft.scoreB);
   if (!scoreA.valid || !scoreB.valid) return null;
-  if (scoreA.value > scoreB.value) return match.shooterA.shooterId;
-  if (scoreB.value > scoreA.value) return match.shooterB.shooterId;
-  for (const tieBreak of draft.tieBreaks) {
-    const tieA = validateScore(tieBreak.scoreA);
-    const tieB = validateScore(tieBreak.scoreB);
-    if (!tieA.valid || !tieB.valid) return null;
-    if (tieA.value > tieB.value) return match.shooterA.shooterId;
-    if (tieB.value > tieA.value) return match.shooterB.shooterId;
-  }
-  return null;
+  const fasterIsA = draft.fasterShooterId === match.shooterA.shooterId;
+  const fasterIsB = draft.fasterShooterId === match.shooterB.shooterId;
+  if (!fasterIsA && !fasterIsB) return null;
+  const fasterScore = fasterIsA ? scoreA.value : scoreB.value;
+  const otherScore = fasterIsA ? scoreB.value : scoreA.value;
+  if (otherScore > fasterScore) return fasterIsA ? match.shooterB.shooterId : match.shooterA.shooterId;
+  return draft.fasterShooterId;
 }
 
-function shootOutNeedsAnotherTieBreak(draft = shootOutDuelDraft) {
-  const scoreA = validateScore(draft.scoreA);
-  const scoreB = validateScore(draft.scoreB);
-  if (!scoreA.valid || !scoreB.valid || scoreA.value !== scoreB.value) return false;
-  if (!draft.tieBreaks.length) return true;
-  const last = draft.tieBreaks.at(-1);
-  const tieA = validateScore(last.scoreA);
-  const tieB = validateScore(last.scoreB);
-  return tieA.valid && tieB.valid && tieA.value === tieB.value;
-}
-
-function ensureShootOutTieBreakDraft() {
-  if (shootOutNeedsAnotherTieBreak()) shootOutDuelDraft.tieBreaks.push({ scoreA: "", scoreB: "" });
-}
+const SHOOT_OUT_MAX_PARTICIPANTS = 32;
 
 function renderShootOutSetup() {
   const content = $("#shootOutContent");
@@ -9082,13 +9171,21 @@ function renderShootOutSetup() {
       `<div class="shootout-preview-row"><span>${escapeHtml(selected[index].name)}</span><b>tegen</b><span>${escapeHtml(selected[index + 1]?.name || "Nog kiezen")}</span></div>`,
     );
   }
+  let statusMessage;
+  if (validCount) {
+    statusMessage = "De volgorde hierboven bepaalt de duelindeling.";
+  } else if (selected.length > SHOOT_OUT_MAX_PARTICIPANTS) {
+    statusMessage = `Te veel schutters geselecteerd (max ${SHOOT_OUT_MAX_PARTICIPANTS}) — vink er ${selected.length - SHOOT_OUT_MAX_PARTICIPANTS} uit.`;
+  } else {
+    statusMessage = `Kies 2, 4, 8, 16 of 32 schutters (nu geselecteerd: ${selected.length}).`;
+  }
   content.innerHTML = `
     <section class="shootout-card">
       <div>
         <p class="eyebrow">Wedstrijdvorm</p>
         <h3>Nieuwe Shoot Out</h3>
       </div>
-      <p class="notice">Steeds twee schutters tegen elkaar. De winnaar gaat door tot de finale.</p>
+      <p class="notice">Steeds twee schutters tegen elkaar. De baancommandant wijst aan wie als eerste klaar was — die wint, tenzij hij/zij een doel miste en de ander meer treffers heeft. De winnaar gaat door tot de finale.</p>
       ${state.shootOutCorrupt ? `<p class="shootout-error">De opgeslagen Shoot Out kon niet worden hersteld. Start hieronder een nieuwe.</p>` : ""}
       <div class="shootout-selection-count">${selected.length} schutters geselecteerd</div>
       <div class="shootout-participants">
@@ -9106,11 +9203,12 @@ function renderShootOutSetup() {
             : `<p class="notice">Voeg eerst minimaal twee actieve schutters toe.</p>`
         }
       </div>
-      <p class="${validCount ? "notice" : "shootout-error"}">${
-        validCount ? "De volgorde hierboven bepaalt de duelindeling." : "Kies 2, 4, 8, 16 of 32 schutters."
-      }</p>
+      <p class="${validCount ? "notice" : "shootout-error"}">${statusMessage}</p>
       ${preview.length ? `<div class="shootout-preview"><strong>Voorlopige duels</strong>${preview.join("")}</div>` : ""}
-      <button class="primary-action full-width" type="button" data-shootout-start ${validCount ? "" : "disabled"}>Shoot Out starten</button>
+      <div class="shootout-actions">
+        <button class="secondary-action full-width" type="button" data-shootout-shuffle ${selected.length >= 2 ? "" : "disabled"}>Volgorde husselen</button>
+        <button class="primary-action full-width" type="button" data-shootout-start ${validCount ? "" : "disabled"}>Shoot Out starten</button>
+      </div>
     </section>`;
 }
 
@@ -9129,17 +9227,21 @@ function renderShootOutRounds(shootOut, nextMatch) {
               const isNext = match.id === nextMatch?.id;
               const winner = match.winnerId === match.shooterA.shooterId ? match.shooterA : match.winnerId === match.shooterB.shooterId ? match.shooterB : null;
               const scoreText = match.status === "completed" ? `${formatNumber(match.scoreA, 2)} – ${formatNumber(match.scoreB, 2)}` : "Nog te spelen";
-              const tieText = match.tieBreaks?.length
-                ? `<small>Beslissing: ${match.tieBreaks.map((item) => `${formatNumber(item.scoreA, 2)}–${formatNumber(item.scoreB, 2)}`).join(" · ")}</small>`
-                : "";
+              const fasterName =
+                match.status === "completed"
+                  ? match.fasterShooterId === match.shooterA.shooterId
+                    ? match.shooterA.displayName
+                    : match.shooterB.displayName
+                  : "";
+              const fasterText = fasterName ? `<small>Als eerste klaar: ${escapeHtml(fasterName)}</small>` : "";
               return `
                 <article class="shootout-match${isNext ? " is-next" : ""}">
                   <span class="shootout-match-status">Duel ${index + 1} · ${match.status === "completed" ? "Afgerond" : "Nog te spelen"}</span>
                   <div class="shootout-score-row">
                     <strong>${escapeHtml(match.shooterA.displayName)}</strong><b>${scoreText}</b><strong>${escapeHtml(match.shooterB.displayName)}</strong>
                   </div>
+                  ${fasterText}
                   ${winner ? `<span class="shootout-match-winner">Winnaar: ${escapeHtml(winner.displayName)}</span>` : ""}
-                  ${tieText}
                   ${match.status === "completed" ? `<button class="text-button" type="button" data-shootout-correct="${match.id}">Uitslag corrigeren</button>` : ""}
                 </article>`;
             })
@@ -9149,14 +9251,35 @@ function renderShootOutRounds(shootOut, nextMatch) {
     .join("");
 }
 
+function renderShootOutFasterOption(match, prefix, draft) {
+  const shooter = prefix === "A" ? match.shooterA : match.shooterB;
+  const checked = draft.fasterShooterId === shooter.shooterId;
+  return `
+    <label class="shootout-faster-option${checked ? " is-checked" : ""}">
+      <input type="radio" name="shootoutFaster" value="${escapeHtml(shooter.shooterId)}" data-shootout-faster="${prefix}" ${checked ? "checked" : ""} />
+      <span>${escapeHtml(shooter.displayName)}</span>
+    </label>`;
+}
+
 function renderShootOutDuelForm(shootOut, match) {
   const context = getShootOutMatchContext(shootOut, match.id);
   if (shootOutDuelDraft.matchId !== match.id) resetShootOutDuelDraft(match);
-  ensureShootOutTieBreakDraft();
   const winnerId = getShootOutDraftWinner(match);
-  const baseA = validateScore(shootOutDuelDraft.scoreA);
-  const baseB = validateScore(shootOutDuelDraft.scoreB);
-  const tied = baseA.valid && baseB.valid && baseA.value === baseB.value;
+  const scoreA = validateScore(shootOutDuelDraft.scoreA);
+  const scoreB = validateScore(shootOutDuelDraft.scoreB);
+  const fasterIsA = shootOutDuelDraft.fasterShooterId === match.shooterA.shooterId;
+  const fasterIsB = shootOutDuelDraft.fasterShooterId === match.shooterB.shooterId;
+  let resultNotice = "";
+  if (scoreA.valid && scoreB.valid && (fasterIsA || fasterIsB)) {
+    const fasterName = fasterIsA ? match.shooterA.displayName : match.shooterB.displayName;
+    const otherName = fasterIsA ? match.shooterB.displayName : match.shooterA.displayName;
+    const fasterScore = fasterIsA ? scoreA.value : scoreB.value;
+    const otherScore = fasterIsA ? scoreB.value : scoreA.value;
+    resultNotice =
+      otherScore > fasterScore
+        ? `<p class="notice">${escapeHtml(fasterName)} was als eerste klaar, maar ${escapeHtml(otherName)} heeft meer treffers (${formatNumber(otherScore, 0)} om ${formatNumber(fasterScore, 0)}) — ${escapeHtml(otherName)} wint.</p>`
+        : `<p class="notice">${escapeHtml(fasterName)} was als eerste klaar en heeft genoeg treffers (${formatNumber(fasterScore, 0)} om ${formatNumber(otherScore, 0)}) — ${escapeHtml(fasterName)} wint.</p>`;
+  }
   return `
     <section class="shootout-card">
       <div>
@@ -9165,22 +9288,17 @@ function renderShootOutDuelForm(shootOut, match) {
       </div>
       <form class="shootout-duel-form" id="shootOutDuelForm">
         <div class="shootout-duel-grid">
-          <label><span>${escapeHtml(match.shooterA.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-score="A" value="${escapeHtml(shootOutDuelDraft.scoreA)}" /></label>
-          <label><span>${escapeHtml(match.shooterB.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-score="B" value="${escapeHtml(shootOutDuelDraft.scoreB)}" /></label>
+          <label><span>${escapeHtml(match.shooterA.displayName)} — treffers</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="1" inputmode="decimal" data-shootout-score="A" value="${escapeHtml(shootOutDuelDraft.scoreA)}" /></label>
+          <label><span>${escapeHtml(match.shooterB.displayName)} — treffers</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="1" inputmode="decimal" data-shootout-score="B" value="${escapeHtml(shootOutDuelDraft.scoreB)}" /></label>
         </div>
-        ${tied ? `<p class="shootout-error">Gelijke score – voer een beslissende score in.</p>` : ""}
-        ${shootOutDuelDraft.tieBreaks
-          .map(
-            (tieBreak, index) => `
-              <section class="shootout-tiebreak-card">
-                <strong>Beslissingsronde ${index + 1}</strong>
-                <div class="shootout-tiebreak-grid">
-                  <label><span>${escapeHtml(match.shooterA.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-tiebreak="A" data-tiebreak-index="${index}" value="${escapeHtml(tieBreak.scoreA)}" /></label>
-                  <label><span>${escapeHtml(match.shooterB.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-tiebreak="B" data-tiebreak-index="${index}" value="${escapeHtml(tieBreak.scoreB)}" /></label>
-                </div>
-              </section>`,
-          )
-          .join("")}
+        <div class="shootout-faster-picker">
+          <span>Wie was als eerste klaar? (aangewezen door de baancommandant)</span>
+          <div class="shootout-faster-options">
+            ${renderShootOutFasterOption(match, "A", shootOutDuelDraft)}
+            ${renderShootOutFasterOption(match, "B", shootOutDuelDraft)}
+          </div>
+        </div>
+        ${resultNotice}
         <button class="primary-action full-width" id="shootOutConfirmButton" type="submit" ${winnerId && !shootOutSaving ? "" : "disabled"}>Uitslag bevestigen</button>
       </form>
     </section>`;
@@ -9190,17 +9308,17 @@ function renderShootOutCompleted(shootOut) {
   const finalMatch = shootOut.rounds.at(-1)?.matches?.[0];
   const winner = finalMatch?.winnerId === finalMatch?.shooterA.shooterId ? finalMatch.shooterA : finalMatch?.shooterB;
   const finalist = finalMatch?.winnerId === finalMatch?.shooterA.shooterId ? finalMatch.shooterB : finalMatch?.shooterA;
-  const tieText = finalMatch?.tieBreaks?.length
-    ? ` · beslissing ${finalMatch.tieBreaks.map((item) => `${formatNumber(item.scoreA, 2)}–${formatNumber(item.scoreB, 2)}`).join(" · ")}`
-    : "";
+  const fasterName =
+    finalMatch?.fasterShooterId === finalMatch?.shooterA.shooterId ? finalMatch?.shooterA.displayName : finalMatch?.shooterB.displayName;
   return `
     <section class="shootout-winner-card">
       <p class="eyebrow">Winnaar Shoot Out</p>
       <h3>${escapeHtml(winner?.displayName || "Onbekend")}</h3>
-      <p>Finale tegen ${escapeHtml(finalist?.displayName || "Onbekend")} · ${formatNumber(finalMatch?.scoreA || 0, 2)}–${formatNumber(finalMatch?.scoreB || 0, 2)}${tieText}</p>
+      <p>Finale tegen ${escapeHtml(finalist?.displayName || "Onbekend")} · ${formatNumber(finalMatch?.scoreA || 0, 2)}–${formatNumber(finalMatch?.scoreB || 0, 2)} · als eerste klaar: ${escapeHtml(fasterName || "Onbekend")}</p>
       <div class="shootout-actions">
+        <button class="secondary-action" type="button" data-shootout-beamer>Beamerweergave</button>
         <button class="secondary-action" type="button" data-shootout-view-bracket>Bekijk schema</button>
-        <button class="primary-action" type="button" data-shootout-new>Nieuwe Shoot Out</button>
+        <button class="primary-action full-width" type="button" data-shootout-new>Nieuwe Shoot Out</button>
         <button class="text-button full-width" type="button" data-shootout-close>Sluiten</button>
       </div>
     </section>`;
@@ -9230,7 +9348,8 @@ function renderShootOut() {
       <p class="notice">${shootOut.status === "completed" ? "Wedstrijd afgerond" : `${completed} van ${currentRound.matches.length} duels in deze ronde afgerond`}</p>
       <div class="shootout-actions">
         ${nextMatch ? `<button class="secondary-action" type="button" data-shootout-next>Volgend duel</button>` : ""}
-        <button class="secondary-action" type="button" data-shootout-new>Nieuwe starten</button>
+        <button class="secondary-action" type="button" data-shootout-beamer>Beamerweergave</button>
+        <button class="secondary-action full-width" type="button" data-shootout-new>Nieuwe starten</button>
         ${shootOut.status === "active" ? `<button class="text-button full-width" type="button" data-shootout-cancel>Annuleren</button>` : `<button class="text-button full-width" type="button" data-shootout-close>Sluiten</button>`}
       </div>
     </section>
@@ -10516,6 +10635,82 @@ function renderBeamerRoundsBody() {
   if (pager) pager.hidden = true;
 }
 
+// Zelfde reden als de andere beamer-weergaven: een lopende Shoot Out is
+// precies het soort ding dat je tijdens een live finale op een groot scherm
+// wilt projecteren, in plaats van alleen zichtbaar op het scherm van de
+// trainer die de uitslagen invoert.
+function renderBeamerShootOutBody() {
+  const table = $("#beamerTable");
+  table.classList.remove("is-dense", "is-ultra-dense", "is-split", "is-mega");
+  const shootOut = state.shootOut;
+  if (!shootOut || shootOut.status === "cancelled") {
+    table.innerHTML = `<div class="empty">Nog geen Shoot Out gestart.</div>`;
+    const pager = $("#beamerPager");
+    if (pager) pager.hidden = true;
+    return;
+  }
+
+  const nextMatch = getNextPendingMatch(shootOut);
+  const winnerBanner =
+    shootOut.status === "completed"
+      ? (() => {
+          const finalMatch = shootOut.rounds.at(-1)?.matches?.[0];
+          const winner = finalMatch?.winnerId === finalMatch?.shooterA.shooterId ? finalMatch.shooterA : finalMatch?.shooterB;
+          return `
+            <div class="beamer-shootout-winner">
+              <span>Winnaar Shoot Out</span>
+              <strong>${escapeHtml(winner?.displayName || "Onbekend")}</strong>
+            </div>
+          `;
+        })()
+      : "";
+
+  const rounds = shootOut.rounds
+    .map((round) => {
+      const completed = round.matches.filter((match) => match.status === "completed").length;
+      return `
+        <section class="beamer-level-group">
+          <div class="beamer-level-title">
+            <strong>${escapeHtml(round.label)}</strong>
+            <span>${completed} / ${round.matches.length} afgerond</span>
+          </div>
+          ${round.matches
+            .map((match) => {
+              const isNext = match.id === nextMatch?.id;
+              const winnerA = match.status === "completed" && match.winnerId === match.shooterA.shooterId;
+              const winnerB = match.status === "completed" && match.winnerId === match.shooterB.shooterId;
+              const scoreText =
+                match.status === "completed"
+                  ? `${formatNumber(match.scoreA, 2)} – ${formatNumber(match.scoreB, 2)}`
+                  : isNext
+                    ? "Nu bezig"
+                    : "—";
+              const fasterName =
+                match.status === "completed"
+                  ? match.fasterShooterId === match.shooterA.shooterId
+                    ? match.shooterA.displayName
+                    : match.shooterB.displayName
+                  : "";
+              const fasterText = fasterName ? `<small>Als eerste klaar: ${escapeHtml(fasterName)}</small>` : "";
+              return `
+                <div class="beamer-shootout-match${isNext ? " is-next" : ""}">
+                  <span class="beamer-shootout-name${winnerA ? " is-winner" : ""}">${escapeHtml(match.shooterA.displayName)}</span>
+                  <span class="beamer-shootout-score">${scoreText}${fasterText}</span>
+                  <span class="beamer-shootout-name${winnerB ? " is-winner" : ""}">${escapeHtml(match.shooterB.displayName)}</span>
+                </div>
+              `;
+            })
+            .join("")}
+        </section>
+      `;
+    })
+    .join("");
+
+  table.innerHTML = `<div class="beamer-rounds-wrap">${winnerBanner}${rounds}</div>`;
+  const pager = $("#beamerPager");
+  if (pager) pager.hidden = true;
+}
+
 function formatBeamerRoundScore(score) {
   return `
     <span class="beamer-round-score">
@@ -10647,6 +10842,13 @@ function renderBeamerBoard() {
     const formula = $("#beamerFormula");
     if (formula) formula.hidden = true;
     renderBeamerRoundsBody();
+    return;
+  }
+
+  if (beamerMode === "shootout") {
+    const formula = $("#beamerFormula");
+    if (formula) formula.hidden = true;
+    renderBeamerShootOutBody();
     return;
   }
 
@@ -12358,7 +12560,11 @@ function resetShootOut({ cancelActive = false } = {}) {
       : "Er is een actieve Shoot Out. Nieuwe starten? De huidige uitslagen gaan verloren.";
     if (!window.confirm(message)) return false;
   }
-  state.shootOut = cancelActive && state.shootOut ? { ...state.shootOut, status: "cancelled", updatedAt: new Date().toISOString() } : null;
+  // Altijd een "cancelled"-object met een verse eigen updatedAt zetten, nooit
+  // hard null: null heeft geen tijdstempel om een sync-merge mee te winnen
+  // (zie mergeShootOut), waardoor een iets tragere sync het net gewiste
+  // schema alsnog kon laten terugkomen.
+  state.shootOut = state.shootOut ? { ...state.shootOut, status: "cancelled", updatedAt: new Date().toISOString() } : null;
   state.shootOutCorrupt = false;
   shootOutSelectedIds = [];
   shootOutShowBracket = false;
@@ -12378,23 +12584,24 @@ function syncShootOutConfirmButton() {
 function updateShootOutDuelDraftFromInput(input) {
   if (input.dataset.shootoutScore) {
     shootOutDuelDraft[input.dataset.shootoutScore === "A" ? "scoreA" : "scoreB"] = input.value;
-    const scoreA = validateScore(shootOutDuelDraft.scoreA);
-    const scoreB = validateScore(shootOutDuelDraft.scoreB);
-    if (scoreA.valid && scoreB.valid && scoreA.value !== scoreB.value) shootOutDuelDraft.tieBreaks = [];
+  } else if (input.dataset.shootoutFaster) {
+    shootOutDuelDraft.fasterShooterId = input.value;
   }
-  if (input.dataset.shootoutTiebreak) {
-    const index = Number(input.dataset.tiebreakIndex);
-    const tieBreak = shootOutDuelDraft.tieBreaks[index];
-    if (tieBreak) tieBreak[input.dataset.shootoutTiebreak === "A" ? "scoreA" : "scoreB"] = input.value;
-  }
-  if (shootOutNeedsAnotherTieBreak()) {
-    ensureShootOutTieBreakDraft();
-    renderShootOut();
-    const nextIndex = shootOutDuelDraft.tieBreaks.length - 1;
-    requestAnimationFrame(() => $(`[data-shootout-tiebreak="A"][data-tiebreak-index="${nextIndex}"]`)?.focus());
-  } else {
-    syncShootOutConfirmButton();
-  }
+}
+
+function handleShootOutDuelInput(input) {
+  updateShootOutDuelDraftFromInput(input);
+  syncShootOutConfirmButton();
+}
+
+// De "wie was sneller"-keuze en de treffers-tekst wisselen elkaar uit, dus
+// die verdient een volledige re-render (fris label, bijgewerkte
+// winnaar-melding); bij een treffersveld volstaat de lichte input-only
+// update hierboven.
+function handleShootOutDuelChange(input) {
+  updateShootOutDuelDraftFromInput(input);
+  if (input.dataset.shootoutFaster) renderShootOut();
+  else syncShootOutConfirmButton();
 }
 
 function confirmShootOutMatch() {
@@ -12408,24 +12615,26 @@ function confirmShootOutMatch() {
     showToast(scoreA.message || scoreB.message);
     return;
   }
-  const winnerId = getShootOutDraftWinner(match);
-  if (!winnerId) {
-    showToast("Gelijke score – voer een beslissende score in");
+  if (shootOutDuelDraft.fasterShooterId !== match.shooterA.shooterId && shootOutDuelDraft.fasterShooterId !== match.shooterB.shooterId) {
+    showToast("Kies welke schutter als eerste klaar was");
     return;
   }
+  const winnerId = getShootOutDraftWinner(match);
   const winner = winnerId === match.shooterA.shooterId ? match.shooterA : match.shooterB;
-  const tieBreaks = scoreA.value === scoreB.value ? shootOutDuelDraft.tieBreaks : [];
-  const tieSummary = tieBreaks.length
-    ? `\nBeslissing: ${tieBreaks.map((item) => `${item.scoreA} - ${item.scoreB}`).join(" · ")}`
-    : "";
+  const fasterName =
+    shootOutDuelDraft.fasterShooterId === match.shooterA.shooterId ? match.shooterA.displayName : match.shooterB.displayName;
   const confirmed = window.confirm(
-    `${match.shooterA.displayName}: ${scoreA.value}\n${match.shooterB.displayName}: ${scoreB.value}${tieSummary}\n\nWinnaar: ${winner.displayName}\n\nUitslag definitief opslaan?`,
+    `${match.shooterA.displayName}: ${scoreA.value} treffers\n${match.shooterB.displayName}: ${scoreB.value} treffers\nAls eerste klaar: ${fasterName}\n\nWinnaar: ${winner.displayName}\n\nUitslag definitief opslaan?`,
   );
   if (!confirmed) return;
   shootOutSaving = true;
   syncShootOutConfirmButton();
   try {
-    state.shootOut = completeMatch(shootOut, match.id, { scoreA: scoreA.value, scoreB: scoreB.value }, tieBreaks);
+    state.shootOut = completeMatch(shootOut, match.id, {
+      scoreA: scoreA.value,
+      scoreB: scoreB.value,
+      fasterShooterId: shootOutDuelDraft.fasterShooterId,
+    });
     resetShootOutDuelDraft(getNextPendingMatch(state.shootOut));
     shootOutShowBracket = false;
     markDirty();
@@ -12448,6 +12657,18 @@ document.addEventListener("click", (event) => {
   }
   if (event.target.closest("[data-shootout-start]")) {
     startSelectedShootOut();
+    return;
+  }
+  if (event.target.closest("[data-shootout-shuffle]")) {
+    for (let index = shootOutSelectedIds.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shootOutSelectedIds[index], shootOutSelectedIds[swapIndex]] = [shootOutSelectedIds[swapIndex], shootOutSelectedIds[index]];
+    }
+    renderShootOut();
+    return;
+  }
+  if (event.target.closest("[data-shootout-beamer]")) {
+    openBeamerBoard("shootout");
     return;
   }
   if (event.target.closest("[data-shootout-new]")) {
@@ -12503,8 +12724,13 @@ $("#shootOutPanel")?.addEventListener("change", (event) => {
 });
 
 $("#shootOutPanel")?.addEventListener("input", (event) => {
-  const input = event.target.closest("[data-shootout-score], [data-shootout-tiebreak]");
-  if (input) updateShootOutDuelDraftFromInput(input);
+  const input = event.target.closest("[data-shootout-score], [data-shootout-faster]");
+  if (input) handleShootOutDuelInput(input);
+});
+
+$("#shootOutPanel")?.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-shootout-score], [data-shootout-faster]");
+  if (input) handleShootOutDuelChange(input);
 });
 
 $("#shootOutPanel")?.addEventListener("submit", (event) => {

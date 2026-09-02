@@ -20,7 +20,7 @@ export function getRoundLabel(participantCount) {
 export function validateScore(value, max = SHOOT_OUT_SCORE_MAX) {
   const score = typeof value === "number" ? value : Number(String(value ?? "").replace(",", "."));
   if (value === "" || value === null || value === undefined || !Number.isFinite(score)) {
-    return { valid: false, message: "Vul een geldige numerieke score in." };
+    return { valid: false, message: "Vul een geldig aantal treffers in." };
   }
   if (score < SHOOT_OUT_SCORE_MIN || score > max) {
     return { valid: false, message: `De score moet tussen ${SHOOT_OUT_SCORE_MIN} en ${max} liggen.` };
@@ -43,7 +43,6 @@ function createMatch(roundIndex, matchIndex, shooterA, shooterB) {
     status: "pending",
     shooterA: participantSnapshot(shooterA),
     shooterB: participantSnapshot(shooterB),
-    tieBreaks: [],
   };
 }
 
@@ -80,20 +79,25 @@ export function createShootOut(participants) {
   };
 }
 
+// Er wordt geen tijd gemeten: de baancommandant wijst per duel aan welke
+// schutter als eerste klaar was. Die schutter wint, TENZIJ hij/zij een doel
+// heeft gemist en de andere schutter (die dus langzamer was) meer treffers
+// heeft -- dan wint de andere schutter alsnog. Bij gelijke treffers wint de
+// aangewezen snelste. Zonder aanwijzing (nog) geen winnaar te bepalen.
 export function determineMatchWinner(match) {
   const scoreA = validateScore(match?.scoreA);
   const scoreB = validateScore(match?.scoreB);
   if (!scoreA.valid || !scoreB.valid) return null;
-  if (scoreA.value > scoreB.value) return match.shooterA.shooterId;
-  if (scoreB.value > scoreA.value) return match.shooterB.shooterId;
-  for (const tieBreak of match.tieBreaks || []) {
-    const tieA = validateScore(tieBreak.scoreA);
-    const tieB = validateScore(tieBreak.scoreB);
-    if (!tieA.valid || !tieB.valid) return null;
-    if (tieA.value > tieB.value) return match.shooterA.shooterId;
-    if (tieB.value > tieA.value) return match.shooterB.shooterId;
-  }
-  return null;
+  const shooterAId = match?.shooterA?.shooterId;
+  const shooterBId = match?.shooterB?.shooterId;
+  const fasterId = match?.fasterShooterId;
+  if (fasterId !== shooterAId && fasterId !== shooterBId) return null;
+  const fasterIsA = fasterId === shooterAId;
+  const fasterScore = fasterIsA ? scoreA.value : scoreB.value;
+  const otherScore = fasterIsA ? scoreB.value : scoreA.value;
+  const otherWins = otherScore > fasterScore;
+  if (!otherWins) return fasterId;
+  return fasterIsA ? shooterBId : shooterAId;
 }
 
 export function isRoundComplete(round) {
@@ -121,7 +125,7 @@ export function completeShootOutIfFinalFinished(shootOut) {
   return next;
 }
 
-export function completeMatch(shootOut, matchId, scores, tieBreaks = []) {
+export function completeMatch(shootOut, matchId, result) {
   const next = clone(shootOut);
   if (next.status !== "active") throw new Error("Deze Shoot Out is niet meer actief.");
   const roundIndex = next.rounds.findIndex((round) => round.matches.some((match) => match.id === matchId));
@@ -130,20 +134,17 @@ export function completeMatch(shootOut, matchId, scores, tieBreaks = []) {
   const round = next.rounds[roundIndex];
   const match = round.matches.find((item) => item.id === matchId);
   if (match.status === "completed") throw new Error("Dit duel is al afgerond.");
-  const scoreA = validateScore(scores?.scoreA);
-  const scoreB = validateScore(scores?.scoreB);
+  const scoreA = validateScore(result?.scoreA);
+  const scoreB = validateScore(result?.scoreB);
   if (!scoreA.valid || !scoreB.valid) throw new Error(scoreA.message || scoreB.message);
-  const normalizedTieBreaks = (tieBreaks || []).map((tieBreak, index) => {
-    const tieA = validateScore(tieBreak.scoreA);
-    const tieB = validateScore(tieBreak.scoreB);
-    if (!tieA.valid || !tieB.valid) throw new Error(tieA.message || tieB.message);
-    return { index, scoreA: tieA.value, scoreB: tieB.value };
-  });
+  if (result?.fasterShooterId !== match.shooterA.shooterId && result?.fasterShooterId !== match.shooterB.shooterId) {
+    throw new Error("Kies welke schutter als eerste klaar was.");
+  }
   match.scoreA = scoreA.value;
   match.scoreB = scoreB.value;
-  match.tieBreaks = normalizedTieBreaks;
+  match.fasterShooterId = result.fasterShooterId;
   const winnerId = determineMatchWinner(match);
-  if (!winnerId) throw new Error("Gelijke score – voer een beslissende score in.");
+  if (!winnerId) throw new Error("Kon geen winnaar bepalen.");
   match.status = "completed";
   match.winnerId = winnerId;
   match.completedAt = nowIso();
@@ -172,7 +173,7 @@ export function rebuildFromCorrectedMatch(shootOut, matchId) {
   match.status = "pending";
   delete match.scoreA;
   delete match.scoreB;
-  match.tieBreaks = [];
+  delete match.fasterShooterId;
   delete match.winnerId;
   delete match.completedAt;
   next.rounds = next.rounds.slice(0, roundIndex + 1);
@@ -186,6 +187,22 @@ export function rebuildFromCorrectedMatch(shootOut, matchId) {
 export function hasCompletedDependentMatches(shootOut, matchId) {
   const roundIndex = shootOut?.rounds?.findIndex((round) => round.matches.some((match) => match.id === matchId)) ?? -1;
   return roundIndex >= 0 && shootOut.rounds.slice(roundIndex + 1).some((round) => round.matches.some((match) => match.status === "completed"));
+}
+
+// Voegt de twee losse toplevel-tijdstempels (state.updatedAt) samen tot één
+// winnaar op basis van welke shootOut zélf het meest recent is bijgewerkt --
+// niet op basis van welke hele sync-state toevallig nieuwer is. Zonder dit
+// kan een heel andere, ongerelateerde wijziging op een ander apparaat een
+// net bevestigd duel-resultaat weer laten verdwijnen (zie mergeSyncStates in
+// index.html): elk veld dat niet los gemerged wordt, volgt namelijk blind de
+// hele-state-tijdstempel, terwijl een live Shoot Out juist per duel, snel
+// na elkaar, wordt bijgewerkt.
+export function mergeShootOut(localShootOut, remoteShootOut) {
+  const localAt = String(localShootOut?.updatedAt || "");
+  const remoteAt = String(remoteShootOut?.updatedAt || "");
+  if (!localShootOut) return remoteShootOut ? clone(remoteShootOut) : null;
+  if (!remoteShootOut) return clone(localShootOut);
+  return clone(remoteAt > localAt ? remoteShootOut : localShootOut);
 }
 
 export function normalizeShootOut(value) {
@@ -202,7 +219,6 @@ export function normalizeShootOut(value) {
         if (!match?.id || !match.shooterA?.shooterId || !match.shooterB?.shooterId) return null;
         match.roundIndex = roundIndex;
         match.matchIndex = matchIndex;
-        match.tieBreaks = Array.isArray(match.tieBreaks) ? match.tieBreaks : [];
       }
     }
     return normalized;
