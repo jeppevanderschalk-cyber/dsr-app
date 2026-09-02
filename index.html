@@ -2640,6 +2640,20 @@ select:focus {
   background: linear-gradient(145deg, #f1c08a, #c7803d 55%, #8b4a1d);
 }
 
+/* Eigen beste ronde van een schutter (los van de goud/zilver/brons-medaille
+   hierboven, die over de top 3 van iedereen gaat). */
+.beamer-rounds-table tbody td.is-best {
+  color: #0b0b0c;
+  background: var(--yellow);
+  border-radius: 10px;
+  box-shadow: 0 0 14px rgba(245, 197, 24, 0.55);
+}
+
+.beamer-rounds-table tbody td.is-best .beamer-round-score strong,
+.beamer-rounds-table tbody td.is-best .beamer-round-score small {
+  color: #0b0b0c;
+}
+
 .beamer-notes {
   display: flex;
   flex-direction: column;
@@ -9828,27 +9842,34 @@ function getBeamerRoundsData() {
 
   // Volgorde blijft zoals de schutters geregistreerd staan (niet herschikt op
   // score): zo blijft voor iedereen duidelijk wie waar in de beurt-volgorde
-  // staat, ook nadat de eerste ronde al gescoord is.
-  const rows = shooters.map((shooter) => {
-    const shooterEntries = entries.filter((entry) => entry.shooterId === shooter.id);
-    const bestHitfactor = shooterEntries.length ? Math.max(...shooterEntries.map((entry) => entry.hitfactor || 0)) : 0;
-    const cells = rounds.map((round) => {
-      const score = shooterEntries
-        .filter((entry) => Number(entry.displayRound) === round)
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-      return {
-        round,
-        score,
-        html: score ? formatBeamerRoundScore(score) : "—",
-      };
-    });
-    return { shooter, cells, bestHitfactor, entryCount: shooterEntries.length };
-  });
+  // staat, ook nadat de eerste ronde al gescoord is. Schutters zonder een
+  // enkele ronde deze sessie worden overgeslagen (niet meegetraind).
+  const rows = shooters
+    .map((shooter) => {
+      const shooterEntries = entries.filter((entry) => entry.shooterId === shooter.id);
+      const bestHitfactor = shooterEntries.length ? Math.max(...shooterEntries.map((entry) => entry.hitfactor || 0)) : 0;
+      const cells = rounds.map((round) => {
+        const score = shooterEntries
+          .filter((entry) => Number(entry.displayRound) === round)
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+        // Eigen beste ronde van deze schutter blijft geel geaccentueerd,
+        // los van de goud/zilver/brons-medaille hieronder (die gaat over de
+        // top 3 van iedereen samen).
+        const isBest = Boolean(score) && bestHitfactor > 0 && Math.abs(score.hitfactor - bestHitfactor) < 0.0005;
+        return {
+          round,
+          score,
+          isBest,
+          html: score ? formatBeamerRoundScore(score) : "—",
+        };
+      });
+      return { shooter, cells, bestHitfactor, entryCount: shooterEntries.length };
+    })
+    .filter((row) => row.entryCount > 0);
 
   // Goud/zilver/brons voor de 3 hoogste scores, los van de weergavevolgorde
   // hierboven.
   rows
-    .filter((row) => row.entryCount > 0)
     .slice()
     .sort((a, b) => b.bestHitfactor - a.bestHitfactor)
     .slice(0, 3)
@@ -9887,7 +9908,7 @@ function renderBeamerRoundsBody() {
                 (row) => `
                   <tr>
                     <th>${row.medal ? `<span class="beamer-medal beamer-medal-${row.medal}" aria-label="${row.medal}e plek">${row.medal}</span>` : ""}${escapeHtml(row.shooter.name)}${row.shooter.optic ? " · Optic" : ""}</th>
-                    ${row.cells.map((cell) => `<td>${cell.html}</td>`).join("")}
+                    ${row.cells.map((cell) => `<td class="${cell.isBest ? "is-best" : ""}">${cell.html}</td>`).join("")}
                   </tr>
                 `,
               )
