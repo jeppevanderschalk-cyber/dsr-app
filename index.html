@@ -4649,10 +4649,14 @@ dialog .primary-action::after {
    onderbalk omzet in een verticale zijbalk voor een breed, muis-bediend
    scherm. Op een iPad in liggende stand is er domweg niet genoeg hoogte voor
    6 items in die zijbalk, waardoor de onderste knoppen (half) wegvallen.
-   pointer:coarse (aanraakscherm, geen muis) onderscheidt dit betrouwbaar van
-   een echt breed desktopvenster: dáár blijft de zijbalk gewoon staan, hier
-   komt de vertrouwde, al bewezen werkende onderbalk terug. */
-@media (min-width: 1100px) and (pointer: coarse) {
+   any-pointer:coarse (er is ergens een aanraakscherm) onderscheidt dit
+   betrouwbaar van een echt breed desktopvenster: dáár blijft de zijbalk
+   gewoon staan, hier komt de vertrouwde, al bewezen werkende onderbalk
+   terug. Bewust any-pointer i.p.v. pointer: een iPad met aangesloten
+   toetsenbord/trackpad rapporteert pointer:fine (het toetsenbord is dan de
+   hoofdaanwijzer) maar heeft nog steeds een aanraakscherm beschikbaar, dus
+   any-pointer:coarse blijft ook dan waar. */
+@media (min-width: 1100px) and (any-pointer: coarse) {
   .app-shell {
     display: block;
     overflow: visible;
