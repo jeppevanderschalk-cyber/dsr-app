@@ -629,6 +629,17 @@ small {
   width: 100%;
   justify-content: center;
   margin-top: 4px;
+}
+
+/* De donkere-tekst-op-geel hoort alleen bij primary-action (gele knop) --
+   .full-width zelf is puur een breedte-modifier. Vroeger stond color/
+   box-shadow hierboven op .full-width zelf, wat het universeel liet gelden
+   (ook op secondary-action/text-button, met hun eigen lichte/gele tekst):
+   donkere tekst op een donkere knop, nauwelijks leesbaar. Bestaande knoppen
+   ontsnapten daaraan toevallig via een eigen, later gedefinieerde
+   kleur-override (#logoutButton, .sync-now-button); nieuwe knoppen zonder
+   zo'n eigen override (bijv. de Shoot Out-knoppen) hadden dat geluk niet. */
+.primary-action.full-width {
   color: var(--accent-ink);
   box-shadow: var(--shadow-yellow);
 }
@@ -6501,6 +6512,13 @@ document.addEventListener(
     if (event.target.closest("[data-master-card-score], [data-master-card-remove], [data-master-card-action]")) return;
     if (event.target.closest("[data-long-stage-step], [data-long-stage-bonus]")) return;
     if (event.target.closest("[data-aps-step], [data-aps-penalty]")) return;
+    // Shoot Out is inherent een "snel na elkaar meerdere knoppen tikken"-flow
+    // (schutters aanvinken en meteen starten, of het volgende duel meteen
+    // bevestigen) -- zonder deze uitzondering kon een knoptik die toevallig
+    // binnen 320ms na een vorige knoptik viel (zoals starten vlak na
+    // husselen) stilletjes worden onderdrukt, wat als "de knop doet niks"
+    // oogt.
+    if (event.target.closest("#shootOutPanel")) return;
     const now = Date.now();
     if (now - lastButtonTouchAt < 320) event.preventDefault();
     lastButtonTouchAt = now;
