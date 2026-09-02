@@ -10167,21 +10167,24 @@ function renderBeamerBoard() {
   }
 }
 
-async function openBeamerBoard(mode = "ranking") {
+// Geen requestFullscreen() meer: het overlay-scherm is via CSS
+// (position:fixed; inset:0) al volledig schermvullend, en de native
+// Fullscreen-API liet op iPadOS Safari na het weer verlaten ervan soms de
+// viewport-afmetingen in de war — waardoor de layout (o.a. de menubalk)
+// daarna verkeerd bleef berekenen totdat de app opnieuw werd geopend.
+function openBeamerBoard(mode = "ranking") {
   const overlay = $("#beamerOverlay");
   beamerMode = mode;
   overlay.hidden = false;
   beamerPaging.index = 0;
   renderBeamerBoard();
   startBeamerAutoPaging();
-  await overlay.requestFullscreen?.().catch(() => {});
 }
 
-async function closeBeamerBoard() {
+function closeBeamerBoard() {
   const overlay = $("#beamerOverlay");
   overlay.hidden = true;
   stopBeamerAutoPaging();
-  if (document.fullscreenElement) await document.exitFullscreen?.().catch(() => {});
 }
 
 function renderRankingItems(items, compact) {
@@ -12488,6 +12491,16 @@ if (window.visualViewport) {
   const pinBottomNavToVisualViewport = () => {
     const nav = document.querySelector(".bottom-nav");
     if (!nav) return;
+    // Deze fix hoort alleen bij de vaste-onderbalk-lagen (position:fixed,
+    // gecentreerd via translateX(-50%)). Vanaf de iPad-landscape/desktop-laag
+    // wordt de balk een zijbalk (position:sticky, eigen transform: none) — een
+    // hier achtergebleven inline transform zou die laag dan verkeerd
+    // opzijschuiven. Buiten position:fixed dus niets doen en een eerder
+    // gezette inline transform weer opruimen.
+    if (getComputedStyle(nav).position !== "fixed") {
+      if (nav.style.transform) nav.style.transform = "";
+      return;
+    }
     const vv = window.visualViewport;
     const gap = window.innerHeight - (vv.height + vv.offsetTop);
     nav.style.transform = `translateX(-50%) translateY(${gap > 0.5 ? -gap : 0}px)`;
