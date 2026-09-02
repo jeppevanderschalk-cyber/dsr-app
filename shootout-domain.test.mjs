@@ -19,12 +19,14 @@ const winPending = (shootOut, scoreA = 10, scoreB = 5, fasterShooterId) => {
   return completeMatch(shootOut, match.id, { scoreA, scoreB, fasterShooterId: fasterShooterId || match.shooterA.shooterId });
 };
 
-test("alleen machten van twee vanaf 2 zijn geldig", () => {
+test("elk aantal van 2 t/m 32 is geldig, daarbuiten niet", () => {
   assert.equal(isValidParticipantCount(2), true);
-  assert.equal(isValidParticipantCount(4), true);
-  assert.equal(isValidParticipantCount(8), true);
-  assert.equal(isValidParticipantCount(3), false);
+  assert.equal(isValidParticipantCount(3), true);
+  assert.equal(isValidParticipantCount(10), true);
+  assert.equal(isValidParticipantCount(32), true);
   assert.equal(isValidParticipantCount(1), false);
+  assert.equal(isValidParticipantCount(33), false);
+  assert.equal(isValidParticipantCount(2.5), false);
 });
 
 test("twee deelnemers spelen direct een finale", () => {
@@ -90,6 +92,44 @@ test("zonder aangewezen snelste schutter is er geen winnaar", () => {
   const shootOut = createShootOut(participants(2));
   const match = getNextPendingMatch(shootOut);
   assert.throws(() => completeMatch(shootOut, match.id, { scoreA: 10, scoreB: 8 }), /Kies welke schutter/);
+});
+
+test("10 deelnemers krijgen 6 bye's zodat ronde 2 op 8 uitkomt", () => {
+  const shootOut = createShootOut(participants(10));
+  const round1 = shootOut.rounds[0];
+  const byeMatches = round1.matches.filter((match) => match.isBye);
+  const realMatches = round1.matches.filter((match) => !match.isBye);
+  assert.equal(byeMatches.length, 6);
+  assert.equal(realMatches.length, 2);
+  // Elke bye is meteen "gewonnen" door de enige deelnemer, zonder score.
+  byeMatches.forEach((match) => {
+    assert.equal(match.status, "completed");
+    assert.equal(match.shooterB, null);
+    assert.equal(match.winnerId, match.shooterA.shooterId);
+  });
+  // Alle 10 deelnemers komen precies één keer voor in ronde 1.
+  const allIds = round1.matches.flatMap((match) => [match.shooterA.shooterId, match.shooterB?.shooterId]).filter(Boolean);
+  assert.equal(new Set(allIds).size, 10);
+});
+
+test("een bye-schutter gaat automatisch door en het schema rondt netjes af", () => {
+  let shootOut = createShootOut(participants(3)); // bracketSize 4, 1 bye
+  assert.equal(shootOut.rounds[0].matches.length, 2); // 1 echt duel + 1 bye
+  const byeWinnerId = shootOut.rounds[0].matches.find((match) => match.isBye).winnerId;
+  shootOut = winPending(shootOut); // rondt het enige echte duel in ronde 1 af
+  // Ronde 1 was daarmee compleet (bye telt al als voltooid) -> ronde 2 (finale) is aangemaakt.
+  assert.equal(shootOut.rounds.length, 2);
+  assert.equal(shootOut.rounds[1].matches.length, 1);
+  const finalists = [shootOut.rounds[1].matches[0].shooterA.shooterId, shootOut.rounds[1].matches[0].shooterB.shooterId];
+  assert.ok(finalists.includes(byeWinnerId));
+  shootOut = winPending(shootOut);
+  assert.equal(shootOut.status, "completed");
+});
+
+test("een bye kan niet gecorrigeerd worden", () => {
+  const shootOut = createShootOut(participants(3));
+  const byeMatchId = shootOut.rounds[0].matches.find((match) => match.isBye).id;
+  assert.throws(() => rebuildFromCorrectedMatch(shootOut, byeMatchId), /bye kan niet worden gecorrigeerd/);
 });
 
 test("correctie verwijdert afhankelijke vervolgrondes", () => {

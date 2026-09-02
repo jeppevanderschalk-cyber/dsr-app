@@ -1,13 +1,23 @@
 export const SHOOT_OUT_SCORE_MIN = 0;
 export const SHOOT_OUT_SCORE_MAX = 1000;
+export const SHOOT_OUT_MAX_PARTICIPANTS = 32;
 
 const clone = (value) => structuredClone(value);
 const nowIso = () => new Date().toISOString();
 const makeId = (prefix) =>
   globalThis.crypto?.randomUUID?.() || `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+// Elk aantal vanaf 2 mag meedoen -- geen macht-van-2 eis meer. Zit het
+// aantal er niet precies op (bijv. 10), dan lost createShootOut() dat op met
+// bye's (zie daar) zodat de tweede ronde alsnog een nette macht van 2 is.
 export function isValidParticipantCount(count) {
-  return Number.isInteger(count) && count >= 2 && (count & (count - 1)) === 0;
+  return Number.isInteger(count) && count >= 2 && count <= SHOOT_OUT_MAX_PARTICIPANTS;
+}
+
+function nextPowerOfTwo(count) {
+  let value = 1;
+  while (value < count) value *= 2;
+  return value;
 }
 
 export function getRoundLabel(participantCount) {
@@ -46,27 +56,67 @@ function createMatch(roundIndex, matchIndex, shooterA, shooterB) {
   };
 }
 
-function createRound(participants, roundIndex) {
+// Een bye is geen duel: de schutter gaat automatisch door zonder te spelen.
+// Als "meteen voltooide match zonder tegenstander" gemodelleerd, zodat de
+// bestaande ronde-voltooiing/volgende-ronde-logica (isRoundComplete,
+// createNextRound) ongewijzigd kan blijven werken.
+function createByeMatch(roundIndex, matchIndex, shooter) {
+  const snapshot = participantSnapshot(shooter);
+  return {
+    id: makeId("shootout-match"),
+    roundIndex,
+    matchIndex,
+    status: "completed",
+    isBye: true,
+    shooterA: snapshot,
+    shooterB: null,
+    winnerId: snapshot.shooterId,
+    completedAt: nowIso(),
+  };
+}
+
+function createRound(participants, roundIndex, { label, byeIds } = {}) {
+  const byeSet = byeIds || new Set();
+  const playing = participants.filter((item) => !byeSet.has(String(item.shooterId || item.id)));
+  const byes = participants.filter((item) => byeSet.has(String(item.shooterId || item.id)));
   const matches = [];
-  for (let index = 0; index < participants.length; index += 2) {
-    matches.push(createMatch(roundIndex, index / 2, participants[index], participants[index + 1]));
+  for (let index = 0; index < playing.length; index += 2) {
+    matches.push(createMatch(roundIndex, matches.length, playing[index], playing[index + 1]));
   }
+  byes.forEach((shooter) => matches.push(createByeMatch(roundIndex, matches.length, shooter)));
   return {
     id: makeId("shootout-round"),
     roundIndex,
-    label: getRoundLabel(participants.length),
+    label: label || getRoundLabel(participants.length),
     matches,
   };
 }
 
 export function createShootOut(participants) {
   if (!Array.isArray(participants) || !isValidParticipantCount(participants.length)) {
-    throw new Error("Kies 2, 4, 8, 16 of 32 schutters.");
+    throw new Error(`Kies minimaal 2 en maximaal ${SHOOT_OUT_MAX_PARTICIPANTS} schutters.`);
   }
   const snapshots = participants.map(participantSnapshot);
   if (new Set(snapshots.map((item) => item.shooterId)).size !== snapshots.length) {
     throw new Error("Een schutter mag maar één keer deelnemen.");
   }
+  // Staat het aantal niet precies op een macht van 2 (bijv. 10), dan krijgen
+  // (bracketSize - aantal) willekeurig geloten schutters een bye in de
+  // eerste ronde -- zij slaan die ronde over en gaan automatisch door, zodat
+  // de tweede ronde alsnog netjes op bracketSize/2 uitkomt en de rest van
+  // het schema (kwartfinale/halve finale/finale) ongewijzigd werkt.
+  const bracketSize = nextPowerOfTwo(snapshots.length);
+  const byeCount = bracketSize - snapshots.length;
+  const byeIds = new Set();
+  if (byeCount > 0) {
+    const shuffled = snapshots.slice();
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    shuffled.slice(0, byeCount).forEach((item) => byeIds.add(item.shooterId));
+  }
+  const label = byeCount > 0 ? `Eerste ronde · ${byeCount} bye${byeCount > 1 ? "s" : ""} geloot` : getRoundLabel(bracketSize);
   const createdAt = nowIso();
   return {
     id: makeId("shootout"),
@@ -75,7 +125,7 @@ export function createShootOut(participants) {
     updatedAt: createdAt,
     participantIds: snapshots.map((item) => item.shooterId),
     participants: snapshots,
-    rounds: [createRound(snapshots, 0)],
+    rounds: [createRound(snapshots, 0, { label, byeIds })],
   };
 }
 
@@ -170,6 +220,7 @@ export function rebuildFromCorrectedMatch(shootOut, matchId) {
   const roundIndex = next.rounds.findIndex((round) => round.matches.some((match) => match.id === matchId));
   if (roundIndex < 0) throw new Error("Duel niet gevonden.");
   const match = next.rounds[roundIndex].matches.find((item) => item.id === matchId);
+  if (match.isBye) throw new Error("Een bye kan niet worden gecorrigeerd.");
   match.status = "pending";
   delete match.scoreA;
   delete match.scoreB;
@@ -216,7 +267,7 @@ export function normalizeShootOut(value) {
       round.roundIndex = roundIndex;
       round.label = round.label || getRoundLabel(round.matches.length * 2);
       for (const [matchIndex, match] of round.matches.entries()) {
-        if (!match?.id || !match.shooterA?.shooterId || !match.shooterB?.shooterId) return null;
+        if (!match?.id || !match.shooterA?.shooterId || (!match.isBye && !match.shooterB?.shooterId)) return null;
         match.roundIndex = roundIndex;
         match.matchIndex = matchIndex;
       }

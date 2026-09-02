@@ -1432,6 +1432,11 @@ select:focus {
   box-shadow: inset 0 0 0 1px rgba(245, 197, 24, 0.25);
 }
 
+.shootout-match.is-bye {
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.012);
+}
+
 .shootout-match-status {
   color: var(--muted);
   font-size: 0.78rem;
@@ -3014,6 +3019,10 @@ select:focus {
 
 .beamer-shootout-match.is-next {
   background: rgba(245, 197, 24, 0.08);
+}
+
+.beamer-shootout-match.is-bye {
+  opacity: 0.6;
 }
 
 .beamer-shootout-name {
@@ -6051,6 +6060,7 @@ dialog .primary-action::after {
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module">
 import {
+  SHOOT_OUT_MAX_PARTICIPANTS,
   SHOOT_OUT_SCORE_MAX,
   completeMatch,
   createShootOut,
@@ -9218,7 +9228,15 @@ function getShootOutDraftWinner(match, draft = shootOutDuelDraft) {
   return draft.fasterShooterId;
 }
 
-const SHOOT_OUT_MAX_PARTICIPANTS = 32;
+// Zelfde manier om de eerstvolgende macht van 2 te bepalen als
+// nextPowerOfTwo() in shootout-domain.mjs, maar dan lokaal voor de
+// live-voorvertoning tijdens het selecteren (nog vóór createShootOut() de
+// bye's daadwerkelijk loot).
+function nextShootOutBracketSize(count) {
+  let value = 1;
+  while (value < count) value *= 2;
+  return value;
+}
 
 function renderShootOutSetup() {
   const content = $("#shootOutContent");
@@ -9226,11 +9244,19 @@ function renderShootOutSetup() {
   shootOutSelectedIds = shootOutSelectedIds.filter((id) => activeShooters.some((shooter) => shooter.id === id));
   const selected = shootOutSelectedIds.map((id) => activeShooters.find((shooter) => shooter.id === id)).filter(Boolean);
   const validCount = isValidParticipantCount(selected.length);
-  const preview = [];
-  for (let index = 0; index < selected.length; index += 2) {
-    preview.push(
-      `<div class="shootout-preview-row"><span>${escapeHtml(selected[index].name)}</span><b>tegen</b><span>${escapeHtml(selected[index + 1]?.name || "Nog kiezen")}</span></div>`,
-    );
+  const bracketSize = selected.length >= 2 ? nextShootOutBracketSize(selected.length) : 0;
+  const byeCount = bracketSize - selected.length;
+  let previewBlock = "";
+  if (validCount && byeCount === 0) {
+    const preview = [];
+    for (let index = 0; index < selected.length; index += 2) {
+      preview.push(
+        `<div class="shootout-preview-row"><span>${escapeHtml(selected[index].name)}</span><b>tegen</b><span>${escapeHtml(selected[index + 1]?.name || "Nog kiezen")}</span></div>`,
+      );
+    }
+    previewBlock = `<div class="shootout-preview"><strong>Voorlopige duels</strong>${preview.join("")}</div>`;
+  } else if (validCount && byeCount > 0) {
+    previewBlock = `<p class="notice">${byeCount} schutter${byeCount > 1 ? "s" : ""} ${byeCount > 1 ? "krijgen" : "krijgt"} straks bij het starten willekeurig een bye (ga${byeCount > 1 ? "an" : "at"} door zonder te spelen); de rest speelt in paren op de volgorde hierboven.</p>`;
   }
   let statusMessage;
   if (validCount) {
@@ -9238,7 +9264,7 @@ function renderShootOutSetup() {
   } else if (selected.length > SHOOT_OUT_MAX_PARTICIPANTS) {
     statusMessage = `Te veel schutters geselecteerd (max ${SHOOT_OUT_MAX_PARTICIPANTS}) — vink er ${selected.length - SHOOT_OUT_MAX_PARTICIPANTS} uit.`;
   } else {
-    statusMessage = `Kies 2, 4, 8, 16 of 32 schutters (nu geselecteerd: ${selected.length}).`;
+    statusMessage = `Kies minimaal 2 schutters (nu geselecteerd: ${selected.length}).`;
   }
   content.innerHTML = `
     <section class="shootout-card">
@@ -9246,7 +9272,7 @@ function renderShootOutSetup() {
         <p class="eyebrow">Wedstrijdvorm</p>
         <h3>Nieuwe Shoot Out</h3>
       </div>
-      <p class="notice">Steeds twee schutters tegen elkaar. De baancommandant wijst aan wie als eerste klaar was — die wint, tenzij hij/zij een doel miste en de ander meer treffers heeft. De winnaar gaat door tot de finale.</p>
+      <p class="notice">Steeds twee schutters tegen elkaar. De baancommandant wijst aan wie als eerste klaar was — die wint, tenzij hij/zij een doel miste en de ander meer treffers heeft. De winnaar gaat door tot de finale. Staat het aantal niet op een macht van 2, dan loot de app bye's voor het verschil.</p>
       ${state.shootOutCorrupt ? `<p class="shootout-error">De opgeslagen Shoot Out kon niet worden hersteld. Start hieronder een nieuwe.</p>` : ""}
       <div class="shootout-selection-count">${selected.length} schutters geselecteerd</div>
       <div class="shootout-participants">
@@ -9267,7 +9293,7 @@ function renderShootOutSetup() {
         }
       </div>
       <p class="${validCount ? "notice" : "shootout-error"}">${statusMessage}</p>
-      ${preview.length ? `<div class="shootout-preview"><strong>Voorlopige duels</strong>${preview.join("")}</div>` : ""}
+      ${previewBlock}
       <div class="shootout-actions">
         <button class="secondary-action full-width" type="button" data-shootout-shuffle ${selected.length >= 2 ? "" : "disabled"}>Volgorde husselen</button>
         <button class="primary-action full-width" type="button" data-shootout-start ${validCount ? "" : "disabled"}>Shoot Out starten</button>
@@ -9287,6 +9313,16 @@ function renderShootOutRounds(shootOut, nextMatch) {
           </div>
           ${round.matches
             .map((match, index) => {
+              if (match.isBye) {
+                return `
+                  <article class="shootout-match is-bye">
+                    <span class="shootout-match-status">Duel ${index + 1} · Bye</span>
+                    <div class="shootout-score-row">
+                      <strong>${escapeHtml(match.shooterA.displayName)}</strong><b>Vrije doorgang</b><strong>—</strong>
+                    </div>
+                    <span class="shootout-match-winner">Gaat automatisch door</span>
+                  </article>`;
+              }
               const isNext = match.id === nextMatch?.id;
               const winner = match.winnerId === match.shooterA.shooterId ? match.shooterA : match.winnerId === match.shooterB.shooterId ? match.shooterB : null;
               const scoreText = match.status === "completed" ? `${formatNumber(match.scoreA, 2)} – ${formatNumber(match.scoreB, 2)}` : "Nog te spelen";
@@ -10739,6 +10775,15 @@ function renderBeamerShootOutBody() {
           </div>
           ${round.matches
             .map((match) => {
+              if (match.isBye) {
+                return `
+                  <div class="beamer-shootout-match is-bye">
+                    <span class="beamer-shootout-name is-winner">${escapeHtml(match.shooterA.displayName)}</span>
+                    <span class="beamer-shootout-score">Bye<small>gaat automatisch door</small></span>
+                    <span class="beamer-shootout-name">—</span>
+                  </div>
+                `;
+              }
               const isNext = match.id === nextMatch?.id;
               const winnerA = match.status === "completed" && match.winnerId === match.shooterA.shooterId;
               const winnerB = match.status === "completed" && match.winnerId === match.shooterB.shooterId;
@@ -12600,7 +12645,7 @@ function startSelectedShootOut() {
   const activeShooters = getActiveShootersForSelection();
   const selected = shootOutSelectedIds.map((id) => activeShooters.find((shooter) => shooter.id === id)).filter(Boolean);
   if (!isValidParticipantCount(selected.length)) {
-    showToast("Kies 2, 4, 8, 16 of 32 schutters");
+    showToast(`Kies minimaal 2 en maximaal ${SHOOT_OUT_MAX_PARTICIPANTS} schutters`);
     return;
   }
   try {
