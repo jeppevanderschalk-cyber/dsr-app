@@ -11175,9 +11175,21 @@ function getProgressPdfData() {
             }
           : { text: "", isBest: false };
       });
-      return { name: shooter.name, level: getShooterLevelLabel(shooter), values };
+      const best = bestByShooter.get(shooter.id);
+      return { name: shooter.name, level: getShooterLevelLabel(shooter), values, bestHitfactor: best?.hitfactor || 0 };
     })
     .filter((row) => row.values.some((value) => value.text));
+
+  // Zelfde goud/zilver/brons voor de 3 hoogste scores als in de
+  // beamer-rondesweergave, los van de weergavevolgorde (die blijft
+  // registratievolgorde, net als in de beamer).
+  shooters
+    .slice()
+    .sort((a, b) => b.bestHitfactor - a.bestHitfactor)
+    .slice(0, 3)
+    .forEach((row, index) => {
+      row.medal = index + 1;
+    });
 
   return {
     discipline: discipline === "all" ? "Alle disciplines" : discipline,
@@ -11215,6 +11227,27 @@ function createProgressPdf(data) {
   const rect = (x, rectY, width, height, fill = false) => {
     cmd(`${x.toFixed(2)} ${rectY.toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re ${fill ? "f" : "S"}`);
   };
+  // Cirkel via 4 Bezier-bogen (PDF kent geen ellips-operator), voor de
+  // goud/zilver/brons-medaille -- zelfde plek/betekenis als de
+  // .beamer-medal-1/2/3 cirkels in de beamer-rondesweergave.
+  const circle = (cx, cy, r) => {
+    const k = r * 0.5523;
+    cmd(`${(cx - r).toFixed(2)} ${cy.toFixed(2)} m`);
+    cmd(
+      `${(cx - r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx - k).toFixed(2)} ${(cy + r).toFixed(2)} ${cx.toFixed(2)} ${(cy + r).toFixed(2)} c`,
+    );
+    cmd(
+      `${(cx + k).toFixed(2)} ${(cy + r).toFixed(2)} ${(cx + r).toFixed(2)} ${(cy + k).toFixed(2)} ${(cx + r).toFixed(2)} ${cy.toFixed(2)} c`,
+    );
+    cmd(
+      `${(cx + r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx + k).toFixed(2)} ${(cy - r).toFixed(2)} ${cx.toFixed(2)} ${(cy - r).toFixed(2)} c`,
+    );
+    cmd(
+      `${(cx - k).toFixed(2)} ${(cy - r).toFixed(2)} ${(cx - r).toFixed(2)} ${(cy - k).toFixed(2)} ${(cx - r).toFixed(2)} ${cy.toFixed(2)} c`,
+    );
+    cmd("h f");
+  };
+  const MEDAL_COLORS = { 1: "0.96 0.78 0.35", 2: "0.78 0.79 0.82", 3: "0.78 0.55 0.32" };
 
   const startPage = () => {
     lines = [];
@@ -11260,8 +11293,20 @@ function createProgressPdf(data) {
 
     cmd(rowIndex % 2 ? "0.10 0.10 0.12 rg" : "0.075 0.075 0.085 rg");
     rect(margin, y, pageWidth - margin * 2, rowHeight, true);
+    // Medaille voor de naam, net als de goud/zilver/brons-cirkel bij de
+    // schutter in de beamer-rondesweergave (los van de gele beste-ronde-cel
+    // hieronder, die over de eigen rondes van deze schutter gaat).
+    let nameX = margin + 8;
+    if (row.medal) {
+      const cy = y + rowHeight / 2;
+      cmd(`${MEDAL_COLORS[row.medal]} rg`);
+      circle(nameX + 6, cy, 7);
+      cmd("0.05 0.05 0.055 rg");
+      text(String(row.medal), nameX + 3.5, cy - 3, 8, "F2");
+      nameX += 18;
+    }
     cmd("0.95 0.95 0.95 rg");
-    text(row.name.slice(0, 22), margin + 8, y + 8, 9, "F2");
+    text(row.name.slice(0, 22), nameX, y + 8, 9, "F2");
     row.values.forEach((value, index) => {
       if (!value.text) return;
       const x = margin + nameWidth + index * roundWidth;
