@@ -9456,21 +9456,23 @@ function renderShootOut() {
     ${nextMatch ? renderShootOutDuelForm(shootOut, nextMatch) : ""}`;
 }
 
+// Shoot Out is een SVBB-wedstrijdvorm; de interne competitie (en APS) hebben
+// er geen gebruik voor, dus de tab/het paneel blijven daar helemaal weg.
 function renderScoreMode() {
-  const apsMode = isApsCompetitionClub();
-  if (apsMode) scoreEntryMode = "regular";
-  const shootOutMode = !apsMode && scoreEntryMode === "shootout";
+  const shootOutAllowed = isSvbbClub();
+  if (!shootOutAllowed) scoreEntryMode = "regular";
+  const shootOutMode = shootOutAllowed && scoreEntryMode === "shootout";
   const tabs = $("#scoreModeTabs");
-  if (tabs) tabs.hidden = apsMode;
+  if (tabs) tabs.hidden = !shootOutAllowed;
   $$("[data-score-mode]").forEach((button) => {
     const active = button.dataset.scoreMode === scoreEntryMode;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-selected", String(active));
   });
   const regularForm = $("#scoreForm");
-  if (regularForm) regularForm.hidden = apsMode || shootOutMode;
+  if (regularForm) regularForm.hidden = isApsCompetitionClub() || shootOutMode;
   const shootOutPanel = $("#shootOutPanel");
-  if (shootOutPanel) shootOutPanel.hidden = apsMode || !shootOutMode;
+  if (shootOutPanel) shootOutPanel.hidden = !shootOutAllowed || !shootOutMode;
   return shootOutMode;
 }
 
