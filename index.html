@@ -1231,6 +1231,217 @@ select:focus {
   gap: 14px;
 }
 
+.score-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.score-mode-tabs button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.score-mode-tabs button.is-active {
+  background: var(--yellow);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-yellow);
+}
+
+.shootout-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.shootout-panel[hidden] {
+  display: none;
+}
+
+.shootout-card,
+.shootout-round,
+.shootout-match,
+.shootout-winner-card {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--tile);
+}
+
+.shootout-card,
+.shootout-winner-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.shootout-card h3,
+.shootout-card p,
+.shootout-round h3,
+.shootout-winner-card h3,
+.shootout-winner-card p {
+  margin: 0;
+}
+
+.shootout-selection-count {
+  color: var(--yellow);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.shootout-participants {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.shootout-participant-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.shootout-participant-option input {
+  width: 22px;
+  min-height: 22px;
+  margin: 0;
+  accent-color: var(--yellow);
+}
+
+.shootout-preview,
+.shootout-rounds {
+  display: grid;
+  gap: 10px;
+}
+
+.shootout-preview-row,
+.shootout-score-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.shootout-preview-row span,
+.shootout-score-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shootout-preview-row span:last-child,
+.shootout-score-row strong:last-child {
+  text-align: right;
+}
+
+.shootout-round {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.shootout-round-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.shootout-round-heading small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.shootout-match {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.shootout-match.is-next {
+  border-color: rgba(245, 197, 24, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(245, 197, 24, 0.25);
+}
+
+.shootout-match-status {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.shootout-match-winner {
+  color: var(--yellow);
+  font-weight: 900;
+}
+
+.shootout-duel-form {
+  display: grid;
+  gap: 12px;
+}
+
+.shootout-duel-grid,
+.shootout-tiebreak-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shootout-duel-grid input,
+.shootout-tiebreak-grid input {
+  min-height: 68px;
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.shootout-tiebreak-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(245, 197, 24, 0.28);
+  border-radius: 16px;
+  background: rgba(245, 197, 24, 0.06);
+}
+
+.shootout-error {
+  margin: 0;
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.shootout-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shootout-actions .full-width {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 420px) {
+  .shootout-actions,
+  .shootout-duel-grid,
+  .shootout-tiebreak-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .score-status-actions {
   display: grid;
   grid-template-columns: 1fr;
@@ -4975,6 +5186,11 @@ dialog .primary-action::after {
             </button>
           </div>
 
+          <div class="score-mode-tabs" id="scoreModeTabs" role="tablist" aria-label="Scoreformulier opties" data-aps-hidden>
+            <button class="is-active" type="button" role="tab" aria-selected="true" data-score-mode="regular">Normale score</button>
+            <button type="button" role="tab" aria-selected="false" data-score-mode="shootout">Shoot Out</button>
+          </div>
+
           <form id="scoreForm" class="score-form" data-trainer-only data-aps-hidden>
             <div class="field-grid">
               <label>
@@ -5122,6 +5338,10 @@ dialog .primary-action::after {
               <span id="scoreSubmitLabel">Score opslaan</span>
             </button>
           </form>
+
+          <section class="shootout-panel" id="shootOutPanel" aria-label="Shoot Out" data-aps-hidden hidden>
+            <div id="shootOutContent"></div>
+          </section>
 
           <form id="apsScoreForm" class="score-form" data-trainer-only data-aps-only hidden>
             <div class="field-grid">
@@ -5682,6 +5902,18 @@ dialog .primary-action::after {
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module">
+import {
+  SHOOT_OUT_SCORE_MAX,
+  completeMatch,
+  createShootOut,
+  getNextPendingMatch,
+  hasCompletedDependentMatches,
+  isValidParticipantCount,
+  normalizeShootOut,
+  rebuildFromCorrectedMatch,
+  validateScore,
+} from "./shootout-domain.mjs";
+
 const STORAGE_KEY = "dsr-score-app-v5";
 const AUTH_STORAGE_KEY = "dsr-app-auth-v3";
 const TRAINER_SESSION_KEY = "dsr-app-trainer-session-v1";
@@ -5753,6 +5985,8 @@ const defaultData = {
   bestScores: [],
   trainingResults: [],
   progressEntries: [],
+  shootOut: null,
+  shootOutCorrupt: false,
   liveFocus: { shortShooterId: "", shortAt: "", longShooterId: "", longAt: "" },
   deletedIds: [],
   updatedAt: "",
@@ -6088,6 +6322,11 @@ const iconPencil = `
 let currentClubId = normalizeClubCode(localStorage.getItem(CLUB_STORAGE_KEY) || DEFAULT_CLUB_CODE);
 let state = loadState();
 let scoreDraft = createEmptyDraft();
+let scoreEntryMode = "regular";
+let shootOutSelectedIds = [];
+let shootOutShowBracket = false;
+let shootOutSaving = false;
+let shootOutDuelDraft = { matchId: "", scoreA: "", scoreB: "", tieBreaks: [] };
 // Onthoudt of de iPad-weergave automatisch geopend werd na het opslaan van
 // een lange-baan score, zodat closeIpadResultView() alleen dán het
 // scoreformulier leegmaakt voor de volgende schutter (en niet wanneer een
@@ -6288,6 +6527,7 @@ function mergeData(base, saved) {
       })
       .filter(Boolean),
   );
+  const normalizedShootOut = normalizeShootOut(saved.shootOut);
 
   return {
     ...structuredClone(base),
@@ -6306,6 +6546,8 @@ function mergeData(base, saved) {
     bestScores,
     trainingResults,
     progressEntries,
+    shootOut: normalizedShootOut,
+    shootOutCorrupt: Boolean(saved.shootOut && !normalizedShootOut),
     liveFocus: {
       shortShooterId: typeof saved.liveFocus?.shortShooterId === "string" ? saved.liveFocus.shortShooterId : "",
       shortAt: typeof saved.liveFocus?.shortAt === "string" ? saved.liveFocus.shortAt : "",
@@ -8778,8 +9020,245 @@ function updateSignatureStatus() {
   }
 }
 
+function getShootOutMatchContext(shootOut, matchId) {
+  for (const round of shootOut?.rounds || []) {
+    const match = round.matches.find((item) => item.id === matchId);
+    if (match) return { round, match };
+  }
+  return null;
+}
+
+function resetShootOutDuelDraft(match = null) {
+  shootOutDuelDraft = {
+    matchId: match?.id || "",
+    scoreA: match?.scoreA ?? "",
+    scoreB: match?.scoreB ?? "",
+    tieBreaks: Array.isArray(match?.tieBreaks)
+      ? match.tieBreaks.map((item) => ({ scoreA: String(item.scoreA), scoreB: String(item.scoreB) }))
+      : [],
+  };
+}
+
+function getShootOutDraftWinner(match, draft = shootOutDuelDraft) {
+  const scoreA = validateScore(draft.scoreA);
+  const scoreB = validateScore(draft.scoreB);
+  if (!scoreA.valid || !scoreB.valid) return null;
+  if (scoreA.value > scoreB.value) return match.shooterA.shooterId;
+  if (scoreB.value > scoreA.value) return match.shooterB.shooterId;
+  for (const tieBreak of draft.tieBreaks) {
+    const tieA = validateScore(tieBreak.scoreA);
+    const tieB = validateScore(tieBreak.scoreB);
+    if (!tieA.valid || !tieB.valid) return null;
+    if (tieA.value > tieB.value) return match.shooterA.shooterId;
+    if (tieB.value > tieA.value) return match.shooterB.shooterId;
+  }
+  return null;
+}
+
+function shootOutNeedsAnotherTieBreak(draft = shootOutDuelDraft) {
+  const scoreA = validateScore(draft.scoreA);
+  const scoreB = validateScore(draft.scoreB);
+  if (!scoreA.valid || !scoreB.valid || scoreA.value !== scoreB.value) return false;
+  if (!draft.tieBreaks.length) return true;
+  const last = draft.tieBreaks.at(-1);
+  const tieA = validateScore(last.scoreA);
+  const tieB = validateScore(last.scoreB);
+  return tieA.valid && tieB.valid && tieA.value === tieB.value;
+}
+
+function ensureShootOutTieBreakDraft() {
+  if (shootOutNeedsAnotherTieBreak()) shootOutDuelDraft.tieBreaks.push({ scoreA: "", scoreB: "" });
+}
+
+function renderShootOutSetup() {
+  const content = $("#shootOutContent");
+  const activeShooters = getActiveShootersForSelection();
+  shootOutSelectedIds = shootOutSelectedIds.filter((id) => activeShooters.some((shooter) => shooter.id === id));
+  const selected = shootOutSelectedIds.map((id) => activeShooters.find((shooter) => shooter.id === id)).filter(Boolean);
+  const validCount = isValidParticipantCount(selected.length);
+  const preview = [];
+  for (let index = 0; index < selected.length; index += 2) {
+    preview.push(
+      `<div class="shootout-preview-row"><span>${escapeHtml(selected[index].name)}</span><b>tegen</b><span>${escapeHtml(selected[index + 1]?.name || "Nog kiezen")}</span></div>`,
+    );
+  }
+  content.innerHTML = `
+    <section class="shootout-card">
+      <div>
+        <p class="eyebrow">Wedstrijdvorm</p>
+        <h3>Nieuwe Shoot Out</h3>
+      </div>
+      <p class="notice">Steeds twee schutters tegen elkaar. De winnaar gaat door tot de finale.</p>
+      ${state.shootOutCorrupt ? `<p class="shootout-error">De opgeslagen Shoot Out kon niet worden hersteld. Start hieronder een nieuwe.</p>` : ""}
+      <div class="shootout-selection-count">${selected.length} schutters geselecteerd</div>
+      <div class="shootout-participants">
+        ${
+          activeShooters.length
+            ? activeShooters
+                .map(
+                  (shooter) => `
+                    <label class="shootout-participant-option">
+                      <input type="checkbox" value="${escapeHtml(shooter.id)}" data-shootout-participant ${shootOutSelectedIds.includes(shooter.id) ? "checked" : ""} />
+                      <span>${escapeHtml(shooter.name)}</span>
+                    </label>`,
+                )
+                .join("")
+            : `<p class="notice">Voeg eerst minimaal twee actieve schutters toe.</p>`
+        }
+      </div>
+      <p class="${validCount ? "notice" : "shootout-error"}">${
+        validCount ? "De volgorde hierboven bepaalt de duelindeling." : "Kies 2, 4, 8, 16 of 32 schutters."
+      }</p>
+      ${preview.length ? `<div class="shootout-preview"><strong>Voorlopige duels</strong>${preview.join("")}</div>` : ""}
+      <button class="primary-action full-width" type="button" data-shootout-start ${validCount ? "" : "disabled"}>Shoot Out starten</button>
+    </section>`;
+}
+
+function renderShootOutRounds(shootOut, nextMatch) {
+  return shootOut.rounds
+    .map((round) => {
+      const completed = round.matches.filter((match) => match.status === "completed").length;
+      return `
+        <section class="shootout-round">
+          <div class="shootout-round-heading">
+            <h3>${escapeHtml(round.label)}</h3>
+            <small>${completed} van ${round.matches.length} afgerond</small>
+          </div>
+          ${round.matches
+            .map((match, index) => {
+              const isNext = match.id === nextMatch?.id;
+              const winner = match.winnerId === match.shooterA.shooterId ? match.shooterA : match.winnerId === match.shooterB.shooterId ? match.shooterB : null;
+              const scoreText = match.status === "completed" ? `${formatNumber(match.scoreA, 2)} – ${formatNumber(match.scoreB, 2)}` : "Nog te spelen";
+              const tieText = match.tieBreaks?.length
+                ? `<small>Beslissing: ${match.tieBreaks.map((item) => `${formatNumber(item.scoreA, 2)}–${formatNumber(item.scoreB, 2)}`).join(" · ")}</small>`
+                : "";
+              return `
+                <article class="shootout-match${isNext ? " is-next" : ""}">
+                  <span class="shootout-match-status">Duel ${index + 1} · ${match.status === "completed" ? "Afgerond" : "Nog te spelen"}</span>
+                  <div class="shootout-score-row">
+                    <strong>${escapeHtml(match.shooterA.displayName)}</strong><b>${scoreText}</b><strong>${escapeHtml(match.shooterB.displayName)}</strong>
+                  </div>
+                  ${winner ? `<span class="shootout-match-winner">Winnaar: ${escapeHtml(winner.displayName)}</span>` : ""}
+                  ${tieText}
+                  ${match.status === "completed" ? `<button class="text-button" type="button" data-shootout-correct="${match.id}">Uitslag corrigeren</button>` : ""}
+                </article>`;
+            })
+            .join("")}
+        </section>`;
+    })
+    .join("");
+}
+
+function renderShootOutDuelForm(shootOut, match) {
+  const context = getShootOutMatchContext(shootOut, match.id);
+  if (shootOutDuelDraft.matchId !== match.id) resetShootOutDuelDraft(match);
+  ensureShootOutTieBreakDraft();
+  const winnerId = getShootOutDraftWinner(match);
+  const baseA = validateScore(shootOutDuelDraft.scoreA);
+  const baseB = validateScore(shootOutDuelDraft.scoreB);
+  const tied = baseA.valid && baseB.valid && baseA.value === baseB.value;
+  return `
+    <section class="shootout-card">
+      <div>
+        <p class="eyebrow">${escapeHtml(context.round.label)} · duel ${match.matchIndex + 1}</p>
+        <h3>${escapeHtml(match.shooterA.displayName)} tegen ${escapeHtml(match.shooterB.displayName)}</h3>
+      </div>
+      <form class="shootout-duel-form" id="shootOutDuelForm">
+        <div class="shootout-duel-grid">
+          <label><span>${escapeHtml(match.shooterA.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-score="A" value="${escapeHtml(shootOutDuelDraft.scoreA)}" /></label>
+          <label><span>${escapeHtml(match.shooterB.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-score="B" value="${escapeHtml(shootOutDuelDraft.scoreB)}" /></label>
+        </div>
+        ${tied ? `<p class="shootout-error">Gelijke score – voer een beslissende score in.</p>` : ""}
+        ${shootOutDuelDraft.tieBreaks
+          .map(
+            (tieBreak, index) => `
+              <section class="shootout-tiebreak-card">
+                <strong>Beslissingsronde ${index + 1}</strong>
+                <div class="shootout-tiebreak-grid">
+                  <label><span>${escapeHtml(match.shooterA.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-tiebreak="A" data-tiebreak-index="${index}" value="${escapeHtml(tieBreak.scoreA)}" /></label>
+                  <label><span>${escapeHtml(match.shooterB.displayName)}</span><input type="number" min="0" max="${SHOOT_OUT_SCORE_MAX}" step="0.01" inputmode="decimal" data-shootout-tiebreak="B" data-tiebreak-index="${index}" value="${escapeHtml(tieBreak.scoreB)}" /></label>
+                </div>
+              </section>`,
+          )
+          .join("")}
+        <button class="primary-action full-width" id="shootOutConfirmButton" type="submit" ${winnerId && !shootOutSaving ? "" : "disabled"}>Uitslag bevestigen</button>
+      </form>
+    </section>`;
+}
+
+function renderShootOutCompleted(shootOut) {
+  const finalMatch = shootOut.rounds.at(-1)?.matches?.[0];
+  const winner = finalMatch?.winnerId === finalMatch?.shooterA.shooterId ? finalMatch.shooterA : finalMatch?.shooterB;
+  const finalist = finalMatch?.winnerId === finalMatch?.shooterA.shooterId ? finalMatch.shooterB : finalMatch?.shooterA;
+  const tieText = finalMatch?.tieBreaks?.length
+    ? ` · beslissing ${finalMatch.tieBreaks.map((item) => `${formatNumber(item.scoreA, 2)}–${formatNumber(item.scoreB, 2)}`).join(" · ")}`
+    : "";
+  return `
+    <section class="shootout-winner-card">
+      <p class="eyebrow">Winnaar Shoot Out</p>
+      <h3>${escapeHtml(winner?.displayName || "Onbekend")}</h3>
+      <p>Finale tegen ${escapeHtml(finalist?.displayName || "Onbekend")} · ${formatNumber(finalMatch?.scoreA || 0, 2)}–${formatNumber(finalMatch?.scoreB || 0, 2)}${tieText}</p>
+      <div class="shootout-actions">
+        <button class="secondary-action" type="button" data-shootout-view-bracket>Bekijk schema</button>
+        <button class="primary-action" type="button" data-shootout-new>Nieuwe Shoot Out</button>
+        <button class="text-button full-width" type="button" data-shootout-close>Sluiten</button>
+      </div>
+    </section>`;
+}
+
+function renderShootOut() {
+  const content = $("#shootOutContent");
+  if (!content) return;
+  const shootOut = state.shootOut;
+  if (!shootOut || shootOut.status === "cancelled") {
+    renderShootOutSetup();
+    return;
+  }
+  if (shootOut.status === "completed" && !shootOutShowBracket) {
+    content.innerHTML = renderShootOutCompleted(shootOut);
+    return;
+  }
+  const nextMatch = getNextPendingMatch(shootOut);
+  const currentRound = nextMatch ? getShootOutMatchContext(shootOut, nextMatch.id)?.round : shootOut.rounds.at(-1);
+  const completed = currentRound?.matches.filter((match) => match.status === "completed").length || 0;
+  content.innerHTML = `
+    <section class="shootout-card">
+      <div>
+        <p class="eyebrow">Shoot Out</p>
+        <h3>${shootOut.status === "completed" ? "Volledig schema" : escapeHtml(currentRound?.label || "Schema")}</h3>
+      </div>
+      <p class="notice">${shootOut.status === "completed" ? "Wedstrijd afgerond" : `${completed} van ${currentRound.matches.length} duels in deze ronde afgerond`}</p>
+      <div class="shootout-actions">
+        ${nextMatch ? `<button class="secondary-action" type="button" data-shootout-next>Volgend duel</button>` : ""}
+        <button class="secondary-action" type="button" data-shootout-new>Nieuwe starten</button>
+        ${shootOut.status === "active" ? `<button class="text-button full-width" type="button" data-shootout-cancel>Annuleren</button>` : `<button class="text-button full-width" type="button" data-shootout-close>Sluiten</button>`}
+      </div>
+    </section>
+    <div class="shootout-rounds">${renderShootOutRounds(shootOut, nextMatch)}</div>
+    ${nextMatch ? renderShootOutDuelForm(shootOut, nextMatch) : ""}`;
+}
+
+function renderScoreMode() {
+  const apsMode = isApsCompetitionClub();
+  if (apsMode) scoreEntryMode = "regular";
+  const shootOutMode = !apsMode && scoreEntryMode === "shootout";
+  const tabs = $("#scoreModeTabs");
+  if (tabs) tabs.hidden = apsMode;
+  $$("[data-score-mode]").forEach((button) => {
+    const active = button.dataset.scoreMode === scoreEntryMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  const regularForm = $("#scoreForm");
+  if (regularForm) regularForm.hidden = apsMode || shootOutMode;
+  const shootOutPanel = $("#shootOutPanel");
+  if (shootOutPanel) shootOutPanel.hidden = apsMode || !shootOutMode;
+  return shootOutMode;
+}
+
 function renderScores() {
   const apsMode = isApsCompetitionClub();
+  const shootOutMode = renderScoreMode();
   const recentList = $("#recentScores");
   if (recentList) recentList.hidden = apsMode;
   const apsRecentList = $("#apsRecentScores");
@@ -8789,6 +9268,10 @@ function renderScores() {
     renderApsRecentScores();
     const ipadButton = $("#ipadResultButton");
     if (ipadButton) ipadButton.hidden = false;
+    return;
+  }
+  if (shootOutMode) {
+    renderShootOut();
     return;
   }
   const internalMode = isInternalScoreMode();
@@ -10920,6 +11403,10 @@ function applyRolePermissions() {
     });
   });
 
+  // De generieke rol- en clubfilters zetten trainerpanelen eerst zichtbaar.
+  // Herstel daarna de gekozen subtabspecifieke zichtbaarheid.
+  if (!readOnly) renderScoreMode();
+
   const roundsBeamerButton = $("#roundsBeamerButton");
   if (roundsBeamerButton) roundsBeamerButton.hidden = !isSvbbClub();
   const roundsNavButton = $("#roundsNavButton");
@@ -11841,6 +12328,189 @@ document.addEventListener("click", (event) => {
     setScoreStatus(statusButton.dataset.scoreStatus);
   }
 
+});
+
+function startSelectedShootOut() {
+  if (!requireTrainer()) return;
+  const activeShooters = getActiveShootersForSelection();
+  const selected = shootOutSelectedIds.map((id) => activeShooters.find((shooter) => shooter.id === id)).filter(Boolean);
+  if (!isValidParticipantCount(selected.length)) {
+    showToast("Kies 2, 4, 8, 16 of 32 schutters");
+    return;
+  }
+  try {
+    state.shootOut = createShootOut(selected);
+    state.shootOutCorrupt = false;
+    shootOutShowBracket = false;
+    resetShootOutDuelDraft(getNextPendingMatch(state.shootOut));
+    markDirty();
+    render();
+    showToast("Shoot Out gestart");
+  } catch (error) {
+    showToast(error.message || "Shoot Out kon niet worden gestart");
+  }
+}
+
+function resetShootOut({ cancelActive = false } = {}) {
+  if (state.shootOut?.status === "active") {
+    const message = cancelActive
+      ? "Actieve Shoot Out annuleren? Bevestigde uitslagen blijven niet actief."
+      : "Er is een actieve Shoot Out. Nieuwe starten? De huidige uitslagen gaan verloren.";
+    if (!window.confirm(message)) return false;
+  }
+  state.shootOut = cancelActive && state.shootOut ? { ...state.shootOut, status: "cancelled", updatedAt: new Date().toISOString() } : null;
+  state.shootOutCorrupt = false;
+  shootOutSelectedIds = [];
+  shootOutShowBracket = false;
+  resetShootOutDuelDraft();
+  markDirty();
+  render();
+  showToast(cancelActive ? "Shoot Out geannuleerd" : "Kies deelnemers voor een nieuwe Shoot Out");
+  return true;
+}
+
+function syncShootOutConfirmButton() {
+  const match = state.shootOut ? getNextPendingMatch(state.shootOut) : null;
+  const button = $("#shootOutConfirmButton");
+  if (button) button.disabled = !match || !getShootOutDraftWinner(match) || shootOutSaving;
+}
+
+function updateShootOutDuelDraftFromInput(input) {
+  if (input.dataset.shootoutScore) {
+    shootOutDuelDraft[input.dataset.shootoutScore === "A" ? "scoreA" : "scoreB"] = input.value;
+    const scoreA = validateScore(shootOutDuelDraft.scoreA);
+    const scoreB = validateScore(shootOutDuelDraft.scoreB);
+    if (scoreA.valid && scoreB.valid && scoreA.value !== scoreB.value) shootOutDuelDraft.tieBreaks = [];
+  }
+  if (input.dataset.shootoutTiebreak) {
+    const index = Number(input.dataset.tiebreakIndex);
+    const tieBreak = shootOutDuelDraft.tieBreaks[index];
+    if (tieBreak) tieBreak[input.dataset.shootoutTiebreak === "A" ? "scoreA" : "scoreB"] = input.value;
+  }
+  if (shootOutNeedsAnotherTieBreak()) {
+    ensureShootOutTieBreakDraft();
+    renderShootOut();
+    const nextIndex = shootOutDuelDraft.tieBreaks.length - 1;
+    requestAnimationFrame(() => $(`[data-shootout-tiebreak="A"][data-tiebreak-index="${nextIndex}"]`)?.focus());
+  } else {
+    syncShootOutConfirmButton();
+  }
+}
+
+function confirmShootOutMatch() {
+  if (!requireTrainer() || shootOutSaving) return;
+  const shootOut = state.shootOut;
+  const match = shootOut ? getNextPendingMatch(shootOut) : null;
+  if (!match || shootOutDuelDraft.matchId !== match.id) return;
+  const scoreA = validateScore(shootOutDuelDraft.scoreA);
+  const scoreB = validateScore(shootOutDuelDraft.scoreB);
+  if (!scoreA.valid || !scoreB.valid) {
+    showToast(scoreA.message || scoreB.message);
+    return;
+  }
+  const winnerId = getShootOutDraftWinner(match);
+  if (!winnerId) {
+    showToast("Gelijke score – voer een beslissende score in");
+    return;
+  }
+  const winner = winnerId === match.shooterA.shooterId ? match.shooterA : match.shooterB;
+  const tieBreaks = scoreA.value === scoreB.value ? shootOutDuelDraft.tieBreaks : [];
+  const tieSummary = tieBreaks.length
+    ? `\nBeslissing: ${tieBreaks.map((item) => `${item.scoreA} - ${item.scoreB}`).join(" · ")}`
+    : "";
+  const confirmed = window.confirm(
+    `${match.shooterA.displayName}: ${scoreA.value}\n${match.shooterB.displayName}: ${scoreB.value}${tieSummary}\n\nWinnaar: ${winner.displayName}\n\nUitslag definitief opslaan?`,
+  );
+  if (!confirmed) return;
+  shootOutSaving = true;
+  syncShootOutConfirmButton();
+  try {
+    state.shootOut = completeMatch(shootOut, match.id, { scoreA: scoreA.value, scoreB: scoreB.value }, tieBreaks);
+    resetShootOutDuelDraft(getNextPendingMatch(state.shootOut));
+    shootOutShowBracket = false;
+    markDirty();
+    render();
+    showToast(state.shootOut.status === "completed" ? "Shoot Out afgerond" : "Uitslag opgeslagen");
+  } catch (error) {
+    showToast(error.message || "Uitslag kon niet worden opgeslagen");
+  } finally {
+    shootOutSaving = false;
+    syncShootOutConfirmButton();
+  }
+}
+
+document.addEventListener("click", (event) => {
+  const modeButton = event.target.closest("[data-score-mode]");
+  if (modeButton) {
+    scoreEntryMode = modeButton.dataset.scoreMode;
+    render();
+    return;
+  }
+  if (event.target.closest("[data-shootout-start]")) {
+    startSelectedShootOut();
+    return;
+  }
+  if (event.target.closest("[data-shootout-new]")) {
+    resetShootOut();
+    return;
+  }
+  if (event.target.closest("[data-shootout-cancel]")) {
+    resetShootOut({ cancelActive: true });
+    return;
+  }
+  if (event.target.closest("[data-shootout-close]")) {
+    scoreEntryMode = "regular";
+    shootOutShowBracket = false;
+    render();
+    return;
+  }
+  if (event.target.closest("[data-shootout-view-bracket]")) {
+    shootOutShowBracket = true;
+    renderShootOut();
+    return;
+  }
+  if (event.target.closest("[data-shootout-next]")) {
+    $("#shootOutDuelForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+  const correctButton = event.target.closest("[data-shootout-correct]");
+  if (correctButton) {
+    if (!requireTrainer() || !state.shootOut) return;
+    const matchId = correctButton.dataset.shootoutCorrect;
+    const dependentScores = hasCompletedDependentMatches(state.shootOut, matchId);
+    const warning = dependentScores
+      ? "Deze correctie verwijdert reeds ingevoerde uitslagen uit alle afhankelijke vervolgrondes. Doorgaan?"
+      : "Uitslag corrigeren? Eventuele afhankelijke vervolgrondes worden opnieuw opgebouwd.";
+    if (!window.confirm(warning)) return;
+    state.shootOut = rebuildFromCorrectedMatch(state.shootOut, matchId);
+    resetShootOutDuelDraft(getNextPendingMatch(state.shootOut));
+    shootOutShowBracket = true;
+    markDirty();
+    render();
+    showToast("Duel geopend voor correctie");
+  }
+});
+
+$("#shootOutPanel")?.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("[data-shootout-participant]");
+  if (!checkbox) return;
+  if (checkbox.checked) {
+    if (!shootOutSelectedIds.includes(checkbox.value)) shootOutSelectedIds.push(checkbox.value);
+  } else {
+    shootOutSelectedIds = shootOutSelectedIds.filter((id) => id !== checkbox.value);
+  }
+  renderShootOut();
+});
+
+$("#shootOutPanel")?.addEventListener("input", (event) => {
+  const input = event.target.closest("[data-shootout-score], [data-shootout-tiebreak]");
+  if (input) updateShootOutDuelDraftFromInput(input);
+});
+
+$("#shootOutPanel")?.addEventListener("submit", (event) => {
+  if (!event.target.closest("#shootOutDuelForm")) return;
+  event.preventDefault();
+  confirmShootOutMatch();
 });
 
 $("#scoreForm").addEventListener("input", (event) => {
