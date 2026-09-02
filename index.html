@@ -1304,6 +1304,7 @@ select:focus {
 }
 
 .shootout-participant-option {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1314,11 +1315,53 @@ select:focus {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.shootout-participant-option.is-checked {
+  border-color: rgba(245, 197, 24, 0.6);
+  background: rgba(245, 197, 24, 0.1);
+}
+
+/* Native checkbox blijft functioneel (toetsenbordtoegankelijk, klikbaar
+   over het hele label) maar onzichtbaar -- de eigen vinkje-stijl hieronder
+   volgt de rest van de app, i.p.v. het inconsistente ronde systeemvinkje dat
+   iOS/Android er zelf van maken. */
 .shootout-participant-option input {
-  width: 22px;
-  min-height: 22px;
+  position: absolute;
+  inset: 0;
   margin: 0;
-  accent-color: var(--yellow);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.shootout-participant-check {
+  position: relative;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.shootout-participant-option.is-checked .shootout-participant-check {
+  border-color: var(--yellow);
+  background: var(--yellow);
+}
+
+.shootout-participant-check::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  width: 6px;
+  height: 11px;
+  border-right: 2px solid #0b0b0c;
+  border-bottom: 2px solid #0b0b0c;
+  opacity: 0;
+  transform: rotate(40deg);
+}
+
+.shootout-participant-option.is-checked .shootout-participant-check::after {
+  opacity: 1;
 }
 
 .shootout-preview,
@@ -9192,13 +9235,15 @@ function renderShootOutSetup() {
         ${
           activeShooters.length
             ? activeShooters
-                .map(
-                  (shooter) => `
-                    <label class="shootout-participant-option">
-                      <input type="checkbox" value="${escapeHtml(shooter.id)}" data-shootout-participant ${shootOutSelectedIds.includes(shooter.id) ? "checked" : ""} />
+                .map((shooter) => {
+                  const checked = shootOutSelectedIds.includes(shooter.id);
+                  return `
+                    <label class="shootout-participant-option${checked ? " is-checked" : ""}">
+                      <input type="checkbox" value="${escapeHtml(shooter.id)}" data-shootout-participant ${checked ? "checked" : ""} />
+                      <span class="shootout-participant-check" aria-hidden="true"></span>
                       <span>${escapeHtml(shooter.name)}</span>
-                    </label>`,
-                )
+                    </label>`;
+                })
                 .join("")
             : `<p class="notice">Voeg eerst minimaal twee actieve schutters toe.</p>`
         }
@@ -12720,7 +12765,17 @@ $("#shootOutPanel")?.addEventListener("change", (event) => {
   } else {
     shootOutSelectedIds = shootOutSelectedIds.filter((id) => id !== checkbox.value);
   }
+  // renderShootOut() vervangt de hele lijst (.shootout-participants is een
+  // eigen scrollbox van max-height 320px) -- de nieuwe box begint dus altijd
+  // weer bovenaan (scrollTop 0), ook al zat je verderop. Beide scrollposities
+  // vastzetten en na de render terugzetten voorkomt dat je bij het afvinken
+  // van een verder gelegen schutter steeds weer bovenaan uitkomt.
+  const scrollY = window.scrollY;
+  const participantsScrollTop = $(".shootout-participants")?.scrollTop || 0;
   renderShootOut();
+  window.scrollTo(0, scrollY);
+  const participantsBox = $(".shootout-participants");
+  if (participantsBox) participantsBox.scrollTop = participantsScrollTop;
 });
 
 $("#shootOutPanel")?.addEventListener("input", (event) => {
