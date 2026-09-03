@@ -1268,6 +1268,32 @@ select:focus {
   box-shadow: var(--shadow-yellow);
 }
 
+/* Zelfde look als de score-mode-tabs (Normale score/Shoot Out) hierboven --
+   bewust hergebruikt zodat dit als hetzelfde soort keuze oogt -- maar dan
+   groter: dit is de keuze (korte/lange baan) die bepaalt welk hele
+   formulier eronder verschijnt, en verdween eerder te makkelijk weg tussen
+   de andere, kleinere velden als gewone dropdown. */
+#scoreStageField {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+#scoreStageField > span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.score-stage-tabs {
+  margin-bottom: 0;
+}
+
+.score-stage-tabs button {
+  min-height: 68px;
+  font-size: 1.1rem;
+}
+
 .shootout-panel {
   display: grid;
   gap: 14px;
@@ -5377,10 +5403,10 @@ dialog .primary-action::after {
                   <option value="Duo-Duo">Duo-Duo</option>
                 </select>
               </label>
-              <label id="scoreStageField" hidden>
+              <div id="scoreStageField" hidden>
                 <span>Onderdeel</span>
-                <select id="scoreStage"></select>
-              </label>
+                <div class="score-mode-tabs score-stage-tabs" id="scoreStageTabs" role="tablist" aria-label="Onderdeel"></div>
+              </div>
             </div>
 
             <p class="duplicate-score-warning-pink" id="internalDuplicateScoreNotice" hidden></p>
@@ -8832,14 +8858,17 @@ function renderSelects() {
   const levelOptionsHtml = activeLevelOptions
     .map((level) => `<option value="${level}">${internal ? getInternalClassLabel(level) : level}</option>`)
     .join("");
-  const stageOptionsHtml = INTERNAL_COMPETITION_CONFIG.stages
-    .map((stage) => `<option value="${stage.id}">${stage.label}</option>`)
+  const stageTabsHtml = INTERNAL_COMPETITION_CONFIG.stages
+    .map(
+      (stage) =>
+        `<button type="button" role="tab" aria-selected="false" data-score-stage="${stage.id}">${escapeHtml(stage.label.split(" - ")[0])}</button>`,
+    )
     .join("");
 
   $("#rankLevel").innerHTML = `<option value="all">${internal ? "Alle klassen" : "Alle niveaus"}</option>${levelOptionsHtml}`;
   $("#scoreShooter").innerHTML = shooterOptions;
   $("#scoreDiscipline").innerHTML = disciplineOptionsHtml;
-  $("#scoreStage").innerHTML = stageOptionsHtml;
+  $("#scoreStageTabs").innerHTML = stageTabsHtml;
   $("#timerShooter").innerHTML = shooterOptions;
   $("#rankDiscipline").innerHTML = [
     `<option value="all">Alle disciplines</option>`,
@@ -8867,7 +8896,11 @@ function renderSelects() {
   $("#scoreShooter").value = scoreDraft.shooterId;
   syncScoreOpticToggle();
   $("#scoreDiscipline").value = scoreDraft.discipline;
-  $("#scoreStage").value = scoreDraft.stageId;
+  $$("#scoreStageTabs button").forEach((button) => {
+    const active = button.dataset.scoreStage === scoreDraft.stageId;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
   $("#scoreTime").value = scoreDraft.time;
   $("#maxTimeButton").disabled = !(Number(state.maxRoundTime) > 0);
   $("#scoreFlexPoints").value = scoreDraft.flexPoints;
@@ -12892,8 +12925,46 @@ $("#shootOutPanel")?.addEventListener("submit", (event) => {
   confirmShootOutMatch();
 });
 
+// Vroeger een <select id="scoreStage">, nu grote tegel-knoppen (zie
+// #scoreStageTabs) zodat de keuze korte/lange baan -- die bepaalt welk hele
+// formulier eronder verschijnt -- niet meer wegviel tussen de andere,
+// kleinere velden. Zelfde bijwerkingen als voorheen bij het wisselen van
+// onderdeel (rawPoints clampen, tijd/strafpunten/kaart resetten bij
+// precisie).
+function selectInternalScoreStage(stageId) {
+  scoreDraft.stageId = stageId;
+  const stage = getInternalStage(stageId);
+  const rawPoints = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
+  scoreDraft.rawPoints = String(Math.min(stage.maxPoints, rawPoints));
+  if (stage.scoringType === "precision") {
+    scoreDraft.time = "";
+    scoreDraft.penaltyPoints = "";
+    scoreDraft.cardHits = [];
+    scoreDraft.longCourseHits = createEmptyLongCourseHits();
+    scoreDraft.longCourseStages = createEmptyLongCourseStages();
+  }
+  clearScoreSignatureAfterChange();
+  // renderSelects() (die deze knoppen normaal opnieuw opbouwt/synct) draait
+  // alleen als onderdeel van de volledige render(), niet van renderScores()
+  // hieronder -- dus hier expliciet de actieve knop bijwerken, anders bleef
+  // de vorige knop geel staan terwijl het formulier al was omgeschakeld.
+  $$("#scoreStageTabs button").forEach((button) => {
+    const active = button.dataset.scoreStage === stageId;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  renderScores();
+  renderIpadResultView();
+}
+
+$("#scoreStageTabs")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-score-stage]");
+  if (!button) return;
+  selectInternalScoreStage(button.dataset.scoreStage);
+});
+
 $("#scoreForm").addEventListener("input", (event) => {
-  if (["scoreShooter", "scoreDiscipline", "scoreStage", "scoreTime", "scoreFlexPoints", "scoreRawPoints", "scorePenaltyPoints"].includes(event.target.id)) {
+  if (["scoreShooter", "scoreDiscipline", "scoreTime", "scoreFlexPoints", "scoreRawPoints", "scorePenaltyPoints"].includes(event.target.id)) {
     clearScoreSignatureAfterChange();
   }
   if (event.target.id === "scoreShooter") {
@@ -12907,19 +12978,6 @@ $("#scoreForm").addEventListener("input", (event) => {
   if (event.target.id === "scoreDiscipline") {
     scoreDraft.discipline = isInternalCompetitionClub() ? normalizeInternalDiscipline(event.target.value) : normalizeDiscipline(event.target.value);
   }
-    if (event.target.id === "scoreStage") {
-      scoreDraft.stageId = event.target.value;
-      const stage = getInternalStage(scoreDraft.stageId);
-      const rawPoints = Math.max(0, parseDecimal(scoreDraft.rawPoints) || 0);
-      scoreDraft.rawPoints = String(Math.min(stage.maxPoints, rawPoints));
-      if (stage.scoringType === "precision") {
-        scoreDraft.time = "";
-        scoreDraft.penaltyPoints = "";
-        scoreDraft.cardHits = [];
-        scoreDraft.longCourseHits = createEmptyLongCourseHits();
-        scoreDraft.longCourseStages = createEmptyLongCourseStages();
-      }
-    }
   if (event.target.id === "scoreTime") scoreDraft.time = event.target.value;
   if (event.target.id === "scoreFlexPoints") scoreDraft.flexPoints = event.target.value;
   if (event.target.id === "scoreRawPoints") {
@@ -12937,7 +12995,7 @@ $("#scoreForm").addEventListener("input", (event) => {
 });
 
 $("#scoreForm").addEventListener("change", (event) => {
-  if (!["scoreShooter", "scoreDiscipline", "scoreStage"].includes(event.target.id)) return;
+  if (!["scoreShooter", "scoreDiscipline"].includes(event.target.id)) return;
   event.target.dispatchEvent(new Event("input", { bubbles: true }));
 });
 
