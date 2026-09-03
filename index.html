@@ -6513,6 +6513,22 @@ let signaturePad = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+// Onderdrukt een tweede knoptik binnen 320ms (voorkomt dat iOS' dubbeltik-
+// naar-zoomen af en toe als twee losse taps op een knop binnenkomt). Elk
+// gebied met knoppen die je bewust snel na elkaar tikt (tellers, stappers,
+// Shoot Out) moet hier expliciet worden uitgezonderd -- vergeet je dat, dan
+// oogt zo'n knop als "reageert traag/doet niks" (zo ontdekt bij de APS- en
+// Shoot Out-knoppen). Nieuw zo'n gebied? Voeg het hier toe.
+//
+// Let op: NIET vervangen door een generieke klasse-check (bijv. ".mini-
+// action") om de lijst korter te maken -- diezelfde klassen worden ook
+// gebruikt voor knoppen die je juist NIET snel na elkaar tikt (Wijzig,
+// Handtekening, Wissen, ...), en die moeten de dubbeltik-bescherming
+// gewoon houden. Alleen uitzonderen op basis van een klasse/attribuut die
+// UITSLUITEND op snel-na-elkaar-getikte knoppen voorkomt (of, zoals bij
+// Shoot Out, een heel paneel waarvan de acties zelf al idempotent zijn --
+// completeMatch() gooit een fout bij een dubbele bevestiging in plaats van
+// het duel twee keer te verwerken).
 document.addEventListener(
   "touchend",
   (event) => {
@@ -7220,6 +7236,19 @@ function mergeLiveFocus(localFocus, remoteFocus) {
   return { ...pick("shortShooterId", "shortAt"), ...pick("longShooterId", "longAt") };
 }
 
+// LET OP bij het toevoegen van een nieuw top-level veld aan defaultData: als
+// het iets is dat een trainer tijdens een sessie snel na elkaar vanaf
+// meerdere apparaten kan wijzigen (zoals scores, liveFocus, shootOut), volgt
+// het via de spread hieronder blind de tijdstempel van de HELE state, niet
+// zijn eigen tijdstempel. Een compleet ongerelateerde wijziging op een ander
+// apparaat kan dan zo'n veld laten terugspringen naar een oudere waarde,
+// zonder foutmelding. Dat is precies gebeurd met APS-scorevelden (competitionId
+// e.d. werden leeggemaakt) en met shootOut (een net bevestigd duel-resultaat
+// verdween weer) -- allebei pas gevonden nadat het al live fout ging. Nieuw
+// zo'n veld? Voeg het hier expliciet toe met zijn eigen merge-strategie (zie
+// mergeLiveFocus/mergeShootOut als voorbeeld), of documenteer bewust waarom
+// "hele state nieuwer wint" hier oké is (bijv. voor zelden-wijzigende
+// instellingen als timerPar/points/penalties).
 function mergeSyncStates(localState, remoteState) {
   const localAt = String(localState.updatedAt || "");
   const remoteAt = String(remoteState.updatedAt || "");
