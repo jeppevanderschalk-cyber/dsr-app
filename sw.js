@@ -1,9 +1,10 @@
-const CACHE_NAME = "dsr-score-cache-v141";
+const CACHE_NAME = "dsr-score-cache-v142";
 const ASSETS = [
   "./",
   "index.html",
   "manifest.webmanifest",
   "shootout-domain.mjs",
+  "internal-competition-domain.mjs",
   "dsr-logo.jpeg",
   "logo-SVBB.png",
   "aps-logo.png",

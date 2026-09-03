@@ -6072,6 +6072,7 @@ import {
   rebuildFromCorrectedMatch,
   validateScore,
 } from "./shootout-domain.mjs";
+import { computeStageContribution } from "./internal-competition-domain.mjs";
 
 const STORAGE_KEY = "dsr-score-app-v5";
 const AUTH_STORAGE_KEY = "dsr-app-auth-v3";
@@ -8467,17 +8468,16 @@ function getCurrentTrainingRanking(filters = {}) {
 // Zelfde bijdrage-formule als in getInternalCompetitionRanking, maar herbruikbaar
 // voor een willekeurige score (o.a. om de hypothetische bijdrage van een extra
 // ronde te bepalen zonder de echte eindstand te beïnvloeden).
+//
+// De eigenlijke berekening staat in internal-competition-domain.mjs (los
+// getest, zie internal-competition-domain.test.mjs): dit is bewust een dunne
+// wrapper die alleen de gewichten uit INTERNAL_COMPETITION_CONFIG erbij
+// haalt, zodat elke aanroep hier verder ongewijzigd blijft werken.
 function getInternalStageContribution(stage, score, dynamicFastestTimeByStage) {
-  if (!score) return { contribution: 0 };
-  if (stage.scoringType === "precision") {
-    const percentage = Math.min(100, ((score.net || 0) / stage.maxPoints) * 100);
-    return { contribution: (percentage / 100) * getPrecisionStageWeight() };
-  }
-  const precisionPercentage = Math.min(100, ((score.net || 0) / stage.maxPoints) * 100);
-  const fastestTime = dynamicFastestTimeByStage.get(stage.id) || 0;
-  const speedPercentage = score.time > 0 && fastestTime > 0 ? Math.min(100, (fastestTime / score.time) * 100) : 0;
-  const percentage = precisionPercentage * 0.7 + speedPercentage * 0.3;
-  return { contribution: (Math.min(100, percentage) / 100) * INTERNAL_COMPETITION_CONFIG.dynamicWeight * (stage.weight / 100) };
+  return computeStageContribution(stage, score, dynamicFastestTimeByStage, {
+    precisionStageWeight: getPrecisionStageWeight(),
+    dynamicWeight: INTERNAL_COMPETITION_CONFIG.dynamicWeight,
+  });
 }
 
 function getInternalCompetitionRanking(filters = {}) {
