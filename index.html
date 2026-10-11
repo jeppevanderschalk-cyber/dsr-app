@@ -11,10 +11,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="apple-touch-icon" sizes="180x180" href="svbb-app-icon-v5-180.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="svbb-app-icon-v5-32.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="svbb-app-icon-v5-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="svbb-app-icon-v5-512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="dsr-app-icon-v7-180.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="dsr-app-icon-v7-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="dsr-app-icon-v7-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="dsr-app-icon-v7-512.png" />
     <link rel="manifest" href="manifest.webmanifest" />
     <style>
 :root {
@@ -4480,6 +4480,14 @@ dialog .primary-action::after {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.34);
 }
 
+.login-logo.is-svbb-login-logo {
+  width: min(100%, 260px);
+  height: auto;
+  border-radius: 0;
+  object-fit: contain;
+  box-shadow: none;
+}
+
 .login-logo.is-competition-login-logo {
   width: min(100%, 260px);
   height: 130px;
@@ -5233,7 +5241,7 @@ dialog .primary-action::after {
   <body>
     <div class="login-gate" id="loginGate">
       <form class="login-card" id="loginForm">
-        <img src="svbb-login-logo-v6.png" alt="SVBB" class="login-logo is-club-logo" id="loginLogo" />
+        <img src="svbb-login-logo-v7.jpg" alt="SVBB" class="login-logo is-club-logo is-svbb-login-logo" id="loginLogo" />
         <h2 id="loginTitle">DSR score</h2>
         <p class="muted">Log in met je vereniging en rol.</p>
         <label>
@@ -6977,7 +6985,7 @@ function updateBrandLogos(clubId = currentClubId) {
   if (loginLogo) {
     const isAps = code === "APS-DSR";
     const isGuest = code === "GAST-GEBRUIKER";
-    let loginLogoSrc = "svbb-login-logo-v6.png";
+    let loginLogoSrc = "svbb-login-logo-v7.jpg";
     let loginLogoAlt = "SVBB";
     if (isCompetition) {
       loginLogoSrc = "svbb-beamer-logo-v2.png";
@@ -6990,6 +6998,7 @@ function updateBrandLogos(clubId = currentClubId) {
       loginLogoAlt = "SVBB gast gebruiker";
     }
     loginLogo.classList.toggle("is-club-logo", useClubLogo && !isCompetition);
+    loginLogo.classList.toggle("is-svbb-login-logo", !isCompetition && !isAps && !isGuest);
     loginLogo.classList.toggle("is-competition-login-logo", isCompetition);
     loginLogo.classList.toggle("is-guest-login-logo", isGuest);
     applyBrandLogo(loginLogo, loginLogoSrc, loginLogoAlt);
