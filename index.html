@@ -4558,8 +4558,8 @@ dialog .primary-action::after {
 
 .login-logo.is-competition-login-logo {
   width: min(100%, 260px);
-  height: 130px;
-  border-radius: 14px;
+  height: auto;
+  border-radius: 0;
   object-fit: contain;
 }
 
@@ -7067,7 +7067,7 @@ function updateBrandLogos(clubId = currentClubId) {
     let loginLogoSrc = "svbb-login-logo-v7.jpg";
     let loginLogoAlt = "SVBB";
     if (isCompetition) {
-      loginLogoSrc = "svbb-beamer-logo-v2.png";
+      loginLogoSrc = "svbb-competition-christmas-logo-v2.png";
       loginLogoAlt = "SVBB competitie";
     } else if (isAps) {
       loginLogoSrc = BRAND_LOGOS.aps;
