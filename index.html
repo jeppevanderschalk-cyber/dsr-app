@@ -10,7 +10,7 @@
     <title>DSR score</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet" />
     <link rel="apple-touch-icon" sizes="180x180" href="dsr-app-icon-v7-180.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="dsr-app-icon-v7-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="dsr-app-icon-v7-192.png" />
@@ -4514,6 +4514,7 @@ dialog .primary-action::after {
 }
 
 .login-gate {
+  overflow-y: auto;
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -4525,6 +4526,7 @@ dialog .primary-action::after {
 }
 
 .login-card {
+  margin-block: auto;
   width: min(100%, 380px);
   display: grid;
   gap: 16px;
@@ -4580,6 +4582,28 @@ dialog .primary-action::after {
   font-size: 0.9rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.login-card h2.is-christmas-title {
+  font-family: "Mountains of Christmas", "Apple Chancery", "Brush Script MT", cursive;
+  font-size: clamp(2.3rem, 9vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #fff1bd;
+  text-shadow: 0 2px 0 #754018, 0 0 18px rgba(245, 197, 24, 0.26);
+}
+
+.login-card h2.is-christmas-title::before,
+.login-card h2.is-christmas-title::after {
+  content: "✦";
+  display: inline-block;
+  margin: 0 0.4em;
+  color: #f5c518;
+  font-family: Georgia, serif;
+  font-size: 0.4em;
+  vertical-align: middle;
 }
 
 .login-card label {
@@ -6966,7 +6990,7 @@ function getModeCopy(clubId = currentClubId) {
   return isCompetition
     ? {
         appName: "SVBB competitie",
-        loginTitle: "SVBB competitie",
+        loginTitle: "Kers editie",
         eyebrow: "Competitie",
         homeTitle: "Interne competitie",
         homeSubtitle: "Competitie en onderlinge vergelijking binnen de vereniging.",
@@ -7106,6 +7130,7 @@ function applyModeCopy(clubId = currentClubId) {
   $("#loginTitle").textContent = copy.loginTitle;
   $("#loginTitle").hidden = isGuest;
   $("#loginTitle").classList.toggle("is-competition-title", isCompetition);
+  $("#loginTitle").classList.toggle("is-christmas-title", normalizeClubCode(clubId) === "INTERNE-COMPETITIE");
   $("#homeEyebrow").textContent = copy.eyebrow;
   $("#home-title").textContent = copy.homeTitle;
   $("#homeSubtitle").textContent = copy.homeSubtitle;
