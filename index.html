@@ -2531,6 +2531,74 @@ select:focus {
   box-shadow: var(--shadow-yellow);
 }
 
+.dsr-rader-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  background: #19191c;
+  color: #fff;
+  text-decoration: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.dsr-rader-card:hover,
+.dsr-rader-card:focus-visible {
+  border-color: var(--yellow);
+  background: #222225;
+}
+
+.dsr-rader-card:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 3px;
+}
+
+.dsr-rader-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: rgba(245, 197, 24, 0.1);
+  color: var(--yellow);
+}
+
+.dsr-rader-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dsr-rader-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.dsr-rader-copy strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.dsr-rader-copy small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.dsr-rader-arrow {
+  color: var(--muted);
+  font-size: 1.3rem;
+}
+
 .more-panel {
   margin-top: 20px;
 }
@@ -5670,16 +5738,19 @@ dialog .primary-action::after {
             <button type="button" data-more-tab="timer">Timer</button>
             <button type="button" data-more-tab="progress">Rondes</button>
             <button type="button" data-more-tab="dashboard">Analyse</button>
-            <button type="button" data-more-tab="matches">Wedstrijden</button>
             <button type="button" data-more-tab="settings">Set-up</button>
           </div>
 
-          <section class="more-panel" id="more-matches" aria-labelledby="matches-title">
-            <div class="section-heading">
-              <h3 id="matches-title">Wedstrijden</h3>
-            </div>
-            <a class="primary-action" href="https://dsr.zeroassets.dev/" target="_blank" rel="noopener noreferrer">DSR-rader</a>
-          </section>
+          <a class="dsr-rader-card" href="https://dsr.zeroassets.dev/" target="_blank" rel="noopener noreferrer" aria-label="DSR-rader: bekijk wedstrijden en informatie (opent in een nieuw tabblad)">
+            <span class="dsr-rader-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="M12 12 19 5M12 3v2M21 12h-2M12 21v-2M3 12h2" /></svg>
+            </span>
+            <span class="dsr-rader-copy">
+              <strong>DSR-rader</strong>
+              <small>Bekijk wedstrijden en informatie</small>
+            </span>
+            <span class="dsr-rader-arrow" aria-hidden="true">↗</span>
+          </a>
 
           <section class="more-panel is-active" id="more-shooters">
             <div class="section-heading">
