@@ -16,6 +16,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="dsr-app-icon-v7-192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="dsr-app-icon-v7-512.png" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="christmas-entry.css" />
     <style>
 :root {
   color-scheme: dark;
@@ -5448,6 +5449,7 @@ dialog .primary-action::after {
           <div class="score-mode-tabs" id="scoreModeTabs" role="tablist" aria-label="Scoreformulier opties" data-aps-hidden>
             <button class="is-active" type="button" role="tab" aria-selected="true" data-score-mode="regular">Normale score</button>
             <button type="button" role="tab" aria-selected="false" data-score-mode="shootout">Shoot Out</button>
+            <button type="button" role="tab" aria-selected="false" data-score-mode="christmas" hidden>Christmas editie</button>
           </div>
 
           <form id="scoreForm" class="score-form" data-trainer-only data-aps-hidden>
@@ -5598,6 +5600,8 @@ dialog .primary-action::after {
             </button>
           </form>
 
+          <section id="christmasPanel" aria-label="Christmas editie" hidden></section>
+
           <section class="shootout-panel" id="shootOutPanel" aria-label="Shoot Out" data-aps-hidden hidden>
             <div id="shootOutContent"></div>
           </section>
@@ -5664,7 +5668,7 @@ dialog .primary-action::after {
             </button>
           </form>
 
-          <section class="section-block">
+          <section class="section-block" id="regularScoreProgress">
             <div class="section-heading">
               <h3>Progressie per schutter</h3>
             </div>
@@ -6186,6 +6190,8 @@ import {
   validateScore,
 } from "./shootout-domain.mjs";
 import { computeStageContribution } from "./internal-competition-domain.mjs";
+import { CHRISTMAS_COMPETITION_ID, normalizeChristmasRules } from "./christmas-course.mjs";
+import { createChristmasEntry } from "./christmas-entry.mjs";
 
 const STORAGE_KEY = "dsr-score-app-v5";
 const AUTH_STORAGE_KEY = "dsr-app-auth-v3";
@@ -6596,6 +6602,7 @@ let currentClubId = normalizeClubCode(localStorage.getItem(CLUB_STORAGE_KEY) || 
 let state = loadState();
 let scoreDraft = createEmptyDraft();
 let scoreEntryMode = "regular";
+let christmasEntry = null;
 let shootOutSelectedIds = [];
 let shootOutShowBracket = false;
 let shootOutSaving = false;
@@ -7386,6 +7393,12 @@ function mergeSyncStates(localState, remoteState) {
     // laten verdwijnen. mergeShootOut vergelijkt de eigen updatedAt van de
     // Shoot Out zelf, net als mergeLiveFocus dat voor de live-focus doet.
     shootOut: mergeShootOut(localState.shootOut, remoteState.shootOut),
+    // Puntentelling heeft een eigen tijdstempel: een score op een ander
+    // toestel mag een recent ingestelde kerstpuntentelling niet terugzetten.
+    christmasRules: normalizeChristmasRules(
+      String(localState.christmasRules?.updatedAt || "") >= String(remoteState.christmasRules?.updatedAt || "")
+        ? localState.christmasRules : remoteState.christmasRules,
+    ),
     deletedIds,
     updatedAt: localNewer ? localAt : remoteAt,
   };
@@ -7877,6 +7890,7 @@ function describeScoreChanges(oldScore, newScore) {
 }
 
 function scoreLogContext(score, shooter = getShooter(score?.shooterId)) {
+  if (score?.competitionId === CHRISTMAS_COMPETITION_ID) return "Christmas editie";
   if (score?.stageId && score.competitionId === INTERNAL_COMPETITION_CONFIG.competitionId) return getInternalStage(score.stageId).label;
   if (score?.competitionId === APS_COMPETITION_CONFIG.competitionId) return "DSR wedstrijd SVBB";
   const discipline = getScoreDiscipline(score, shooter);
@@ -9610,17 +9624,21 @@ function renderShootOut() {
 // er geen gebruik voor, dus de tab/het paneel blijven daar helemaal weg.
 function renderScoreMode() {
   const shootOutAllowed = isSvbbClub();
-  if (!shootOutAllowed) scoreEntryMode = "regular";
+  const christmasAllowed = isInternalCompetitionClub();
+  if ((!shootOutAllowed && scoreEntryMode === "shootout") || (!christmasAllowed && scoreEntryMode === "christmas")) scoreEntryMode = "regular";
   const shootOutMode = shootOutAllowed && scoreEntryMode === "shootout";
+  const christmasMode = christmasAllowed && scoreEntryMode === "christmas";
   const tabs = $("#scoreModeTabs");
-  if (tabs) tabs.hidden = !shootOutAllowed;
+  if (tabs) tabs.hidden = !shootOutAllowed && !christmasAllowed;
   $$("[data-score-mode]").forEach((button) => {
+    button.hidden = button.dataset.scoreMode === "shootout" ? !shootOutAllowed : button.dataset.scoreMode === "christmas" ? !christmasAllowed : false;
     const active = button.dataset.scoreMode === scoreEntryMode;
     button.classList.toggle("is-active", active);
     button.setAttribute("aria-selected", String(active));
   });
   const regularForm = $("#scoreForm");
-  if (regularForm) regularForm.hidden = isApsCompetitionClub() || shootOutMode;
+  if (regularForm) regularForm.hidden = isApsCompetitionClub() || shootOutMode || christmasMode;
+  christmasEntry?.render(christmasMode);
   const shootOutPanel = $("#shootOutPanel");
   if (shootOutPanel) shootOutPanel.hidden = !shootOutAllowed || !shootOutMode;
   return shootOutMode;
@@ -9630,9 +9648,14 @@ function renderScores() {
   const apsMode = isApsCompetitionClub();
   const shootOutMode = renderScoreMode();
   const recentList = $("#recentScores");
-  if (recentList) recentList.hidden = apsMode;
+  if (recentList) recentList.hidden = apsMode || (isInternalCompetitionClub() && scoreEntryMode === "christmas");
   const apsRecentList = $("#apsRecentScores");
   if (apsRecentList) apsRecentList.hidden = !apsMode;
+  $("#regularScoreProgress").hidden = isInternalCompetitionClub() && scoreEntryMode === "christmas";
+  if (isInternalCompetitionClub() && scoreEntryMode === "christmas") {
+    $("#ipadResultButton").hidden = true;
+    return;
+  }
   if (apsMode) {
     renderApsEntry();
     renderApsRecentScores();
@@ -13290,6 +13313,10 @@ $("#scoreForm").addEventListener("submit", (event) => {
 });
 
 $("#resetScoreButton").addEventListener("click", () => {
+  if (isInternalCompetitionClub() && scoreEntryMode === "christmas") {
+    christmasEntry?.reset();
+    return;
+  }
   scoreDraft = createEmptyDraft();
   clearScoreSignature();
   render();
@@ -13766,6 +13793,8 @@ function startApp(role, clubCode = DEFAULT_CLUB_CODE) {
   localStorage.setItem(CLUB_STORAGE_KEY, currentClubId);
   updateBrandLogos(currentClubId);
   state = loadState();
+  scoreEntryMode = "regular";
+  christmasEntry?.reset("");
   scoreDraft = createEmptyDraft();
   lastSyncedAt = "";
   syncStatus = "Live synchronisatie controleren...";
@@ -13870,6 +13899,75 @@ $("#copyIbanButton").addEventListener("click", async () => {
   } catch {
     showToast("IBAN: NL89INGB0796202257");
   }
+});
+
+christmasEntry = createChristmasEntry($("#christmasPanel"), {
+  getState: () => state,
+  isInternal: isInternalCompetitionClub,
+  canEdit: () => isTrainer() && isInternalCompetitionClub(),
+  toast: showToast,
+  saveRules: (rules) => {
+    if (!isInternalCompetitionClub() || !requireTrainer()) return;
+    if (state.scores.some((score) => score.competitionId === CHRISTMAS_COMPETITION_ID)) throw new Error("Puntentelling is vastgezet");
+    state.christmasRules = rules;
+    markDirty();
+    saveState();
+  },
+  save: ({ draft, calc, rules, signatureDataUrl }) => {
+    if (!isInternalCompetitionClub() || !requireTrainer()) throw new Error("Alleen trainers van de interne competitie kunnen kerstscores opslaan");
+    const existing = draft.editScoreId ? state.scores.find((score) => score.id === draft.editScoreId && score.competitionId === CHRISTMAS_COMPETITION_ID) : null;
+    if (draft.editScoreId && !existing) throw new Error("Deze kerstscore bestaat niet meer");
+    const now = new Date().toISOString();
+    const savedScore = {
+      id: existing?.id || createId("christmas"),
+      competitionId: CHRISTMAS_COMPETITION_ID,
+      stageId: "christmas-course",
+      scoringType: rules.scoring,
+      inputMode: "christmas",
+      shooterId: draft.shooterId,
+      discipline: "Interne competitie",
+      christmasHits: { ...draft.hits },
+      christmasRules: rules,
+      christmasResult: calc.result,
+      rawPoints: calc.rawPoints,
+      penaltyPoints: calc.penaltyPoints,
+      net: calc.net,
+      time: calc.time,
+      hitfactor: calc.hitfactor,
+      status: draft.status,
+      notes: draft.notes,
+      signatureDataUrl,
+      signedAt: now,
+      agreementText: "Christmas editie: score en tijd akkoord door schutter",
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+    if (existing) state.scores = state.scores.map((score) => score.id === existing.id ? savedScore : score);
+    else state.scores.push(savedScore);
+    // Leg ook de voorlopig gekozen regels vast zodra de wedstrijd begint.
+    state.christmasRules = { ...rules, updatedAt: state.christmasRules?.updatedAt || now };
+    logChange({ action: existing ? "edit" : "create", shooter: getShooter(savedScore.shooterId)?.name, context: "Christmas editie", changes: [`${formatNumber(calc.net, 0)} netto punten · ${formatNumber(calc.time, 2)} sec · eindscore ${formatNumber(calc.result, 3)}`] });
+    markDirty();
+    saveState();
+    render();
+    showToast("Kerstscore lokaal opgeslagen · cloud bevestigen…");
+    Promise.resolve(pushRemoteState({ force: true, expectedScoreIds: [savedScore.id] })).then((confirmed) => {
+      showToast(confirmed ? "Kerstscore opgeslagen en gesynchroniseerd" : "Kerstscore staat lokaal; controleer de synchronisatiestatus");
+    }).catch(() => showToast("Kerstscore staat lokaal; cloudopslag nog niet bevestigd"));
+  },
+  remove: (id) => {
+    if (!isInternalCompetitionClub() || !requireTrainer()) return false;
+    const score = state.scores.find((item) => item.id === id && item.competitionId === CHRISTMAS_COMPETITION_ID);
+    if (!score || !window.confirm("Deze kerstscore verwijderen? Bij verwijderen van de eerste ronde gaat de volgende ronde meetellen.")) return false;
+    recordDeletion(score.id);
+    state.scores = state.scores.filter((item) => item.id !== score.id);
+    logChange({ action: "delete", shooter: getShooter(score.shooterId)?.name, context: "Christmas editie", changes: ["kerstscore verwijderd"] });
+    markDirty();
+    saveState();
+    render();
+    showToast("Kerstscore verwijderd");
+    return true;
+  },
 });
 
 const storedAuth = parseStoredAuth(localStorage.getItem(AUTH_STORAGE_KEY));
